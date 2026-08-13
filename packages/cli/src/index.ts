@@ -18,6 +18,7 @@ import {
 import { stamp, verify, verifySteps } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
+import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
 
 export const VERSION = '0.1.0';
 
@@ -26,6 +27,8 @@ export interface IO {
   writeFile(path: string, content: string): Promise<void>;
   now(): string; // YYYY-MM-DD
   env: Record<string, string | undefined>;
+  /** Run a shell command and capture its result. Optional: not every IO needs it. */
+  exec?(cmd: string): Promise<ExecResult>;
 }
 
 export interface RunResult {
@@ -93,6 +96,7 @@ Commands:
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
+  verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
   tui             [--path LEDGER.md] [--no-color]      Render the dashboard
   version | --version                                  Print version
   help    | --help                                     This help
@@ -259,6 +263,37 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         sink.error('witness: expected sub-command stamp|verify');
         return { code: 1, out: sink.out, err: sink.err };
+      }
+
+      case 'verify-entrypoint': {
+        const label = _[1];
+        const cmd = flags.cmd as string | undefined;
+        if (!label || !cmd) {
+          sink.error('usage: dream-machine verify-entrypoint <label> --cmd "<command>"');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        if (_.length > 2) {
+          // An unquoted multi-word --cmd (e.g. `--cmd npx @metaharness/redblue` with no
+          // quotes/`=`) gets word-split by the shell before argv reaches us: `--cmd` only
+          // absorbs the next single token, and the rest land here as stray positionals.
+          // Silently proceeding on a truncated command (e.g. running bare `npx`) can itself
+          // produce a false "live" verdict — exactly the failure mode this tool exists to
+          // catch — so treat extra positionals as a hard usage error instead.
+          sink.error(
+            `verify-entrypoint: unexpected extra argument(s) ${JSON.stringify(_.slice(2))} — ` +
+              `did you forget to quote --cmd? usage: dream-machine verify-entrypoint <label> --cmd "<command>"`,
+          );
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        if (!io.exec) {
+          sink.error('verify-entrypoint: this IO has no exec() — cannot run commands');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        const result = await io.exec(cmd);
+        const check = classifyEntrypointResult(result);
+        sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
+        const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+        return { code, out: sink.out, err: sink.err };
       }
 
       case 'tui': {

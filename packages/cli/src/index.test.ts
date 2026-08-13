@@ -164,6 +164,64 @@ describe('witness', () => {
   });
 });
 
+describe('verify-entrypoint', () => {
+  function mockIOWithExec(exec: IO['exec']): IO {
+    return { ...mockIO(), exec };
+  }
+
+  it('reports live for a command that produces output and exits 0', async () => {
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: 'ok', stderr: '' }));
+    const r = await run(['verify-entrypoint', 'bench', '--cmd', 'npm test'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+  });
+
+  it('reports blocked for a nonzero exit', async () => {
+    const io = mockIOWithExec(async () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'npm error could not determine executable to run',
+    }));
+    const r = await run(['verify-entrypoint', 'flywheel', '--cmd', 'npx @metaharness/flywheel'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('flywheel: blocked');
+  });
+
+  it('reports suspicious-silent (not live) for exit 0 with no output', async () => {
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const r = await run(['verify-entrypoint', 'redblue', '--cmd', 'npx @metaharness/redblue'], io);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('redblue: suspicious-silent');
+    expect(r.out).toContain('do not record EVALUATED=yes');
+  });
+
+  it('errors without --cmd', async () => {
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const r = await run(['verify-entrypoint', 'redblue'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('usage:');
+  });
+
+  it('rejects an unquoted multi-word --cmd instead of silently truncating it', async () => {
+    // Regression test: `verify-entrypoint redblue --cmd npx @metaharness/redblue` (no
+    // quotes/`=`) used to let --cmd absorb only "npx" and silently drop
+    // "@metaharness/redblue" as a stray positional — running bare `npx` (which prints its
+    // own usage text and exits 0) then misreported a false "live" verdict for the exact
+    // silent-failure this tool exists to catch.
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: 'npx usage text', stderr: '' }));
+    const r = await run(['verify-entrypoint', 'redblue', '--cmd', 'npx', '@metaharness/redblue'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('unexpected extra argument');
+    expect(r.out).not.toContain('live');
+  });
+
+  it('errors when the IO has no exec()', async () => {
+    const r = await run(['verify-entrypoint', 'redblue', '--cmd', 'echo hi'], mockIO());
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no exec()');
+  });
+});
+
 describe('tui', () => {
   it('renders a dashboard from a ledger', async () => {
     const md = appendRow(emptyLedger(), sampleRow());
