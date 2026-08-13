@@ -2,24 +2,75 @@
   "repo": "ruvnet/dream-machine",
   "cron": "0 9 * * *",
   "slots": [
-    { "deep": "compiler-parity", "scan": ["config-schema", "golden-snapshots"] },
-    { "deep": "ledger-signals", "scan": ["witness", "verify"] },
-    { "deep": "evaluation-adapters", "scan": ["flywheel", "darwin"] },
-    { "deep": "security-adversarial", "scan": ["redblue", "supply-chain"] },
-    { "deep": "developer-experience", "scan": ["cli", "tui"] }
+    {
+      "deep": "compiler-parity",
+      "scan": [
+        "config-schema",
+        "golden-snapshots"
+      ]
+    },
+    {
+      "deep": "ledger-signals",
+      "scan": [
+        "witness",
+        "verify"
+      ]
+    },
+    {
+      "deep": "evaluation-adapters",
+      "scan": [
+        "flywheel",
+        "darwin"
+      ]
+    },
+    {
+      "deep": "security-adversarial",
+      "scan": [
+        "redblue",
+        "supply-chain"
+      ]
+    },
+    {
+      "deep": "developer-experience",
+      "scan": [
+        "cli",
+        "tui"
+      ]
+    }
   ],
-  "bonusModuli": { "25": "ui-management-console", "75": "self-hosting-review" },
+  "bonusModuli": {
+    "25": "ui-management-console",
+    "75": "self-hosting-review"
+  },
   "controlPlaneProbes": [
     "node packages/cli/dist/bin.js version || true",
     "npm test --silent 2>&1 | tail -5 || true"
   ],
-  "buildStep": { "cmd": "npm ci && npm run build", "degradeOnWasmFailure": true },
-  "evaluatorEntrypoints": { "bench": "npm test", "flywheel": "npx @metaharness/flywheel", "darwin": "npx @metaharness/darwin", "redblue": "npx @metaharness/redblue" },
+  "buildStep": {
+    "cmd": "npm ci && npm run build",
+    "degradeOnWasmFailure": true
+  },
+  "evaluatorEntrypoints": {
+    "bench": "npm test",
+    "darwin": "npx @metaharness/darwin evolve"
+  },
   "adrConvention": "4-digit",
-  "competitors": ["Sakana AI Scientist", "OpenHands", "DSPy/GEPA", "SWE-agent", "AutoGPT lineage"],
-  "extraDisciplines": ["evaluation-is-not-promotion", "witness-every-quantitative-claim"],
+  "competitors": [
+    "Sakana AI Scientist",
+    "OpenHands",
+    "DSPy/GEPA",
+    "SWE-agent",
+    "AutoGPT lineage"
+  ],
+  "extraDisciplines": [
+    "evaluation-is-not-promotion",
+    "witness-every-quantitative-claim"
+  ],
   "ledgerPath": "docs/dream-cycle/LEDGER.md",
   "branchPrefix": "dream/",
-  "labels": ["dream-cycle", "research"],
+  "labels": [
+    "dream-cycle",
+    "research"
+  ],
   "autoMerge": true
 }
