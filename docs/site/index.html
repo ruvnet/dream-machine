@@ -66,6 +66,7 @@
       <div class="nebula nebula--a" data-parallax="0.05"></div>
       <div class="nebula nebula--b" data-parallax="0.09"></div>
       <div class="nebula nebula--c" data-parallax="0.12"></div>
+      <canvas id="dream4d" class="sky__gl" aria-hidden="true"></canvas>
     </div>
 
     <header class="site-header">
@@ -108,8 +109,16 @@
 
     <main id="main">
       <!-- ================================================== HERO -->
-      <section class="hero container">
+      <section class="hero hero-stage container">
         <p class="eyebrow">Nightly · Evidence-gated · Human-merged</p>
+
+        <div class="dream4d-hud" data-dream4d-hud aria-hidden="true">
+          <span class="dream4d-hud__ring"></span>
+          <span class="dream4d-hud__body">
+            <span class="dream4d-hud__k" data-hud-k>axis w</span>
+            <span class="dream4d-hud__t" data-hud-t>time — one rotation is one night</span>
+          </span>
+        </div>
 
         <h1 class="hero__title">
           One honest cycle,<br />
@@ -117,11 +126,13 @@
         </h1>
 
         <p class="hero__lede">
-          The Dream Machine turns “run one research-and-evolution cycle against a
-          repository every night” into a config-compiled engine instead of a
-          hand-maintained megaprompt. It wakes up in an isolated cloud session,
-          forms one falsifiable hypothesis, measures it, and writes down what it
-          learned — whether or not the answer was the one it hoped for.
+          A config-driven engine that runs one research-and-evolution cycle
+          against a repository each night. In an isolated cloud session it forms
+          <strong>one falsifiable hypothesis</strong>, tests it against the
+          repo’s real benchmarks, and records the result as a gist, an issue,
+          and a draft PR. Every run ends in <code>ACCEPT</code>,
+          <code>REJECT</code>, or <code>INCONCLUSIVE</code>. It never merges — a
+          human reviews and decides.
         </p>
 
         <p class="hero__principle">
@@ -180,16 +191,13 @@
         <div class="banner">
           <span class="banner__dot" aria-hidden="true"></span>
           <p>
-            <strong>Status: founding design (Proposed).</strong> No engine code
-            has shipped yet.
+            <strong>v0.1.0 — live on npm, CI green.</strong> Run it now with
+            <code>npx dream-machine init</code>. Six packages, 85 tests, a
+            working CLI + TUI, and a self-hosting nightly routine. See
+            <a href="https://www.npmjs.com/package/dream-machine">npm</a> and
             <a href="https://github.com/ruvnet/dream-machine/blob/main/docs/adrs/ADR-0001-dream-machine-engine.md"
               >ADR-0001</a
-            >
-            is the authoritative design; the two production routines that run
-            nightly against <code>ruvnet/ruflo</code> and
-            <code>ruvnet/metaharness</code> are the working reference
-            implementations this engine will subsume. Commands shown on this site
-            describe the designed surface, not a released binary.
+            >.
           </p>
         </div>
       </section>
@@ -914,5 +922,6 @@ npx dream-machine tui       <span class="c"># browse past nights in the terminal
     <p id="copy-status" class="visually-hidden" role="status" aria-live="polite"></p>
 
     <script src="./app.js" defer></script>
+    <script type="module" src="./dream4d.js"></script>
   </body>
 </html>

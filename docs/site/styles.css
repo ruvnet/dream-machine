@@ -544,7 +544,7 @@ code {
 
 .hero {
   position: relative;
-  padding-block: clamp(3.5rem, 11vw, 8.5rem) clamp(3rem, 8vw, 6rem);
+  padding-block: clamp(1.25rem, 3.5vw, 2.75rem) clamp(2rem, 5vw, 3.5rem);
 }
 
 .hero__title .grad {
@@ -561,8 +561,8 @@ code {
 }
 
 .hero__principle {
-  margin: clamp(1.5rem, 3vw, 2.25rem) 0;
-  padding: 1rem 0 1rem 1.25rem;
+  margin: clamp(0.9rem, 2vw, 1.35rem) 0;
+  padding: 0.6rem 0 0.6rem 1.25rem;
   border-left: 2px solid var(--edge-strong);
   max-width: 56ch;
   color: var(--text);
@@ -582,7 +582,7 @@ code {
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
-  margin-top: 1.5rem;
+  margin-top: 1.1rem;
 }
 
 .hero__meta {
@@ -1610,4 +1610,105 @@ dl.fields dd {
   .nebula {
     transform: none !important;
   }
+}
+
+/* ============================================================= dream4d hero */
+/* WebGL 4D tesseract backdrop — sits inside .sky, behind all content. */
+.sky__gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0.5;
+  /* keep the copy readable: the canvas is brightest on the right, and fades
+     hard across the left half where the hero text sits */
+  -webkit-mask-image: radial-gradient(105% 85% at 82% 34%, #000 0%, rgba(0,0,0,0.85) 30%, rgba(0,0,0,0.28) 62%, rgba(0,0,0,0.06) 100%);
+  mask-image: radial-gradient(105% 85% at 82% 34%, #000 0%, rgba(0,0,0,0.85) 30%, rgba(0,0,0,0.28) 62%, rgba(0,0,0,0.06) 100%);
+  pointer-events: none;
+}
+
+/* Startup-style staggered entrance for the hero copy. */
+.hero-stage > * {
+  animation: dm-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-stage > *:nth-child(1) { animation-delay: 0.05s; }
+.hero-stage > *:nth-child(2) { animation-delay: 0.12s; }
+.hero-stage > *:nth-child(3) { animation-delay: 0.20s; }
+.hero-stage > *:nth-child(4) { animation-delay: 0.30s; }
+.hero-stage > *:nth-child(5) { animation-delay: 0.40s; }
+.hero-stage > *:nth-child(6) { animation-delay: 0.50s; }
+.hero-stage > *:nth-child(7) { animation-delay: 0.58s; }
+
+@keyframes dm-rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* Living gradient on the headline accent. */
+.hero__title .grad {
+  background-size: 220% 220%;
+  animation: dm-grad 9s ease-in-out infinite;
+}
+@keyframes dm-grad {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* The 4D narrative chip. */
+.dream4d-hud {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.35rem 0.8rem 0.35rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(232, 121, 249, 0.08));
+  backdrop-filter: blur(6px);
+  font-size: 0.74rem;
+  max-width: 100%;
+}
+.dream4d-hud__ring {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid #22d3ee;
+  border-top-color: #e879f9;
+  animation: dm-spin 3.2s linear infinite;
+  flex: none;
+}
+@keyframes dm-spin { to { transform: rotate(360deg); } }
+.dream4d-hud__body { display: inline-flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.dream4d-hud__k {
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;
+  color: #a5b4fc; font-size: 0.66rem; flex: none;
+}
+.dream4d-hud__t {
+  color: var(--fg-dim, #b9b7d0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- desktop + mobile friendly ---- */
+@media (max-width: 720px) {
+  .sky__gl {
+    opacity: 0.38;
+    -webkit-mask-image: radial-gradient(150% 65% at 55% 20%, #000 0%, rgba(0,0,0,0.55) 34%, rgba(0,0,0,0.16) 78%, rgba(0,0,0,0.05) 100%);
+    mask-image: radial-gradient(150% 65% at 55% 20%, #000 0%, rgba(0,0,0,0.55) 34%, rgba(0,0,0,0.16) 78%, rgba(0,0,0,0.05) 100%);
+  }
+  .dream4d-hud { font-size: 0.7rem; }
+  .dream4d-hud__t { max-width: 62vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-stage > *,
+  .hero__title .grad,
+  .dream4d-hud__ring { animation: none; }
+  .hero-stage > * { opacity: 1; transform: none; filter: none; }
+}
+
+/* ---- keep the install command above the fold ---- */
+.hero { padding-block: clamp(0.75rem, 2vw, 1.75rem) clamp(1.5rem, 4vw, 2.75rem); }
+.hero__title { font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem); line-height: 1.06; margin: 0.15rem 0 0.85rem; }
+.hero__lede { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.14rem); line-height: 1.5; max-width: 60ch; }
+@media (min-height: 780px) {
+  .hero__title { font-size: clamp(2.2rem, 1.4rem + 3.4vw, 4rem); }
 }

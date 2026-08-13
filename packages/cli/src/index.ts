@@ -20,7 +20,7 @@ import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule'
 import { renderDashboard } from './tui.js';
 import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 export interface IO {
   readFile(path: string): Promise<string>;

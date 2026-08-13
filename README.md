@@ -83,6 +83,72 @@ and per-night evidence — the same data the TUI shows.
 
 <div align="center"><img src="docs/media/dashboard.jpg" alt="The Dream Machine management console" width="100%"></div>
 
+## Schedule it — nightly, autonomous, always improving
+
+The Dream Machine is built to run itself on a schedule. In **Claude Code**, the
+built-in **`/schedule`** command creates a cloud routine that runs the pipeline
+against your repo every night — autonomous research, evaluation, and
+improvement that compounds while you sleep.
+
+**1 — generate the routine body from your config:**
+
+```bash
+npx dream-machine schedule dream.config.json --env <your-cloud-env-id> --out routine.json
+```
+
+**2 — create the routine.** In Claude Code, run `/schedule` and create a routine
+on cron `0 9 * * *` (UTC) with the body from `routine.json`.
+
+**Self-hosting bootstrap (recommended).** Instead of freezing a prompt, point the
+routine at a tiny bootstrap that compiles tonight's instructions from your
+committed `dream.config.json` — so the schedule can never drift from the repo:
+
+```text
+You are the Dream Machine nightly runner for <owner/repo>, checked out on main.
+
+1. npm ci && npm run build          # build the engine (wasm failure is a recorded degradation)
+2. npx dream-machine compile dream.config.json --out /tmp/tonight.md
+3. Follow /tmp/tonight.md exactly — the full 26-step pipeline.
+
+Invariants: end in ACCEPT | REJECT | INCONCLUSIVE. Never merge, never
+self-promote. Publish a gist + a labeled issue + a DRAFT PR, and append exactly
+one row to docs/dream-cycle/LEDGER.md every run.
+```
+
+**What each night does** — research SOTA for tonight's rotation surface → freeze a
+falsifiable hypothesis → build a concrete candidate → evaluate parent vs.
+candidate on your real benchmarks → adversarial critique + reward-hack check →
+bounded Darwin evolution → witnessed evidence → gist + issue + **draft** PR → one
+ledger row. Win, lose, or draw, it records what it learned so tomorrow's search
+space is smaller. **This repository runs exactly this loop on itself** (cron
+`0 9 * * *`) — browse its
+[dream-cycle issues](https://github.com/ruvnet/dream-machine/issues?q=label%3Adream-cycle),
+gists, and draft PRs to see it in action.
+
+> No `dream.config`? `npx dream-machine init --repo owner/name` scaffolds one.
+> A night with no API key still runs — it reports `LLM_EVAL=blocked`, an honest
+> `INCONCLUSIVE`, rather than faking a result.
+
+### Or: the optional GitHub Actions "dream" (no cloud agent needed)
+
+Prefer to stay entirely inside GitHub? [`.github/workflows/dream-nightly.yml`](.github/workflows/dream-nightly.yml)
+runs the **research + hypothesis** half of the pipeline from a plain CI runner
+using an [OpenRouter](https://openrouter.ai) model, files a witnessed
+`dream-cycle` research issue, and opens a draft PR that appends one ledger row.
+
+```yaml
+# add repo secret OPENROUTER_API_KEY (+ optional var OPENROUTER_MODEL),
+# then uncomment the schedule in dream-nightly.yml:
+schedule:
+  - cron: '0 9 * * *'
+```
+
+Honest scope: candidate evaluation, bounded Darwin, and the promotion gate need
+the agentic `/schedule` session, so this CI path is **research-only** — every
+night is an `INCONCLUSIVE` research night, and with no key it degrades to
+`LLM_EVAL=blocked` rather than fabricating a finding. It's disabled by default
+and also runs on demand via **Run workflow** (with a dry-run option).
+
 ## What it composes (never reimplements)
 
 The heavy stages delegate to the ruvnet stack as **optional, config-selected

@@ -1,0 +1,53 @@
+name: Dream (nightly research)
+
+# OPTIONAL, self-contained nightly Dream Cycle that runs from GitHub Actions —
+# no cloud agent required. It runs the RESEARCH + HYPOTHESIS half of the
+# pipeline using an OpenRouter model, files a witnessed `dream-cycle` research
+# issue, and opens a draft PR that appends one ledger row.
+#
+# Honest scope: candidate evaluation, bounded Darwin, and the promotion gate
+# need the agentic `/schedule` cloud session — this CI job is research-only, so
+# every night here is an INCONCLUSIVE research night. With no OPENROUTER_API_KEY
+# secret it degrades to LLM_EVAL=blocked and files an honest skipped note.
+#
+# To enable: add repo secret OPENROUTER_API_KEY (optional OPENROUTER_MODEL var),
+# and turn this workflow on. It is disabled by default (comment the schedule /
+# run it manually via "Run workflow").
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the report, do not file issue/PR'
+        type: boolean
+        default: false
+  # Uncomment to run nightly at 09:00 UTC:
+  # schedule:
+  #   - cron: '0 9 * * *'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: dream-nightly
+  cancel-in-progress: false
+
+jobs:
+  dream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - name: Run the nightly research cycle
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openai/gpt-4o-mini' }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/dream-nightly.mjs ${{ inputs.dry_run && '--dry-run' || '' }}

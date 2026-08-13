@@ -32,21 +32,23 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx vitest run
-      - name: Publish in dependency order
+      # The @dream-machine/* engine modules are bundled into the CLI (no npm org
+      # scope), so we publish a single self-contained `dream-machine` package.
+      - name: Prepare standalone CLI (bundle deps, rewrite manifest)
+        run: node scripts/prepare-cli-publish.mjs
+      - name: Publish dream-machine
         if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Tolerant: no token, or a version already on npm (e.g. released
+        # manually), is a skip — not a failed release.
         run: |
-          set -e
-          for pkg in witness ledger compile schedule memory cli; do
-            echo "::group::publish @ packages/$pkg"
-            npm publish -w "packages/$pkg" --provenance --access public || {
-              echo "publish failed for $pkg (already published at this version?)"; }
-            echo "::endgroup::"
-          done
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN not set — skipping publish (release notes only)."; exit 0
+          fi
+          npm publish --provenance --access public || echo "publish skipped (version already on npm)"
       - name: Dry-run pack (no token needed)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
-        run: |
-          for pkg in witness ledger compile schedule memory cli; do
-            npm pack -w "packages/$pkg" --dry-run
-          done
+        working-directory: packages/cli
+        run: npm pack --dry-run

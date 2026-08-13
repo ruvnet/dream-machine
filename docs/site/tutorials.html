@@ -181,13 +181,14 @@
         <div class="banner" style="margin-top: 1.75rem">
           <span class="banner__dot" aria-hidden="true"></span>
           <p>
-            <strong>Read this first.</strong> The Dream Machine is at
-            <em>founding design</em> status — ADR-0001 is Proposed and no engine
-            code has shipped. The commands below describe the designed CLI
-            surface so you can follow the shape of the workflow; they are not yet
-            a released binary. Where the design deliberately defers something
-            (scheduling, most of all) this page says so rather than inventing a
-            capability.
+            <strong>Read this first.</strong> The engine has shipped (v0.1.0):
+            these commands run today from a source checkout —
+            <code>git clone</code>, <code>npm ci &amp;&amp; npm run build</code>,
+            then <code>node packages/cli/dist/bin.js &lt;command&gt;</code>. The
+            <code>npx dream-machine</code> form works once the npm publish lands
+            (a signed release away). Where the design deliberately defers
+            something (automated scheduling, most of all) this page says so
+            rather than inventing a capability.
           </p>
         </div>
 
@@ -599,51 +600,79 @@ npx dream-machine tui             <span class="c"># browse the nights interactiv
 
           <!-- ============================================ 6. SCHEDULE -->
           <li class="tut" id="schedule">
-            <h2>Schedule the nightly run</h2>
+            <h2>Schedule the nightly run with Claude Code <code>/schedule</code></h2>
             <p>
               The night runs in an isolated cloud session with a fresh checkout —
               deliberately not as a CI job in the target repository. The loop
               needs an agentic session that can research and judge, and keeping
               evolution authority out of the repo's own CI credentials is a
-              security feature, not an inconvenience.
+              security feature, not an inconvenience. In
+              <strong>Claude Code</strong>, the built-in <code>/schedule</code>
+              command creates exactly this: a cloud routine that fires on a cron,
+              spins up a fresh session against your repo, and runs the pipeline —
+              autonomous research, evaluation, and improvement that compounds.
             </p>
 
             <div class="code">
               <div class="code__bar">
-                <span class="code__label">Terminal</span>
-                <button
-                  class="code__copy"
-                  type="button"
-                  data-copy-btn
-                  aria-label="Copy the schedule commands"
-                >
+                <span class="code__label">1 — generate the routine body</span>
+                <button class="code__copy" type="button" data-copy-btn aria-label="Copy the schedule command">
                   <svg aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
                   <span class="copy-label">Copy</span>
                 </button>
               </div>
-              <pre><code>npx dream-machine compile
-npx dream-machine schedule</code></pre>
+              <pre><code>npx dream-machine schedule dream.config.json \
+  --env &lt;your-cloud-env-id&gt; --out routine.json</code></pre>
             </div>
 
-            <p class="note">
-              <strong>What v1 actually does — stated plainly.</strong> ADR-0001
-              ships scheduling as <em>compile, then paste the result into the
-              cloud scheduler's <code>/schedule</code> routine</em>. Full
-              automation is deliberately deferred until a callable scheduling API
-              is confirmed to exist; shipping an unverified API wrapper would be
-              exactly the kind of overclaim the pipeline's own discipline
-              forbids. So this step is honest manual work today, and the CLI's job
-              is to make sure what you paste is a build output rather than a
-              hand-edited copy.
+            <p>
+              <strong>2 — create the routine.</strong> Run <code>/schedule</code>
+              in Claude Code and create a routine on cron <code>0 9 * * *</code>
+              (UTC) using the body from <code>routine.json</code>.
             </p>
 
             <p>
-              Set the <code>cron</code> in your config to a UTC time that does not
-              collide with your other targets — the two reference routines run at
-              <code>0 6 * * *</code> and <code>0 8 * * *</code> for exactly this
-              reason. Then keep the in-repo mirror committed next to the config,
-              so anyone reading the repository can see what the scheduler is
-              running without having to log into it.
+              <strong>Recommended: a self-hosting bootstrap.</strong> Rather than
+              freeze a prompt, point the routine at a tiny bootstrap that compiles
+              tonight's instructions from your committed config — so the schedule
+              can never drift from the repo:
+            </p>
+
+            <div class="code">
+              <div class="code__bar">
+                <span class="code__label">/schedule routine prompt</span>
+                <button class="code__copy" type="button" data-copy-btn aria-label="Copy the bootstrap prompt">
+                  <svg aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+              <pre><code>You are the Dream Machine nightly runner for &lt;owner/repo&gt;, on main.
+
+1. npm ci &amp;&amp; npm run build
+2. npx dream-machine compile dream.config.json --out /tmp/tonight.md
+3. Follow /tmp/tonight.md exactly — the full 26-step pipeline.
+
+Invariants: end in ACCEPT | REJECT | INCONCLUSIVE. Never merge,
+never self-promote. Publish a gist + a labelled issue + a DRAFT PR,
+and append exactly one row to docs/dream-cycle/LEDGER.md every run.</code></pre>
+            </div>
+
+            <p class="note">
+              <strong>Always improving.</strong> Each night researches the SOTA
+              for tonight's rotation surface, freezes a falsifiable hypothesis,
+              tests it, and — win, lose, or draw — records what it learned so
+              tomorrow's search space is smaller. A night with no model key still
+              runs: it reports <code>LLM_EVAL=blocked</code>, an honest
+              <code>INCONCLUSIVE</code>, instead of faking a result. This very
+              repository runs this loop on itself on cron <code>0 9 * * *</code>.
+            </p>
+
+            <p>
+              Stagger the <code>cron</code> across targets so nights don't collide
+              — the reference routines run at <code>0 6 * * *</code> and
+              <code>0 8 * * *</code>. Keep the compiled mirror committed next to
+              your config so anyone reading the repo can see what the scheduler
+              runs without logging into it.
             </p>
           </li>
         </ol>
