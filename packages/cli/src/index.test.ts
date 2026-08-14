@@ -133,6 +133,28 @@ describe('ledger', () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
   });
+  it('signals defaults zeroMergeStreak to worst-case true without --merged, even for a real PR', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(true);
+  });
+  it('signals reports zeroMergeStreak=false once --merged names the row\'s PR', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '181'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
+  it('signals --merged tolerates a leading # and surrounding whitespace in the CSV', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', ' #181 , 999'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
+  it('signals --merged naming an unrelated PR leaves zeroMergeStreak true', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '999'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(true);
+  });
+  it('signals rejects a value-less --merged with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--merged expects a comma-separated PR number list');
+    expect(r.err).not.toContain('is not a function');
+  });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
     const r = await run(

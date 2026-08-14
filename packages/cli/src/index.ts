@@ -91,7 +91,10 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path LEDGER.md]                   Print STEP 1.1 learning signals
+  ledger signals  [--path L] [--merged "7,12"]          Print STEP 1.1 learning signals
+                                                         (--merged: known-merged PR numbers;
+                                                         omitted → zeroMergeStreak defaults
+                                                         to a worst-case, unverified true)
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
@@ -197,7 +200,28 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
-          sink.log(JSON.stringify(learningSignals(rows), null, 2));
+          // `learningSignals` can only report zeroMergeStreak=false when it knows which
+          // PRs actually merged. Without --merged, mergedPrNumbers stays undefined and the
+          // signal is a worst-case default (true whenever the window has a real PR) rather
+          // than a verified reading — callers with real merge data (e.g. this session's own
+          // GitHub check) must pass it explicitly.
+          // parseArgs turns a value-less `--merged` (nothing after it, or another flag right
+          // after) into the boolean `true`, not a string — guard the type so that case is a
+          // clear usage error instead of an opaque "mergedFlag.split is not a function" crash.
+          if (flags.merged === true) {
+            sink.error('ledger signals: --merged expects a comma-separated PR number list, e.g. --merged "7,12"');
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          const mergedFlag = flags.merged as string | undefined;
+          const mergedPrNumbers = mergedFlag
+            ? new Set(
+                mergedFlag
+                  .split(',')
+                  .map((s) => s.trim().replace(/^#/, ''))
+                  .filter(Boolean),
+              )
+            : undefined;
+          sink.log(JSON.stringify(learningSignals(rows, { mergedPrNumbers }), null, 2));
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
