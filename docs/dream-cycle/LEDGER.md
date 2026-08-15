@@ -1,3 +1,4 @@
 | Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-13 | security-adversarial | redblue evaluator entrypoint silently no-ops (npx bin-symlink isMain footgun); added classifyEntrypointResult + verify-entrypoint | #6 | #7 | yes | ACCEPT | npm test 85->96, 0 regressions | ec2052aa | first real night (demo seed rows removed 2026-08-13; see #6) |
+| 2026-08-15 | compiler-parity | self-hosted dream.config.json had zero test coverage in @dream-machine/compile; added golden-snapshot + validation test reading the real config | #10 | #11 | yes | ACCEPT | npm test 96->100, 0 regressions | cf2f0711 | PR #7 merged 2026-08-13; PR #9 (2026-08-14) still open/draft, human review pending |

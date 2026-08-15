@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { compile, validateConfig, defaultConfig, withDefaults, type DreamConfig } from './index.js';
 
 const metaharness: DreamConfig = {
@@ -124,5 +126,32 @@ describe('defaults', () => {
     expect(c.ledgerPath).toBe('docs/dream-cycle/LEDGER.md');
     expect(c.branchPrefix).toBe('dream/');
     expect(c.labels).toContain('dream-cycle');
+  });
+});
+
+// This repo self-hosts: its own dream.config.json is what STEP B of every
+// nightly run actually compiles. Every other test above exercises a
+// synthetic fixture — none of them would catch a regression that broke this
+// repo's real, committed config. Read it the same way `dream-machine compile
+// dream.config.json` does, and golden-snapshot it.
+describe('self-hosted config (ruvnet/dream-machine)', () => {
+  const selfConfig: DreamConfig = JSON.parse(
+    readFileSync(join(process.cwd(), 'dream.config.json'), 'utf8'),
+  );
+
+  it('validates', () => {
+    expect(validateConfig(selfConfig).ok).toBe(true);
+  });
+
+  it('resolves autoMerge: true (the one config in the wild that enables it)', () => {
+    expect(withDefaults(selfConfig).autoMerge).toBe(true);
+  });
+
+  it('compiles deterministically', () => {
+    expect(compile(selfConfig)).toBe(compile(selfConfig));
+  });
+
+  it('golden-snapshot: ruvnet/dream-machine prompt is stable', () => {
+    expect(compile(selfConfig)).toMatchSnapshot();
   });
 });
