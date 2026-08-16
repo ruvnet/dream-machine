@@ -207,16 +207,42 @@ function prNumber(pr: string): string | null {
   return m ? m[1] : null;
 }
 
+const FATE_TOKEN = /#(\d+)\s*:\s*(MERGED|CLOSED|OPEN|STALE)\b/gi;
+
+/**
+ * Parse `#<PR>:<FATE>` tokens out of the ledger's "Prior-night fates" column
+ * (populated by each night's STEP-1 fate check). Only this explicit token
+ * form is recognized — free prose in the column is never mistaken for a fate
+ * claim. Later rows win when the same PR is mentioned more than once.
+ */
+export function parsePriorFates(rows: LedgerRow[]): Map<string, string> {
+  const fates = new Map<string, string>();
+  for (const r of rows) {
+    for (const m of r.priorFates.matchAll(FATE_TOKEN)) {
+      fates.set(m[1], m[2].toUpperCase());
+    }
+  }
+  return fates;
+}
+
 /** Compute the STEP 1.1 learning signals from parsed rows. */
 export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): LearningSignals {
   const window = opts.window ?? 14;
   const recent = rows.slice(-window);
 
-  // Zero-merge streak: no PR in the window is known-merged.
-  const merged = opts.mergedPrNumbers;
+  // Zero-merge streak: no PR in the window is known-merged. Merge status can
+  // come from an explicit `mergedPrNumbers` option (e.g. a live API lookup)
+  // and/or from `#N:MERGED` tokens already recorded in-ledger by prior
+  // nights' fate checks — the latter is the only source the CLI has today.
+  const fatesFromLedger = parsePriorFates(rows);
+  const mergedFromLedger = new Set(
+    [...fatesFromLedger.entries()].filter(([, fate]) => fate === 'MERGED').map(([pr]) => pr),
+  );
+  const merged = opts.mergedPrNumbers
+    ? new Set([...opts.mergedPrNumbers, ...mergedFromLedger])
+    : mergedFromLedger;
   const prsInWindow = recent.map((r) => prNumber(r.pr)).filter((n): n is string => !!n);
-  const zeroMergeStreak =
-    prsInWindow.length > 0 && (!merged || prsInWindow.every((n) => !merged.has(n)));
+  const zeroMergeStreak = prsInWindow.length > 0 && prsInWindow.every((n) => !merged.has(n));
 
   // Duplicate directions: normalized finding text repeated >= 3 times.
   const counts = new Map<string, number>();

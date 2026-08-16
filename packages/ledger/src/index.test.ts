@@ -6,6 +6,7 @@ import {
   renderRow,
   verifyLedger,
   learningSignals,
+  parsePriorFates,
   verdictStats,
   escapeCell,
   LEDGER_COLUMNS,
@@ -124,6 +125,41 @@ describe('learning signals', () => {
     const { rows } = parseLedger(l);
     const s = learningSignals(rows, { mergedPrNumbers: new Set(['105']) });
     expect(s.zeroMergeStreak).toBe(false);
+  });
+
+  it('clears the zero-merge streak from a #N:MERGED token in Prior-night fates, with no explicit option', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 13; i++) l = appendRow(l, row({ pr: `#${100 + i}`, priorFates: 'no news' }));
+    l = appendRow(l, row({ pr: '#113', priorFates: 'checked last week: #105:MERGED, #108:CLOSED' }));
+    const { rows } = parseLedger(l);
+    const s = learningSignals(rows);
+    expect(s.zeroMergeStreak).toBe(false);
+  });
+
+  it('does not clear the streak for CLOSED/OPEN/STALE fate tokens', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 14; i++) {
+      l = appendRow(l, row({ pr: `#${100 + i}`, priorFates: `#${99 + i}:CLOSED` }));
+    }
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).zeroMergeStreak).toBe(true);
+  });
+
+  it('ignores free prose in Prior-night fates (only the explicit #N:FATE token counts)', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 14; i++) {
+      l = appendRow(l, row({ pr: `#${100 + i}`, priorFates: 'PR 105 was merged into main yesterday' }));
+    }
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).zeroMergeStreak).toBe(true);
+  });
+
+  it('parsePriorFates keeps the latest fate when a PR is mentioned more than once', () => {
+    const rows = [
+      row({ priorFates: '#105:OPEN' }),
+      row({ priorFates: '#105:MERGED' }),
+    ];
+    expect(parsePriorFates(rows).get('105')).toBe('MERGED');
   });
 
   it('detects duplicate directions repeated >= 3 times', () => {
