@@ -13,6 +13,13 @@
  * that only checks the exit code — exactly what STEP 5-9 of the compiled
  * nightly prompt would otherwise do. Any evaluator entrypoint result should
  * route through here before the pipeline is allowed to record EVALUATED=yes.
+ *
+ * Follow-up (2026-08-17, evaluation-adapters night): issue #6 recommended
+ * wiring `dream.config.json#evaluatorEntrypoints` through this classifier
+ * automatically, but flagged that piping a repo-modifiable config value into
+ * `child_process.exec` (a shell) first would be a real injection risk. This
+ * module's `tokenizeCommand` + the CLI's `execFile`-based IO close that gap:
+ * config-sourced commands run without shell interpretation.
  */
 
 export interface ExecResult {
@@ -27,6 +34,24 @@ export interface EntrypointCheck {
   verdict: EntrypointVerdict;
   code: number;
   reason: string;
+}
+
+/**
+ * Split a config-sourced command string into an argv array, so it can be run
+ * via `execFile` (no shell) instead of `exec` (`/bin/sh -c`). Handles the
+ * shapes this repo's own `evaluatorEntrypoints` actually use: plain
+ * whitespace-separated words, and double-quoted segments that must stay one
+ * argument (e.g. `--cmd "some arg"`). Not a general shell-grammar parser —
+ * config values here are commands like `npm test`, never scripts.
+ */
+export function tokenizeCommand(cmd: string): string[] {
+  const tokens: string[] = [];
+  const re = /"([^"]*)"|(\S+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cmd)) !== null) {
+    tokens.push(m[1] !== undefined ? m[1] : m[2]);
+  }
+  return tokens;
 }
 
 /** Classify a completed entrypoint invocation. Pure — no I/O. */

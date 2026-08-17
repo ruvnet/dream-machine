@@ -222,6 +222,74 @@ describe('verify-entrypoint', () => {
   });
 });
 
+describe('verify-entrypoints (config-driven, no shell)', () => {
+  const cfgJson = JSON.stringify({
+    repo: 'ruvnet/dream-machine',
+    cron: '0 9 * * *',
+    slots: [{ deep: 'x', scan: ['a', 'b'] }],
+    evaluatorEntrypoints: { bench: 'npm test', darwin: 'npx @metaharness/darwin evolve --sandbox mock' },
+  });
+
+  function mockIOWithExecFile(execFile: IO['execFile'], files: Record<string, string> = {}): IO {
+    return { ...mockIO({ 'dream.config.json': cfgJson, ...files }), execFile };
+  }
+
+  it('tokenizes each configured entrypoint and runs it via execFile — no shell string ever built', async () => {
+    const calls: string[][] = [];
+    const io = mockIOWithExecFile(async (argv) => {
+      calls.push(argv);
+      return { code: 0, stdout: 'ok', stderr: '' };
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(calls).toEqual([
+      ['npm', 'test'],
+      ['npx', '@metaharness/darwin', 'evolve', '--sandbox', 'mock'],
+    ]);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: live');
+  });
+
+  it('classifies each configured entrypoint independently and reports the worst verdict as exit code', async () => {
+    const io = mockIOWithExecFile(async (argv) => {
+      if (argv[0] === 'npm') return { code: 0, stdout: '96 passed', stderr: '' };
+      return { code: 0, stdout: '', stderr: '' }; // darwin: suspicious-silent
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: suspicious-silent');
+  });
+
+  it('a config value containing shell metacharacters never reaches a shell', async () => {
+    // If this were piped through `exec` (`/bin/sh -c`), "&&" would chain a second command.
+    // Via execFile the whole tokenized argv is passed to one program that doesn't exist —
+    // it must surface as a normal blocked/error result, never as two commands running.
+    const io = mockIOWithExecFile(
+      async () => ({ code: 127, stdout: '', stderr: 'command not found' }),
+      { 'evil.config.json': JSON.stringify({ evaluatorEntrypoints: { bench: 'npm test && rm -rf /' } }) },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+  });
+
+  it('reports a clean no-op when no evaluatorEntrypoints are configured', async () => {
+    const io = mockIOWithExecFile(async () => ({ code: 0, stdout: '', stderr: '' }), {
+      'empty.config.json': JSON.stringify({}),
+    });
+    const r = await run(['verify-entrypoints', 'empty.config.json'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('no evaluatorEntrypoints configured');
+  });
+
+  it('errors when the IO has no execFile()', async () => {
+    const r = await run(['verify-entrypoints'], mockIO({ 'dream.config.json': cfgJson }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no execFile()');
+  });
+});
+
 describe('tui', () => {
   it('renders a dashboard from a ledger', async () => {
     const md = appendRow(emptyLedger(), sampleRow());

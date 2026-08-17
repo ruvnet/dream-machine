@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /** The real executable: wires `run` to the process + node fs. */
 import { readFile, writeFile } from 'node:fs/promises';
-import { exec as execCb } from 'node:child_process';
+import { exec as execCb, execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { run, type IO } from './index.js';
 
 const exec = promisify(execCb);
+const execFile = promisify(execFileCb);
 
 const io: IO = {
   readFile: (p) => readFile(p, 'utf8'),
@@ -24,6 +25,19 @@ const io: IO = {
       // Some exec failures (e.g. ERR_CHILD_PROCESS_STDOUT_MAXBUFFER) set `code` to a
       // string, not a number — coerce defensively so ExecResult's `code: number` contract
       // actually holds at runtime.
+      const code = typeof err.code === 'number' ? err.code : 1;
+      return { code, stdout: err.stdout ?? '', stderr: err.stderr ?? '' };
+    }
+  },
+  execFile: async (argv) => {
+    const [file, ...args] = argv;
+    try {
+      // Same maxBuffer rationale as `exec` above; no shell is invoked here, so
+      // config-sourced argv values can't be reinterpreted as shell syntax.
+      const { stdout, stderr } = await execFile(file, args, { maxBuffer: 10 * 1024 * 1024 });
+      return { code: 0, stdout, stderr };
+    } catch (e) {
+      const err = e as { code?: unknown; stdout?: string; stderr?: string };
       const code = typeof err.code === 'number' ? err.code : 1;
       return { code, stdout: err.stdout ?? '', stderr: err.stderr ?? '' };
     }

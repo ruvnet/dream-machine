@@ -18,7 +18,7 @@ import {
 import { stamp, verify, verifySteps } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, type ExecResult } from './entrypoint.js';
 
 export const VERSION = '0.1.1';
 
@@ -29,6 +29,13 @@ export interface IO {
   env: Record<string, string | undefined>;
   /** Run a shell command and capture its result. Optional: not every IO needs it. */
   exec?(cmd: string): Promise<ExecResult>;
+  /**
+   * Run a command as an argv array, with no shell interpretation. Used for
+   * config-sourced commands (`verify-entrypoints`), where the value comes
+   * from a repo file rather than a human-typed CLI flag. Optional: not every
+   * IO needs it.
+   */
+  execFile?(argv: string[]): Promise<ExecResult>;
 }
 
 export interface RunResult {
@@ -97,6 +104,7 @@ Commands:
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
+  verify-entrypoints [config]                           Classify every configured evaluatorEntrypoints (no shell)
   tui             [--path LEDGER.md] [--no-color]      Render the dashboard
   version | --version                                  Print version
   help    | --help                                     This help
@@ -294,6 +302,32 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
         const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'verify-entrypoints': {
+        const cfgPath = _[1] || 'dream.config.json';
+        if (!io.execFile) {
+          sink.error('verify-entrypoints: this IO has no execFile() — cannot run commands');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        const cfg = await loadConfig(io, cfgPath);
+        const entrypoints = Object.entries(cfg.evaluatorEntrypoints ?? {}).filter(
+          (e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '',
+        );
+        if (entrypoints.length === 0) {
+          sink.log(`verify-entrypoints: ${cfgPath} has no evaluatorEntrypoints configured`);
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+        let worst = 0;
+        for (const [label, cmd] of entrypoints) {
+          const argv = tokenizeCommand(cmd);
+          const result = await io.execFile(argv);
+          const check = classifyEntrypointResult(result);
+          sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
+          const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+          worst = Math.max(worst, code);
+        }
+        return { code: worst, out: sink.out, err: sink.err };
       }
 
       case 'tui': {
