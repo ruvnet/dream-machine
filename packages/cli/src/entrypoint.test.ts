@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand } from './entrypoint.js';
+
+describe('tokenizeCommand', () => {
+  it('splits plain whitespace-separated commands (this repo’s real entrypoints)', () => {
+    expect(tokenizeCommand('npm test')).toEqual(['npm', 'test']);
+    expect(tokenizeCommand('npx @metaharness/darwin evolve --sandbox mock')).toEqual([
+      'npx',
+      '@metaharness/darwin',
+      'evolve',
+      '--sandbox',
+      'mock',
+    ]);
+  });
+
+  it('keeps a double-quoted segment as one token', () => {
+    expect(tokenizeCommand('echo "hello world" --flag')).toEqual(['echo', 'hello world', '--flag']);
+  });
+
+  it('never re-splits on shell metacharacters — they become literal argv text, not shell syntax', () => {
+    expect(tokenizeCommand('npm test && rm -rf /')).toEqual(['npm', 'test', '&&', 'rm', '-rf', '/']);
+    expect(tokenizeCommand('echo $(whoami)')).toEqual(['echo', '$(whoami)']);
+  });
+
+  it('collapses repeated whitespace and trims', () => {
+    expect(tokenizeCommand('  npm   test  ')).toEqual(['npm', 'test']);
+  });
+});
 
 describe('classifyEntrypointResult', () => {
   it('flags a nonzero exit as blocked (reproduces npx @metaharness/flywheel: no bin field)', () => {
