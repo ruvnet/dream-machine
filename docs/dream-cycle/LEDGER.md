@@ -1,3 +1,4 @@
 | Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-13 | security-adversarial | redblue evaluator entrypoint silently no-ops (npx bin-symlink isMain footgun); added classifyEntrypointResult + verify-entrypoint | #6 | #7 | yes | ACCEPT | npm test 85->96, 0 regressions | ec2052aa | first real night (demo seed rows removed 2026-08-13; see #6) |
+| 2026-08-18 | security-adversarial | npx supply-chain: unpinned evaluatorEntrypoints.darwin resolves registry latest every run; added compile-time detector (findUnpinnedNpxInvocations) | #18 | #19 | yes | ACCEPT | npm test 96->113, 0 regressions; compiled prompt now warns on unpinned npx entrypoints | e64046c951e7ef5fa7b72177bd9a6328df730610e5cca62397866168678ae123 | PR #7 MERGED (human, same night); issue #6 CLOSED |
