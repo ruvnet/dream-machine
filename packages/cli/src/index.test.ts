@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { run, parseArgs, VERSION, type IO } from './index.js';
-import { renderDashboard } from './tui.js';
+import { renderDashboard, displayWidth, pad } from './tui.js';
 import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
 
@@ -240,5 +240,54 @@ describe('tui', () => {
     for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
+  });
+
+  it('displayWidth matches .length for plain ASCII (no regression)', () => {
+    expect(displayWidth('hello world')).toBe('hello world'.length);
+    expect(displayWidth('')).toBe(0);
+  });
+
+  it('displayWidth counts CJK/fullwidth code points as 2 columns', () => {
+    expect(displayWidth('性能改善')).toBe(8); // 4 CJK ideographs
+    expect(displayWidth('a性b')).toBe(4); // 1 + 2 + 1
+  });
+
+  it('displayWidth counts a surrogate-pair emoji as 2 columns, not 2x UTF-16 length', () => {
+    const rocket = '🚀'; // U+1F680, 2 UTF-16 code units, 1 code point
+    expect(rocket.length).toBe(2);
+    expect(displayWidth(rocket)).toBe(2);
+  });
+
+  it('displayWidth ignores embedded ANSI SGR codes', () => {
+    expect(displayWidth('\x1b[31mred\x1b[0m')).toBe(3);
+  });
+
+  it('pad does not silently drop a literal newline when truncating (regression: tokenizer must not exclude line terminators)', () => {
+    // Newline sits well inside the n-1 visible-width budget, so it must survive truncation.
+    const s = 'aaa' + '\n' + 'b'.repeat(20);
+    const out = pad(s, 10);
+    expect(out).toContain('\n');
+    expect(out).toContain('…');
+  });
+
+  it('keeps every box line at identical display width when Finding contains CJK text (regression for issue #8)', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ finding: '性能改善：レイテンシを削減する提案について' }));
+    const frame = renderDashboard(md, { noColor: true });
+    const lines = frame.split('\n');
+    const widths = new Set(lines.map((l) => displayWidth(l)));
+    expect(widths.size).toBe(1); // every line — including the CJK row — is the same real column width
+  });
+
+  it('truncates a long wide-character Finding to exactly the target width with a single ellipsis', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ finding: '性'.repeat(40) }));
+    const frame = renderDashboard(md, { noColor: true });
+    const lines = frame.split('\n');
+    const widths = new Set(lines.map((l) => displayWidth(l)));
+    expect(widths.size).toBe(1);
+    const findingLine = lines.find((l) => l.includes('…'));
+    expect(findingLine).toBeDefined();
+    expect(findingLine!.split('…').length - 1).toBe(1); // exactly one ellipsis
   });
 });
