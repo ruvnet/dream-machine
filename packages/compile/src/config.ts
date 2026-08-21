@@ -77,8 +77,13 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   if (!config.repo || !/^[\w.-]+\/[\w.-]+$/.test(config.repo)) {
     errors.push('repo must be "owner/name"');
   }
-  if (!config.cron || !CRON_RE.test(config.cron.trim())) {
+  if (typeof config.cron !== 'string' || !CRON_RE.test(config.cron.trim())) {
     errors.push('cron must be a 5-field expression');
+  } else {
+    const [minute] = config.cron.trim().split(/\s+/);
+    if (!FIXED_MINUTE_RE.test(minute)) {
+      errors.push('cron minute field must be a single value from 0 to 59; minimum interval is 1 hour');
+    }
   }
   if (!config.slots || config.slots.length === 0) {
     errors.push('at least one rotation slot is required');
