@@ -68,6 +68,7 @@ export interface ValidationResult {
 }
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
+const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
 
 /** Validate a dream.config, returning structured errors (never throws). */
 export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
