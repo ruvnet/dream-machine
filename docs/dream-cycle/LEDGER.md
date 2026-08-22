@@ -1,4 +1,4 @@
 | Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-13 | security-adversarial | redblue evaluator entrypoint silently no-ops (npx bin-symlink isMain footgun); added classifyEntrypointResult + verify-entrypoint | #6 | #7 | yes | ACCEPT | npm test 85->96, 0 regressions | ec2052aa | first real night (demo seed rows removed 2026-08-13; see #6) |
-| 2026-08-22 | portfolio 308; dream-machine; metaharness | enforce hourly cron floor; confirm untrusted AVO accounting validation gap | metaharness#219 | #24 | partial | ACCEPT / INCONCLUSIVE | CI + CodeQL green; prevents up to 60x schedule amplification; AVO fix awaits regression CI | 41f38f26 | existing draft #24 repaired after CI caught missing constant; no duplicate work opened |
+| 2026-08-22 | portfolio 308; dream-machine; metaharness | enforce hourly cron floor; separate security finding retained for private advisory | redacted #219 | #24 | partial | ACCEPT / INCONCLUSIVE | CI + CodeQL green; prevents up to 60x schedule amplification; private finding awaits maintainer triage | db6f18cb | existing draft #24 repaired after CI caught missing constant; public security stub redacted and closed |
