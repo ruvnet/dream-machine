@@ -38,6 +38,12 @@ export interface DashboardOptions {
   limit?: number;
   /** Repo name for the header. */
   repo?: string;
+  /**
+   * PR numbers confirmed merged (e.g. via the GitHub API), so the zero-merge
+   * signal reflects real state instead of defaulting to "nothing merged".
+   * See `learningSignals`' `mergedPrNumbers` option.
+   */
+  mergedPrNumbers?: Set<string>;
 }
 
 /** Render the dashboard framebuffer from a ledger markdown string. */
@@ -45,7 +51,7 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const c = opts.noColor ? new Proxy({}, { get: () => '' }) as typeof C : C;
   const { rows } = parseLedger(ledgerMd);
   const stats = verdictStats(rows);
-  const signals = learningSignals(rows);
+  const signals = learningSignals(rows, { mergedPrNumbers: opts.mergedPrNumbers });
   const limit = opts.limit ?? 10;
   const recent = rows.slice(-limit).reverse();
   const total = rows.length;

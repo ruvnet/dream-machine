@@ -91,18 +91,32 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path LEDGER.md]                   Print STEP 1.1 learning signals
+  ledger signals  [--path LEDGER.md] [--merged 7,12]    Print STEP 1.1 learning signals
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
-  tui             [--path LEDGER.md] [--no-color]      Render the dashboard
+  tui             [--path LEDGER.md] [--no-color] [--merged 7,12]  Render the dashboard
   version | --version                                  Print version
   help    | --help                                     This help
 
 The Dream Machine never merges. Evaluation is not promotion — a human decides.
 Docs: https://ruvnet.github.io/dream-machine/`;
+
+/**
+ * Parse `--merged 7,#12, 30` into a bare-number Set for `learningSignals`'
+ * `mergedPrNumbers` option. Undefined input means "no ground truth supplied"
+ * (preserves the existing default: zero-merge streak reads as unconfirmed).
+ */
+function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> | undefined {
+  if (typeof flag !== 'string') return undefined;
+  const nums = flag
+    .split(',')
+    .map((s) => s.trim().replace(/^#/, ''))
+    .filter(Boolean);
+  return new Set(nums);
+}
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
   const raw = await io.readFile(path);
@@ -197,7 +211,8 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
-          sink.log(JSON.stringify(learningSignals(rows), null, 2));
+          const mergedPrNumbers = parseMergedPrNumbers(flags.merged);
+          sink.log(JSON.stringify(learningSignals(rows, { mergedPrNumbers }), null, 2));
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
@@ -304,7 +319,13 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         } catch {
           md = emptyLedger();
         }
-        sink.log(renderDashboard(md, { noColor: flags['no-color'] === true, repo: flags.repo as string | undefined }));
+        sink.log(
+          renderDashboard(md, {
+            noColor: flags['no-color'] === true,
+            repo: flags.repo as string | undefined,
+            mergedPrNumbers: parseMergedPrNumbers(flags.merged),
+          }),
+        );
         return { code: 0, out: sink.out, err: sink.err };
       }
 
