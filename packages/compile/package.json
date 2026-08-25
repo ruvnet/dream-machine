@@ -17,6 +17,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./optimizer": {
+      "types": "./dist/harness-optimizer.d.ts",
+      "import": "./dist/harness-optimizer.js"
     }
   },
   "files": [
