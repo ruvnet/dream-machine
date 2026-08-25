@@ -22,6 +22,7 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0106](./ADR-0106-executable-software-prototype-and-evidence.md) | Executable software prototype and bounded evidence | Implemented for software prototype; hardware and research blocked |
 | [ADR-0004](./ADR-0004-evidence-carrying-termination.md) | Completion requires claim-level in-scope evidence and deterministic closed replay | Proposed |
 | [ADR-0003](./ADR-0003-anchored-trace-replay.md) | Anchored trace replay for causal failure experiments | Proposed |
+| [ADR-0003](./ADR-0003-trace-driven-harness-optimization.md) | Trace-driven harness optimization with held-out promotion gates | Proposed |
 
 ## How to amend
 
