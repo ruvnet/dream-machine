@@ -133,6 +133,21 @@ describe('ledger', () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
   });
+  it('signals defaults to zeroMergeStreak=true with no --merged (unconfirmed, not "confirmed unmerged")', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#7', verdict: 'ACCEPT' }));
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': md }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(true);
+  });
+  it('signals --merged reports zeroMergeStreak=false when the ledger PR is confirmed merged', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#7', verdict: 'ACCEPT' }));
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '7'], mockIO({ 'L.md': md }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
+  it('signals --merged tolerates a "#"-prefixed, comma-separated list', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#12', verdict: 'ACCEPT' }));
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '#7, #12'], mockIO({ 'L.md': md }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
     const r = await run(
@@ -240,5 +255,17 @@ describe('tui', () => {
     for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
+  });
+  it('renderDashboard clears the zero-merge warning when mergedPrNumbers confirms the ledger PR merged', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#7', verdict: 'ACCEPT' }));
+    const frame = renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['7']) });
+    expect(frame).not.toContain('zero merges');
+    expect(frame).toContain('signals nominal');
+  });
+  it('tui --merged clears the zero-merge warning end-to-end', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#7', verdict: 'ACCEPT' }));
+    const r = await run(['tui', '--path', 'L.md', '--no-color', '--merged', '7'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(0);
+    expect(r.out).not.toContain('zero merges');
   });
 });
