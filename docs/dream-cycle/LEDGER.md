@@ -1,3 +1,4 @@
 | Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-13 | security-adversarial | redblue evaluator entrypoint silently no-ops (npx bin-symlink isMain footgun); added classifyEntrypointResult + verify-entrypoint | #6 | #7 | yes | ACCEPT | npm test 85->96, 0 regressions | ec2052aa | first real night (demo seed rows removed 2026-08-13; see #6) |
+| 2026-08-26 | ledger-signals | duplicateDirections only scans merged ledger rows, missing near-duplicate directions across still-open PRs (demonstrated: #15 vs #27); added opt-in pendingFindings option + --pending CLI flag | #32 | #33 | yes | ACCEPT | npm test 96->104, 0 regressions | 7bf7a1d1 | PR #7 MERGED (2026-08-13); PR #13 MERGED (2026-08-15, manual); PRs #15,17,19,21,23,24,27,29,30 still OPEN/unmerged (9-PR backlog, flagged in issue #32, not fixed by this PR) |
