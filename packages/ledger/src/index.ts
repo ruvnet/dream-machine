@@ -200,11 +200,26 @@ export interface SignalOptions {
   recentScores?: number[];
   /** Which PR numbers actually merged (so we can detect the zero-merge streak). */
   mergedPrNumbers?: Set<string>;
+  /**
+   * Finding text from currently-open, unmerged dream-cycle PRs (e.g. their
+   * titles), supplied by the caller after a live GitHub check. `duplicateDirections`
+   * only ever sees rows already merged into LEDGER.md on main, so a repeated
+   * direction proposed across several still-open draft PRs is invisible to it
+   * until one of them lands — by which point duplicate work may already be
+   * done. Passing those findings here lets the same detector count them
+   * alongside merged-row findings. Omit for byte-identical prior behavior.
+   */
+  pendingFindings?: string[];
 }
 
 function prNumber(pr: string): string | null {
   const m = pr.match(/#?(\d+)/);
   return m ? m[1] : null;
+}
+
+/** Normalize a finding string to the same first-6-words key used for duplicate-direction detection. */
+function directionKey(finding: string): string {
+  return finding.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
 }
 
 /** Compute the STEP 1.1 learning signals from parsed rows. */
@@ -218,13 +233,16 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const zeroMergeStreak =
     prsInWindow.length > 0 && (!merged || prsInWindow.every((n) => !merged.has(n)));
 
-  // Duplicate directions: normalized finding text repeated >= 3 times.
+  // Duplicate directions: normalized finding text repeated >= 3 times, counting
+  // both merged ledger rows and (optionally) still-open PRs' pending findings.
   const counts = new Map<string, number>();
-  for (const r of rows) {
-    const key = r.finding.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
-    if (!key) continue;
+  const bumpDirection = (finding: string) => {
+    const key = directionKey(finding);
+    if (!key) return;
     counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  };
+  for (const r of rows) bumpDirection(r.finding);
+  for (const f of opts.pendingFindings ?? []) bumpDirection(f);
   const duplicateDirections = [...counts.entries()].filter(([, c]) => c >= 3).map(([k]) => k);
 
   // Low-score streak: last 3 scores all < 5.

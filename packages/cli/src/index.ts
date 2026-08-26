@@ -82,6 +82,24 @@ export function parseArgs(argv: string[]): { _: string[]; flags: Record<string, 
   return { _, flags };
 }
 
+/**
+ * Parse `--pending "finding one|finding two"` into a finding list for
+ * `learningSignals`'s `pendingFindings` option (pipe-separated open-PR
+ * titles/findings, supplied by the caller after a live GitHub check).
+ * Pipe, not comma, matches LEDGER.md's own field separator (`escapeCell`
+ * already strips raw `|` from anything that becomes a ledger cell) and
+ * survives real PR titles/findings, which very often contain commas.
+ * A boolean (bare `--pending`) or absent flag safely yields `undefined`.
+ */
+export function parsePendingFindings(raw: string | boolean | undefined): string[] | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const findings = raw
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return findings.length ? findings : undefined;
+}
+
 const HELP = `☾ dream-machine — nightly, evidence-gated repository evolution
 
 Usage: dream-machine <command> [options]
@@ -91,7 +109,7 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path LEDGER.md]                   Print STEP 1.1 learning signals
+  ledger signals  [--path LEDGER.md] [--pending "f1|f2"] Print STEP 1.1 learning signals
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
@@ -197,7 +215,8 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
-          sink.log(JSON.stringify(learningSignals(rows), null, 2));
+          const pendingFindings = parsePendingFindings(flags.pending as string | undefined);
+          sink.log(JSON.stringify(learningSignals(rows, { pendingFindings }), null, 2));
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
