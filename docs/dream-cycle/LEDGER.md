@@ -1,3 +1,4 @@
 | Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-13 | security-adversarial | redblue evaluator entrypoint silently no-ops (npx bin-symlink isMain footgun); added classifyEntrypointResult + verify-entrypoint | #6 | #7 | yes | ACCEPT | npm test 85->96, 0 regressions | ec2052aa | first real night (demo seed rows removed 2026-08-13; see #6) |
+| 2026-08-16 | ledger-signals | zeroMergeStreak permanently miscalibrated (CLI never wires mergedPrNumbers); now derived from Prior-night fates #N:FATE tokens | #14 | #15 | yes | ACCEPT | npm test 96->100, 0 regressions | 4fac9b71 | #7:MERGED #6:CLOSED (confirmed live via GitHub tonight; not yet in #N:FATE token form when this row's own PR was open) |
