@@ -109,4 +109,37 @@ describe('evidence carrying termination', () => {
     expect(empty.failures[0]?.reason).toBe('empty-evidence');
     expect(malformed.failures[0]?.reason).toBe('malformed-value-hash');
   });
+
+  it('turns replay exceptions into RECOVER without emitting a certificate', () => {
+    const decision = certifyCompletion('task-9', [claim], trace, () => {
+      throw new Error('replay unavailable');
+    });
+
+    expect(decision.status).toBe('RECOVER');
+    expect(decision.certificate).toBeUndefined();
+    expect(decision.failures[0]?.reason).toBe('replay-failed');
+    expect(decision.failures[0]?.detail).toContain('replay unavailable');
+  });
+
+  it('never emits a partial certificate when one of multiple claims is unsupported', () => {
+    const buildClaim: CompletionClaim = {
+      id: 'build.completed',
+      valueHash: hashJson({ completed: true }),
+      evidenceIds: ['build'],
+      allowedScopes: ['repo:read'],
+    };
+    const decision = certifyCompletion(
+      'task-10',
+      [buildClaim, { ...claim, evidenceIds: ['missing'] }],
+      trace,
+      (current, evidence) =>
+        current.id === 'build.completed'
+          ? { completed: evidence[0]?.id === 'build' }
+          : replay(current, evidence),
+    );
+
+    expect(decision.status).toBe('RECOVER');
+    expect(decision.certificate).toBeUndefined();
+    expect(decision.failures.some((failure) => failure.claimId === 'tests.passed')).toBe(true);
+  });
 });
