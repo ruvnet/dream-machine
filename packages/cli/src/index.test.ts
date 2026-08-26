@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { run, parseArgs, VERSION, type IO } from './index.js';
+import { run, parseArgs, parsePendingFindings, VERSION, type IO } from './index.js';
 import { renderDashboard } from './tui.js';
 import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
@@ -41,6 +41,31 @@ describe('parseArgs', () => {
     expect(flags.out).toBe('x.md');
     expect(flags.env).toBe('e1');
     expect(flags['no-color']).toBe(true);
+  });
+});
+
+describe('parsePendingFindings', () => {
+  it('splits a pipe-separated list and trims each entry', () => {
+    expect(parsePendingFindings('finding one| finding two | finding three')).toEqual([
+      'finding one',
+      'finding two',
+      'finding three',
+    ]);
+  });
+  it('preserves commas inside a finding — real PR titles routinely contain them', () => {
+    // e.g. PR #27's real title: "developer-experience: thread real merge
+    // state into zero-merge learning signal (cli, tui)" — a naive
+    // comma-split would fracture this into a bogus extra "finding".
+    expect(parsePendingFindings('developer-experience: thread state into signal (cli, tui)')).toEqual([
+      'developer-experience: thread state into signal (cli, tui)',
+    ]);
+  });
+  it('returns undefined for absent or bare-boolean flags (no behavior change)', () => {
+    expect(parsePendingFindings(undefined)).toBeUndefined();
+    expect(parsePendingFindings(true)).toBeUndefined();
+  });
+  it('returns undefined for an empty string', () => {
+    expect(parsePendingFindings('')).toBeUndefined();
   });
 });
 
@@ -132,6 +157,26 @@ describe('ledger', () => {
   it('signals', async () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
+  });
+  it('signals --pending folds in open-PR findings for duplicate-direction detection', async () => {
+    const solo = appendRow(emptyLedger(), sampleRow({ finding: 'zero merge streak reported false when pr merged' }));
+    const io = mockIO({ 'L.md': solo });
+    const withoutPending = await run(['ledger', 'signals', '--path', 'L.md'], io);
+    expect(JSON.parse(withoutPending.out).duplicateDirections).toEqual([]);
+    const withPending = await run(
+      [
+        'ledger',
+        'signals',
+        '--path',
+        'L.md',
+        '--pending',
+        'zero merge streak reported false when cli lacks it|zero merge streak reported false when tui lacks it',
+      ],
+      io,
+    );
+    expect(JSON.parse(withPending.out).duplicateDirections.some((d: string) => d.includes('zero merge streak'))).toBe(
+      true,
+    );
   });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();

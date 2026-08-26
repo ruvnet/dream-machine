@@ -147,6 +147,37 @@ describe('learning signals', () => {
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).blockedEvalStreak).toBe(true);
   });
+
+  it('counts pending (still-open PR) findings toward duplicateDirections', () => {
+    // Only 1 merged row + 2 pending (open, unmerged) PR findings sharing the
+    // same opening words — none alone would cross the >= 3 threshold from
+    // rows or pendingFindings in isolation, but together they should.
+    const { rows } = parseLedger(
+      appendRow(emptyLedger(), row({ finding: 'zero merge streak reported false when pr merged' })),
+    );
+    const s = learningSignals(rows, {
+      pendingFindings: [
+        'zero merge streak reported false when cli lacks ground truth',
+        'zero merge streak reported false when tui lacks a flag',
+      ],
+    });
+    expect(s.duplicateDirections.some((d) => d.includes('zero merge streak'))).toBe(true);
+  });
+
+  it('does not flag duplicates from pendingFindings alone below threshold', () => {
+    const { rows } = parseLedger(emptyLedger());
+    const s = learningSignals(rows, {
+      pendingFindings: ['zero merge streak reported false when pr merged'],
+    });
+    expect(s.duplicateDirections).toEqual([]);
+  });
+
+  it('omitting pendingFindings leaves duplicateDirections unchanged (default behavior)', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
+  });
 });
 
 describe('verdictStats', () => {
