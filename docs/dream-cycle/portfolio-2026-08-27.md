@@ -56,11 +56,11 @@ Artifact: [draft PR 935 review](https://github.com/ruvnet/RuVector/pull/935).
 
 Hypothesis: Replay reexecutes the frozen anti Goodhart anchor and fails closed when required promotion evidence is incomplete.
 
-Evidence: CI, security, and real tool workflows passed for PR 231. A high confidence evidence integrity condition remains and was retained for private advisory handling under the repository security policy. Public details are intentionally redacted. The separate Evidence Carrying Termination implementation in PR 233 is green but does not close the replay finding.
+Evidence: CI, security, and real tool workflows passed for PR 231 on Node 20 and 22. A clean Node 24.19.0 and npm 11.9.0 checkout failed exact npm ci because five platform kernel packages are absent from the lockfile; several required jobs mask this class with npm ci followed by npm install fallback. Issue 238 records the reproducibility gate. A high confidence evidence integrity condition also remains and was retained for private advisory handling under the repository security policy. Public details are intentionally redacted. The separate Evidence Carrying Termination implementation in PR 233 is green but does not close the replay finding.
 
 Verdict: **INCONCLUSIVE**
 
-Artifacts: [draft PR 231](https://github.com/ruvnet/metaharness/pull/231), [draft PR 233](https://github.com/ruvnet/metaharness/pull/233).
+Artifacts: [draft PR 231](https://github.com/ruvnet/metaharness/pull/231), [draft PR 233](https://github.com/ruvnet/metaharness/pull/233), [issue 238](https://github.com/ruvnet/metaharness/issues/238).
 
 ### RuView
 
