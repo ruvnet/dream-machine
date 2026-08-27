@@ -47,6 +47,39 @@ describe('validateConfig', () => {
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
   });
+  it('accepts a well-formed object-form adrConvention', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 5, dir: 'decisions' } });
+    expect(r.ok).toBe(true);
+  });
+  it('rejects a non-positive-integer adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: -1, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects a zero adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 0, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects a non-integer adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 2.5, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects an empty adrConvention.dir', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 4, dir: '' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.dir/);
+  });
+  it('rejects a whitespace-only adrConvention.dir', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 4, dir: '   ' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.dir/);
+  });
+  it('leaves the string-literal adrConvention forms unvalidated by this check', () => {
+    expect(validateConfig({ ...metaharness, adrConvention: '3-digit' }).ok).toBe(true);
+    expect(validateConfig({ ...metaharness, adrConvention: '4-digit' }).ok).toBe(true);
+  });
 });
 
 describe('compile', () => {
@@ -54,6 +87,12 @@ describe('compile', () => {
 
   it('throws on an invalid config', () => {
     expect(() => compile({ ...metaharness, repo: '' })).toThrow(/invalid dream.config/);
+  });
+
+  it('throws instead of silently compiling a corrupted ADR path from a malformed adrConvention', () => {
+    expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
+      /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
+    );
   });
 
   it('is deterministic (same input → identical output)', () => {
