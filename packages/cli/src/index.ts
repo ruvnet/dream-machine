@@ -18,7 +18,7 @@ import {
 import { stamp, verify, verifySteps } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyEntrypointResult, type ExecResult, type EntrypointVerdict } from './entrypoint.js';
 
 export const VERSION = '0.1.1';
 
@@ -97,6 +97,7 @@ Commands:
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
+  verify-entrypoints [config]                           Classify every configured evaluatorEntrypoint
   tui             [--path LEDGER.md] [--no-color]      Render the dashboard
   version | --version                                  Print version
   help    | --help                                     This help
@@ -293,6 +294,40 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         const check = classifyEntrypointResult(result);
         sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
         const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+        return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'verify-entrypoints': {
+        const cfgPath = _[1] || 'dream.config.json';
+        let cfg: DreamConfig;
+        try {
+          cfg = await loadConfig(io, cfgPath);
+        } catch (e) {
+          sink.error(`verify-entrypoints: could not read ${cfgPath}: ${(e as Error).message}`);
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        if (!io.exec) {
+          sink.error('verify-entrypoints: this IO has no exec() — cannot run commands');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        const entries = Object.entries(cfg.evaluatorEntrypoints ?? {}).filter(
+          (e): e is [string, string] => typeof e[1] === 'string' && e[1].length > 0,
+        );
+        if (entries.length === 0) {
+          sink.log(`verify-entrypoints: no evaluatorEntrypoints configured in ${cfgPath}`);
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+        // suspicious-silent outranks blocked: a backend that ran and told us it's broken is
+        // less dangerous than one that silently did nothing while looking clean (ADR-0002).
+        const severity: Record<EntrypointVerdict, number> = { live: 0, blocked: 1, 'suspicious-silent': 2 };
+        let worst: EntrypointVerdict = 'live';
+        for (const [label, cmd] of entries) {
+          const result = await io.exec(cmd);
+          const check = classifyEntrypointResult(result);
+          sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
+          if (severity[check.verdict] > severity[worst]) worst = check.verdict;
+        }
+        const code = worst === 'live' ? 0 : worst === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
       }
 

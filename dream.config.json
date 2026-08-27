@@ -52,7 +52,7 @@
   },
   "evaluatorEntrypoints": {
     "bench": "npm test",
-    "darwin": "npx @metaharness/darwin evolve --sandbox mock"
+    "darwin": "npx @metaharness/darwin evolve . --sandbox mock"
   },
   "adrConvention": "4-digit",
   "competitors": [

@@ -222,6 +222,68 @@ describe('verify-entrypoint', () => {
   });
 });
 
+describe('verify-entrypoints', () => {
+  const cfg = JSON.stringify({
+    repo: 'ruvnet/dream-machine',
+    evaluatorEntrypoints: { bench: 'npm test', darwin: 'npx @metaharness/darwin evolve --sandbox mock' },
+  });
+
+  function mockIOWithExec(exec: NonNullable<IO['exec']>): IO & { files: Record<string, string> } {
+    return { ...mockIO({ 'dream.config.json': cfg }), exec };
+  }
+
+  it('classifies every configured entrypoint and exits 0 when all are live', async () => {
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: 'ok', stderr: '' }));
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: live');
+  });
+
+  it('exits 1 (blocked) when a configured entrypoint fails and none is suspicious-silent', async () => {
+    const io = mockIOWithExec(async (cmd) =>
+      cmd.includes('darwin') ? { code: 1, stdout: '', stderr: 'unknown flag --sandbox' } : { code: 0, stdout: 'ok', stderr: '' },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: blocked');
+  });
+
+  it('exits 2 (suspicious-silent) even when another entrypoint is only blocked — silent outranks blocked', async () => {
+    const io = mockIOWithExec(async (cmd) =>
+      cmd.includes('darwin') ? { code: 0, stdout: '', stderr: '' } : { code: 1, stdout: '', stderr: 'boom' },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out).toContain('darwin: suspicious-silent');
+  });
+
+  it('reports no entrypoints configured without invoking exec', async () => {
+    const io = mockIOWithExec(async () => {
+      throw new Error('should not be called');
+    });
+    io.files['dream.config.json'] = JSON.stringify({ repo: 'x/y' });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('no evaluatorEntrypoints configured');
+  });
+
+  it('errors when the config file is missing', async () => {
+    const io = mockIOWithExec(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const r = await run(['verify-entrypoints', 'missing.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('could not read missing.json');
+  });
+
+  it('errors when the IO has no exec()', async () => {
+    const r = await run(['verify-entrypoints'], mockIO({ 'dream.config.json': cfg }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no exec()');
+  });
+});
+
 describe('tui', () => {
   it('renders a dashboard from a ledger', async () => {
     const md = appendRow(emptyLedger(), sampleRow());
