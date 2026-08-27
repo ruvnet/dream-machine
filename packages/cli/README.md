@@ -48,6 +48,7 @@ tomorrow's search space, not for producing PRs.
 | `dream-machine schedule <config> --env <id>` | emit the cloud `/schedule` routine body |
 | `dream-machine ledger verify\|signals\|stats\|append` | work the 10-column `LEDGER.md` |
 | `dream-machine witness stamp\|verify` | reproducible `sha256(sha256(report)+commit)` provenance |
+| `dream-machine verify-entrypoints <config>` | classify every configured `evaluatorEntrypoint` live/blocked/suspicious-silent in one shot |
 | `dream-machine tui` | the nightly dashboard, in your terminal |
 
 ```text
