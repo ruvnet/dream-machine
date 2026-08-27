@@ -59,6 +59,7 @@ export interface CompletionCertificate {
 export interface CompletionFailure {
   claimId: string;
   reason:
+    | 'empty-claims'
     | 'duplicate-evidence-id'
     | 'missing-evidence'
     | 'empty-evidence'
@@ -130,6 +131,13 @@ export function certifyCompletion(
   replay: ReplayClaim,
 ): CompletionDecision {
   const failures: CompletionFailure[] = [];
+  if (claims.length === 0) {
+    failures.push({
+      claimId: '*',
+      reason: 'empty-claims',
+      detail: 'at least one completion claim is required',
+    });
+  }
   const byId = new Map<string, TraceEvidence>();
 
   for (const e of trace) {
