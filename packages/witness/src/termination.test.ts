@@ -50,6 +50,14 @@ describe('evidence carrying termination', () => {
     expect(first.certificate?.certificateHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('rejects an empty claim set instead of certifying vacuous completion', () => {
+    const decision = certifyCompletion('task-empty', [], trace, replay);
+
+    expect(decision.status).toBe('RECOVER');
+    expect(decision.certificate).toBeUndefined();
+    expect(decision.failures[0]?.reason).toBe('empty-claims');
+  });
+
   it('rejects missing evidence rather than emitting a partial certificate', () => {
     const decision = certifyCompletion(
       'task-2',
