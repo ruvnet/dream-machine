@@ -29,6 +29,16 @@ describe('validateConfig', () => {
   it('rejects a bad cron', () => {
     expect(validateConfig({ ...metaharness, cron: 'nightly' }).ok).toBe(false);
   });
+  it('rejects schedules more frequent than hourly', () => {
+    for (const cron of ['* * * * *', '*/5 * * * *', '0,30 * * * *', '60 * * * *']) {
+      const result = validateConfig({ ...metaharness, cron });
+      expect(result.ok).toBe(false);
+      expect(result.errors.join()).toMatch(/minimum interval is 1 hour/);
+    }
+  });
+  it('accepts a fixed minute with an hourly or slower cadence', () => {
+    expect(validateConfig({ ...metaharness, cron: '15 */2 * * *' }).ok).toBe(true);
+  });
   it('rejects empty slots', () => {
     const r = validateConfig({ ...metaharness, slots: [] });
     expect(r.ok).toBe(false);
