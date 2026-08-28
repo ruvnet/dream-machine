@@ -26,6 +26,31 @@ describe('canonicalJson', () => {
     expect(() => canonicalJson({ a: undefined })).toThrow(/undefined/);
     expect(() => canonicalJson({ a: Number.NaN })).toThrow(/non-finite/);
   });
+
+  it('rejects ambiguous values that are not plain JSON evidence', () => {
+    const sparse = new Array(2);
+    sparse[1] = 'evidence';
+    expect(() => canonicalJson(sparse)).toThrow(/dense/);
+    expect(() => canonicalJson(new Date('2026-08-28T00:00:00Z'))).toThrow(/plain JSON object/);
+    expect(() => canonicalJson(new Map([['status', 500]]))).toThrow(/plain JSON object/);
+
+    const symbol = Symbol('hidden');
+    expect(() => canonicalJson({ visible: true, [symbol]: 'secret' })).toThrow(/symbol key/);
+  });
+
+  it('rejects accessors without invoking untrusted evidence code', () => {
+    let reads = 0;
+    const evidence = Object.defineProperty({}, 'status', {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return 500;
+      },
+    });
+
+    expect(() => canonicalJson(evidence)).toThrow(/data property/);
+    expect(reads).toBe(0);
+  });
 });
 
 describe('anchored trace replay', () => {
