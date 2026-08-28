@@ -60,11 +60,15 @@ passing the exact package and workspace gates.
 fixed-state test reportedly discriminates the structured-weight case and
 reports 461/462 package tests, with one stated pre-existing sandbox failure.
 
-**Evidence gate.** On exact head `b901326c`, all install-dependent workflows
-failed before build or test. The root manifest requests unpublished
-`@claude-flow/mcp@3.0.0-alpha.10`, and the v3 lockfile still records alpha.9.
-Existing issues #3095 and #3101 already track this. CodeQL alone passed.
-The review also requires finite non-negative weights and deterministic ties.
+**Evidence gate.** On exact head `dbd042878a2c9ca8085c0218d88f9d2a70beae70`,
+the candidate now rejects non-finite or negative weights, falls back per
+component, breaks equal-score ties deterministically by entry ID, and includes
+focused regressions. Type Check V3, Test V3 Packages, the static lock guard,
+memory import smokes, and no-optional-dependency jobs pass. Several required
+root-level signing, security, integration, and verification jobs still fail
+before execution because the root install cannot resolve the already-tracked
+unpublished `@claude-flow/mcp@3.0.0-alpha.10`. Existing issues #3095 and #3101
+track the dependency and lockfile blockers. CodeQL passes.
 
 **INCONCLUSIVE**
 
@@ -162,8 +166,8 @@ and Real Tools all pass.
 
 - Existing draft PR materially updated: Dream Machine #42.
 - Existing draft PR accepted after remediation: MetaHarness #231.
-- Reviews added: Ruflo #3119, RuView #1731, RuCelium #3, MetaHarness #231, and
-  Dream Machine #42.
+- Reviews added or updated: Ruflo #3119, RuView #1731, RuCelium #3,
+  MetaHarness #231, and Dream Machine #42.
 - New issues: 0. Existing issues were reused.
 - Direct pushes to default branches: 0.
 - Merges and automerge: 0.
