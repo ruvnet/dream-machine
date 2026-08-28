@@ -19,6 +19,7 @@ import { stamp, verify, verifySteps } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
 import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyAuditGate } from './auditgate.js';
 
 export const VERSION = '0.1.1';
 
@@ -97,6 +98,7 @@ Commands:
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
+  audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
   tui             [--path LEDGER.md] [--no-color]      Render the dashboard
   version | --version                                  Print version
   help    | --help                                     This help
@@ -293,6 +295,28 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         const check = classifyEntrypointResult(result);
         sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
         const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+        return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'audit-gate': {
+        const path = flags.path as string | undefined;
+        if (!path) {
+          sink.error('usage: dream-machine audit-gate --path <npm-audit.json>');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let report: unknown;
+        try {
+          report = JSON.parse(await io.readFile(path));
+        } catch (e) {
+          sink.error(`audit-gate: could not read/parse ${path}: ${(e as Error).message}`);
+          return { code: 2, out: sink.out, err: sink.err };
+        }
+        const r = classifyAuditGate(report);
+        sink.log(
+          `audit-gate: ${r.verdict} — ${r.reason} ` +
+            `(critical=${r.critical} high=${r.high} moderate=${r.moderate} low=${r.low})`,
+        );
+        const code = r.verdict === 'clear' ? 0 : r.verdict === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
       }
 

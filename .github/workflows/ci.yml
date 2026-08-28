@@ -43,6 +43,31 @@ jobs:
           W=$(node packages/cli/dist/bin.js witness stamp /tmp/r.md $(git rev-parse HEAD) | awk '/witness /{print $3}')
           node packages/cli/dist/bin.js witness verify /tmp/r.md $(git rev-parse HEAD) "$W"
 
+  dependency-security:
+    # Issue #43: `npm ci` can report critical/high findings while CI stays
+    # green, because nothing gates on the audit output. This job classifies
+    # `npm audit --omit=dev` (the production-reachable dependency graph —
+    # npm's own authoritative reachability computation, not re-derived here)
+    # through `dream-machine audit-gate` and fails only on a reachable
+    # high/critical production finding. Dev-toolchain findings (e.g. today's
+    # vitest/vite/esbuild advisories, tracked separately in #37) are reported
+    # by `npm audit` in the job log but never gate CI here — see ADR-0002's
+    # "classify, don't silently trust or silently fix" precedent.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - name: Typecheck + build
+        run: npm run build
+      - name: Full audit (report only, includes dev toolchain)
+        run: npm audit || true
+      - name: Production-scoped audit gate (fails on reachable high/critical)
+        run: |
+          npm audit --omit=dev --json > /tmp/audit-prod.json || true
+          node packages/cli/dist/bin.js audit-gate --path /tmp/audit-prod.json
+
   no-optional-deps:
     # ADR-150 invariant: the engine builds and tests with the optional
     # ruvector/RVF wasm backends ABSENT. They are declared peer-optional in

@@ -222,6 +222,35 @@ describe('verify-entrypoint', () => {
   });
 });
 
+describe('audit-gate', () => {
+  it('exits 0 (clear) for a production-scoped report with 0 findings', async () => {
+    const report = JSON.stringify({ metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 } } });
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': report }));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('audit-gate: clear');
+  });
+
+  it('exits 1 (blocked) for a report with a critical finding', async () => {
+    const report = JSON.stringify({ metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 1, total: 1 } } });
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': report }));
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('audit-gate: blocked');
+    expect(r.out).toContain('critical=1');
+  });
+
+  it('exits 2 (malformed) for unparseable JSON, never silently passing', async () => {
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': 'not json' }));
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('could not read/parse');
+  });
+
+  it('errors without --path', async () => {
+    const r = await run(['audit-gate'], mockIO());
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('usage:');
+  });
+});
+
 describe('tui', () => {
   it('renders a dashboard from a ledger', async () => {
     const md = appendRow(emptyLedger(), sampleRow());
