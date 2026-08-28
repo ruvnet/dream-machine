@@ -52,6 +52,16 @@ export function canonicalJson(value: unknown): string {
     }
     if (Array.isArray(current)) {
       if (seen.has(current)) throw new Error('trace evidence contains a cycle');
+      const ownKeys = Reflect.ownKeys(current);
+      const expectedKeys = [...current.keys()].map(String);
+      expectedKeys.push('length');
+      if (
+        current.some((_, index) => !Object.hasOwn(current, index)) ||
+        ownKeys.length !== expectedKeys.length ||
+        ownKeys.some((key, index) => key !== expectedKeys[index])
+      ) {
+        throw new Error('trace evidence array must be dense and contain no extra properties');
+      }
       seen.add(current);
       const result = `[${current.map((item) => encode(item)).join(',')}]`;
       seen.delete(current);
@@ -59,9 +69,23 @@ export function canonicalJson(value: unknown): string {
     }
     if (typeof current === 'object') {
       const object = current as Record<string, unknown>;
+      const prototype = Object.getPrototypeOf(object);
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new Error('trace evidence object must be a plain JSON object');
+      }
       if (seen.has(object)) throw new Error('trace evidence contains a cycle');
+      const ownKeys = Reflect.ownKeys(object);
+      if (ownKeys.some((key) => typeof key !== 'string')) {
+        throw new Error('trace evidence object contains a symbol key');
+      }
+      for (const key of ownKeys as string[]) {
+        const descriptor = Object.getOwnPropertyDescriptor(object, key);
+        if (!descriptor?.enumerable || !('value' in descriptor)) {
+          throw new Error(`trace evidence property "${key}" must be an enumerable data property`);
+        }
+      }
       seen.add(object);
-      const entries = Object.keys(object)
+      const entries = (ownKeys as string[])
         .sort()
         .map((key) => {
           const item = object[key];
