@@ -167,7 +167,7 @@ and Real Tools all pass.
 - New issues: 0. Existing issues were reused.
 - Direct pushes to default branches: 0.
 - Merges and automerge: 0.
-- New portfolio evidence PR: pending at the time this report file was created.
+- New portfolio evidence PR: Dream Machine #44.
 - Blockers: Ruflo unpublished dependency and lock drift; RuView/RuCelium
   missing API contract and unapproved CI; no physical RF validation; no
   governed Core Memory endpoint; 38 repositories without code-search indexing.
