@@ -9,6 +9,7 @@ Alternatives Considered → Test Contract → References.
 |-----|-------|--------|
 | [ADR-0001](./ADR-0001-dream-machine-engine.md) | The Dream Machine engine — a config-driven, evidence-gated nightly evolution loop composed from the ruvnet stack | Accepted (v0.1.0 shipped) |
 | [ADR-0002](./ADR-0002-dream-cycle-security-adversarial-entrypoint-liveness.md) | Evaluator entrypoints must be classified live/blocked/suspicious-silent before an EVALUATED verdict is recorded | Proposed |
+| [ADR-0003](./ADR-0003-anchored-trace-replay.md) | Anchored trace replay for causal failure experiments | Proposed |
 
 ## How to amend
 
