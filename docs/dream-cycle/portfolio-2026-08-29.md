@@ -103,7 +103,7 @@ Verdict: **INCONCLUSIVE**
 1. Created [RuVector issue 942](https://github.com/ruvnet/RuVector/issues/942).
 2. Added exact-head evidence reviews to LatentMesh PR 13, RuVector PR 941, SPARC PR 57, and Ruflo PR 3123.
 3. Reused Open Claude Code issue 17 and existing Ruflo dependency/reproducibility trackers.
-4. Created this redacted portfolio evidence branch and exactly one ledger row.
+4. Created [Dream Machine draft PR 47](https://github.com/ruvnet/dream-machine/pull/47) with this redacted report and exactly one ledger row.
 5. Created zero implementation pull requests, performed zero direct pushes to main, and performed zero merges or automerge changes.
 
 ## Prior-cycle fates
@@ -130,4 +130,4 @@ Dream Machine [PR 35](https://github.com/ruvnet/dream-machine/pull/35) and the p
 
 ## Acceptance test
 
-This evidence cycle is acceptable only when its draft pull request passes CI and CodeQL on the exact head, no private repository identity or finding appears publicly, the ledger contains exactly one 2026-08-29 row, and every deep repository ends with exactly ACCEPT, REJECT, or INCONCLUSIVE.
+This evidence cycle is acceptable only when [draft PR 47](https://github.com/ruvnet/dream-machine/pull/47) passes CI and CodeQL on the exact head, no private repository identity or finding appears publicly, the ledger contains exactly one 2026-08-29 row, and every deep repository ends with exactly ACCEPT, REJECT, or INCONCLUSIVE.
