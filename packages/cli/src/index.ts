@@ -13,6 +13,8 @@ import {
   emptyLedger,
   learningSignals,
   verdictStats,
+  VERDICTS,
+  EVALS,
   type LedgerRow,
 } from '@dream-machine/ledger';
 import { stamp, verify, verifySteps } from '@dream-machine/witness';
@@ -218,6 +220,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             witness: (flags.witness as string) || '',
             priorFates: (flags.priorFates as string) || '',
           };
+          if (!VERDICTS.includes(row.verdict)) {
+            sink.error(`ledger append: verdict "${row.verdict}" not in ${VERDICTS.join('|')}`);
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          if (!EVALS.includes(row.evaluated)) {
+            sink.error(`ledger append: evaluated "${row.evaluated}" not in ${EVALS.join('|')}`);
+            return { code: 1, out: sink.out, err: sink.err };
+          }
           const next = appendRow(md, row);
           await io.writeFile(path, next);
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);

@@ -145,8 +145,8 @@ export function appendRow(markdown: string, row: LedgerRow): string {
   return `${base}\n${renderRow(row)}\n`;
 }
 
-const VERDICTS: readonly string[] = ['ACCEPT', 'REJECT', 'INCONCLUSIVE'];
-const EVALS: readonly string[] = ['yes', 'no', 'blocked'];
+export const VERDICTS: readonly string[] = ['ACCEPT', 'REJECT', 'INCONCLUSIVE'];
+export const EVALS: readonly string[] = ['yes', 'no', 'blocked'];
 
 export interface VerifyResult {
   ok: boolean;
