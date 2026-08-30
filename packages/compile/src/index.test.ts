@@ -104,6 +104,12 @@ describe('compile', () => {
     }
   });
 
+  it('treats missing gist tooling as best-effort, not a stop condition', () => {
+    expect(prompt).toContain('GIST=LOCAL');
+    expect(prompt).toContain('not FALLBACK');
+    expect(prompt).not.toMatch(/Otherwise `gh gist create --public` the report/);
+  });
+
   it('describes human-review-only merge policy by default', () => {
     expect(prompt).toContain('Human review required');
     expect(prompt).not.toContain('guarded auto-merge ENABLED');
