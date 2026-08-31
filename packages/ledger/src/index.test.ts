@@ -8,6 +8,7 @@ import {
   learningSignals,
   verdictStats,
   escapeCell,
+  validateRowFields,
   LEDGER_COLUMNS,
   type LedgerRow,
 } from './index.js';
@@ -100,6 +101,16 @@ describe('verifyLedger', () => {
     const r = verifyLedger(l);
     expect(r.errors.join()).toMatch(/date/);
     expect(r.errors.join()).toMatch(/evaluated/);
+  });
+
+  it('validateRowFields flags an out-of-range verdict and evaluated value', () => {
+    const errs = validateRowFields({ verdict: 'ACCEPT / INCONCLUSIVE', evaluated: 'partial' });
+    expect(errs.some((e) => /verdict/.test(e))).toBe(true);
+    expect(errs.some((e) => /evaluated/.test(e))).toBe(true);
+  });
+
+  it('validateRowFields is clean for an in-range row', () => {
+    expect(validateRowFields({ verdict: 'ACCEPT', evaluated: 'yes' })).toEqual([]);
   });
 
   it('flags a missing header', () => {

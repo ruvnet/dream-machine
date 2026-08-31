@@ -142,6 +142,26 @@ describe('ledger', () => {
     expect(r.code).toBe(0);
     expect(io.files['L.md']).toContain('| perf |');
   });
+  it('append refuses an out-of-range verdict and does not write', async () => {
+    const io = mockIO();
+    const r = await run(
+      ['ledger', 'append', '--path', 'L.md', '--deep', 'perf', '--finding', 'x', '--verdict', 'ACCEPT / INCONCLUSIVE'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('verdict');
+    expect(io.files['L.md']).toBeUndefined();
+  });
+  it('append refuses an out-of-range evaluated value and does not write', async () => {
+    const io = mockIO();
+    const r = await run(
+      ['ledger', 'append', '--path', 'L.md', '--deep', 'perf', '--finding', 'x', '--evaluated', 'partial'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('evaluated');
+    expect(io.files['L.md']).toBeUndefined();
+  });
 });
 
 describe('witness', () => {

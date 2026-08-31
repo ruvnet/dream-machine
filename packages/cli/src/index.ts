@@ -13,6 +13,7 @@ import {
   emptyLedger,
   learningSignals,
   verdictStats,
+  validateRowFields,
   type LedgerRow,
 } from '@dream-machine/ledger';
 import { stamp, verify, verifySteps } from '@dream-machine/witness';
@@ -218,6 +219,12 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             witness: (flags.witness as string) || '',
             priorFates: (flags.priorFates as string) || '',
           };
+          const fieldErrors = validateRowFields(row);
+          if (fieldErrors.length) {
+            sink.error(`ledger append: refusing to write an invalid row:`);
+            fieldErrors.forEach((e) => sink.error(`  - ${e}`));
+            return { code: 1, out: sink.out, err: sink.err };
+          }
           const next = appendRow(md, row);
           await io.writeFile(path, next);
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);
