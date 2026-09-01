@@ -133,6 +133,15 @@ describe('ledger', () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
   });
+  it('signals wires io.now() through as `today`, flagging a stale ledger', async () => {
+    const io = mockIO({ 'L.md': ledgerMd }); // ledgerMd's newest row is dated 2026-08-14
+    io.now = () => '2026-08-20';
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], io);
+    const signals = JSON.parse(r.out);
+    expect(signals.lastRowDate).toBe('2026-08-14');
+    expect(signals.daysSinceLastRow).toBe(6);
+    expect(signals.ledgerStale).toBe(true);
+  });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
     const r = await run(
@@ -240,5 +249,23 @@ describe('tui', () => {
     for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
+  });
+  it('shows a ledger-stale warning when `today` is far past the last row', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const frame = renderDashboard(md, { noColor: true, today: '2026-08-20' });
+    expect(frame).toContain('ledger stale');
+    expect(frame).toContain('19d since last row');
+  });
+  it('omits the ledger-stale warning when `today` is not supplied', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toContain('ledger stale');
+  });
+  it('tui command wires io.now() into the staleness check', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const io = mockIO({ 'L.md': md });
+    io.now = () => '2026-08-20';
+    const r = await run(['tui', '--path', 'L.md', '--no-color'], io);
+    expect(r.out).toContain('ledger stale');
   });
 });

@@ -191,6 +191,20 @@ export interface LearningSignals {
   blockedEvalStreak: boolean;
   /** Count of nights considered. */
   nightsConsidered: number;
+  /**
+   * Most recent valid row date (YYYY-MM-DD), or null if the ledger has no
+   * dated rows. The nightly cron runs daily, but every candidate PR ships its
+   * ledger row on its own branch — a row lands on `main` only once that PR
+   * merges. A local checkout's ledger can silently go stale for many real
+   * nights while `zeroMergeStreak` holds, undermining every signal above
+   * (duplicateDirections in particular: a night can't rotate away from a
+   * direction it can't see).
+   */
+  lastRowDate: string | null;
+  /** Days between `today` and `lastRowDate` (0 if same day), or null if there is no dated row. */
+  daysSinceLastRow: number | null;
+  /** true when daysSinceLastRow exceeds `staleAfterDays` — treat every signal above as unreliable. */
+  ledgerStale: boolean;
 }
 
 export interface SignalOptions {
@@ -200,6 +214,19 @@ export interface SignalOptions {
   recentScores?: number[];
   /** Which PR numbers actually merged (so we can detect the zero-merge streak). */
   mergedPrNumbers?: Set<string>;
+  /** Today's date (YYYY-MM-DD) for staleness. Defaults to no staleness check when omitted. */
+  today?: string;
+  /** Days tolerated between the ledger's last row and `today` before it's "stale". Default 1 (nightly cron). */
+  staleAfterDays?: number;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
 }
 
 function prNumber(pr: string): string | null {
@@ -237,12 +264,23 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const blockedEvalStreak =
     recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
 
+  // Staleness: the newest valid row date, regardless of row order.
+  const validDates = rows.map((r) => r.date).filter((d) => DATE_RE.test(d));
+  const lastRowDate = validDates.length ? validDates.reduce((max, d) => (d > max ? d : max)) : null;
+  const today = opts.today;
+  const staleAfterDays = opts.staleAfterDays ?? 1;
+  const daysSinceLastRow = lastRowDate && today ? daysBetween(lastRowDate, today) : null;
+  const ledgerStale = daysSinceLastRow !== null && daysSinceLastRow > staleAfterDays;
+
   return {
     zeroMergeStreak,
     duplicateDirections,
     lowScoreStreak,
     blockedEvalStreak,
     nightsConsidered: recent.length,
+    lastRowDate,
+    daysSinceLastRow,
+    ledgerStale,
   };
 }
 
