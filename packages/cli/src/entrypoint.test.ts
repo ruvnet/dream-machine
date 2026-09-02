@@ -36,4 +36,22 @@ describe('classifyEntrypointResult', () => {
     const r = classifyEntrypointResult({ code: 0, stdout: '', stderr: 'warning: slow test detected' });
     expect(r.verdict).toBe('live');
   });
+
+  it('flags a leftover-state collision as stale-state, not blocked (reproduces `npx @metaharness/darwin evolve . --sandbox mock` run twice in the same checkout)', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: '',
+      stderr:
+        'Error: darwin: autonomous or generated child id already exists: g1_v0\n' +
+        '    at evolve (file:///.../node_modules/@metaharness/darwin/dist/evolve.js:280:27)',
+    });
+    expect(r.verdict).toBe('stale-state');
+    expect(r.reason).toContain('already exists');
+    expect(r.reason).toContain('Clear that state and re-run');
+  });
+
+  it('does not flag an unrelated nonzero-exit failure as stale-state', () => {
+    const r = classifyEntrypointResult({ code: 1, stdout: '', stderr: 'npm error could not determine executable to run' });
+    expect(r.verdict).toBe('blocked');
+  });
 });
