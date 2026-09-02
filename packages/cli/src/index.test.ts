@@ -220,6 +220,32 @@ describe('verify-entrypoint', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('no exec()');
   });
+
+  it('reports stale-state (exit 3), distinct from blocked, for a leftover-state collision', async () => {
+    const io = mockIOWithExec(async () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'Error: darwin: autonomous or generated child id already exists: g1_v0',
+    }));
+    const r = await run(['verify-entrypoint', 'darwin', '--cmd', 'npx @metaharness/darwin evolve . --sandbox mock'], io);
+    expect(r.code).toBe(3);
+    expect(r.out).toContain('darwin: stale-state');
+  });
+});
+
+describe('self-hosted dream.config.json — darwin entrypoint contract', () => {
+  it('is idempotently re-runnable: required <repo> positional present, state reset before each invocation', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const raw = await readFile(new URL('../../../dream.config.json', import.meta.url), 'utf8');
+    const config = JSON.parse(raw);
+    const darwin: string = config.evaluatorEntrypoints.darwin;
+    // Regression guard for the 2026-09-02 finding: `npx @metaharness/darwin evolve` requires
+    // a `<repo>` positional (bare `--sandbox mock` silently consumes `--sandbox` as it), and
+    // persists generation/child ids under `.metaharness/` in the target directory — a second
+    // invocation in the same checkout without clearing that directory first always fails.
+    expect(darwin).toMatch(/\bevolve\s+\.\s/);
+    expect(darwin).toMatch(/rm\s+-rf\s+\.metaharness\s+&&/);
+  });
 });
 
 describe('tui', () => {

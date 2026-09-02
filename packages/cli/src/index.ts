@@ -292,7 +292,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         const result = await io.exec(cmd);
         const check = classifyEntrypointResult(result);
         sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
-        const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+        const code =
+          check.verdict === 'live'
+            ? 0
+            : check.verdict === 'blocked'
+              ? 1
+              : check.verdict === 'suspicious-silent'
+                ? 2
+                : 3; // stale-state
         return { code, out: sink.out, err: sink.err };
       }
 
