@@ -79,10 +79,16 @@ export interface ClaimVerification {
 }
 
 const HEX64 = /^[0-9a-f]{64}$/;
-const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@]{0,255}$/;
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,255}$/;
 
 function sha256Hex(input: string): string {
   return createHash('sha256').update(input).digest('hex');
+}
+
+function compareAscii(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 function validateId(value: string, name: string): void {
@@ -114,7 +120,7 @@ function uniqueSorted(values: readonly string[], name: string): string[] {
     seen.add(value);
     out.push(value);
   }
-  return out.sort();
+  return out.sort(compareAscii);
 }
 
 /**
@@ -211,11 +217,10 @@ function canonicalizeEvidence(
       terminal: record.terminal,
     });
   }
-  canonical.sort((a, b) =>
-    a.assignmentId === b.assignmentId
-      ? a.fieldGroup.localeCompare(b.fieldGroup)
-      : a.assignmentId.localeCompare(b.assignmentId),
-  );
+  canonical.sort((left, right) => {
+    const assignmentOrder = compareAscii(left.assignmentId, right.assignmentId);
+    return assignmentOrder === 0 ? compareAscii(left.fieldGroup, right.fieldGroup) : assignmentOrder;
+  });
   return canonical;
 }
 
@@ -224,6 +229,7 @@ export function hashEvidenceRecords(
   manifest: ExperimentManifest,
   records: readonly EvidenceRecord[],
 ): string {
+  hashExperimentManifest(manifest);
   const assignmentIds = new Set(manifest.assignments.map((assignment) => assignment.id));
   const canonical = canonicalizeEvidence(records, assignmentIds);
   return sha256Hex(JSON.stringify(canonical));
@@ -279,7 +285,9 @@ export function verifyClaimEvidence(
     return invalidReceipt(manifestDigest, claimDigest, 'manifest digest mismatch');
   }
 
-  const assignmentIds = manifest.assignments.map((assignment) => assignment.id).sort();
+  const assignmentIds = manifest.assignments
+    .map((assignment) => assignment.id)
+    .sort(compareAscii);
   let canonicalEvidence: CanonicalEvidence[];
   try {
     canonicalEvidence = canonicalizeEvidence(records, new Set(assignmentIds));
@@ -287,8 +295,10 @@ export function verifyClaimEvidence(
     return invalidReceipt(manifestDigest, claimDigest, (error as Error).message);
   }
   const evidenceDigest = sha256Hex(JSON.stringify(canonicalEvidence));
-  const byIdentity = new Map(
-    canonicalEvidence.map((record) => [`${record.assignmentId}\u0000${record.fieldGroup}`, record]),
+  const byIdentity = new Map<string, CanonicalEvidence>(
+    canonicalEvidence.map(
+      (record) => [`${record.assignmentId}\u0000${record.fieldGroup}`, record] as const,
+    ),
   );
 
   const terminalAssignments = new Set(
@@ -313,7 +323,7 @@ export function verifyClaimEvidence(
     };
   }
 
-  const requiredFields = [...claim.requiredFieldGroups].sort();
+  const requiredFields = [...claim.requiredFieldGroups].sort(compareAscii);
   const openedFields = new Set(claim.requireOpenedFieldGroups ?? []);
   const missingFields: string[] = [];
   const missingOpenings: string[] = [];
