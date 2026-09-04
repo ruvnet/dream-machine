@@ -197,7 +197,8 @@ CI, not just documented (see [SECURITY.md](SECURITY.md) and
 
 - **Evaluation is not promotion.** The session never merges and never
   self-promotes; it opens *draft* PRs only.
-- **Guarded auto-merge.** The optional auto-merge job refuses any PR touching a
+- **Guarded auto-merge.** Auto-merge is disabled in the default configuration.
+  The optional job refuses any PR touching a
   protected path (gates, safety, thresholds, CI, dependency manifests) and
   requires an explicit label plus green required checks. The session never runs
   the merge itself.
@@ -205,6 +206,17 @@ CI, not just documented (see [SECURITY.md](SECURITY.md) and
   and tests with the ruvector wasm backends absent.
 - **Witnessed provenance** — every report is bound to its commit by a
   reproducible double-sha256 anyone can re-derive.
+
+### Proposed Home Core edge program
+
+The [Home Core implementation mission](docs/plans/2026-09-04-dream-machine-home-core-implementation.md)
+extends the evidence-gated engine toward an offline UNO Q sensing appliance,
+RuView Home Core, real RuVector memory, a local MCP facade, and an optional
+Apple HealthKit bridge. The proposal keeps Dream Machine as the build and
+evidence control plane: models and self-evolving candidates never receive
+direct actuator, promotion, signing, or merge authority. Start with
+[ADR-0100](docs/adrs/ADR-0100-edge-runtime-trust-boundaries.md). No bedside
+runtime or hardware-safety claim is implemented by this documentation change.
 
 ## Prior art
 

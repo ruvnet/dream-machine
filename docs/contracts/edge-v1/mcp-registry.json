@@ -1,0 +1,247 @@
+{
+  "schemaVersion": "dream.mcp.registry.v1",
+  "protocolDate": "2026-07-28",
+  "resourceScheme": "ruv",
+  "resourceAuthority": "dream-machine",
+  "principalClasses": [
+    "local_human",
+    "local_service",
+    "local_model",
+    "cloud_model"
+  ],
+  "audiencePolicyByPrivacyClass": {
+    "P0": {
+      "default": ["local_human", "local_service", "local_model", "cloud_model"],
+      "explicitGrant": [],
+      "denied": []
+    },
+    "P1": {
+      "default": ["local_human", "local_service", "local_model"],
+      "explicitGrant": ["cloud_model"],
+      "denied": []
+    },
+    "P2": {
+      "default": ["local_human", "local_service"],
+      "explicitGrant": ["local_model"],
+      "denied": ["cloud_model"]
+    },
+    "P3": {
+      "default": ["local_service"],
+      "explicitGrant": ["local_human"],
+      "denied": ["local_model", "cloud_model"]
+    }
+  },
+  "resources": [
+    {
+      "name": "device_status",
+      "uriTemplate": "ruv://dream-machine/v1/devices/{deviceId}/status",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": true
+    },
+    {
+      "name": "consent_current",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/consent/current",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": true
+    },
+    {
+      "name": "night_summary",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/nights/{nightId}/summary",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": true
+    },
+    {
+      "name": "night_signal_window",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/nights/{nightId}/signals/{windowId}",
+      "privacyClass": "P3",
+      "modelVisibleByDefault": false,
+      "subscribable": false
+    },
+    {
+      "name": "apple_watch_summary",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/nights/{nightId}/apple-watch/summary",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": false
+    },
+    {
+      "name": "apple_watch_quality",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/nights/{nightId}/apple-watch/quality",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": false
+    },
+    {
+      "name": "apple_watch_sync_status",
+      "uriTemplate": "ruv://dream-machine/v1/subjects/self/apple-watch/sync-status",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": true
+    },
+    {
+      "name": "experiment_protocol",
+      "uriTemplate": "ruv://dream-machine/v1/experiments/{experimentId}/protocol",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": false
+    },
+    {
+      "name": "active_policy",
+      "uriTemplate": "ruv://dream-machine/v1/policies/active",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": true
+    },
+    {
+      "name": "candidate_receipt",
+      "uriTemplate": "ruv://dream-machine/v1/candidates/{candidateId}/receipt",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": false
+    },
+    {
+      "name": "cue_receipt",
+      "uriTemplate": "ruv://dream-machine/v1/cues/{ticketId}/receipt",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": false
+    },
+    {
+      "name": "evidence",
+      "uriTemplate": "ruv://dream-machine/v1/evidence/{digest}",
+      "privacyClass": "P2",
+      "modelVisibleByDefault": false,
+      "subscribable": false
+    },
+    {
+      "name": "latest_benchmarks",
+      "uriTemplate": "ruv://dream-machine/v1/benchmarks/latest",
+      "privacyClass": "P1",
+      "modelVisibleByDefault": true,
+      "subscribable": false
+    },
+    {
+      "name": "schema",
+      "uriTemplate": "ruv://dream-machine/v1/schemas/{name}/{version}",
+      "privacyClass": "P0",
+      "modelVisibleByDefault": true,
+      "subscribable": false
+    }
+  ],
+  "tools": [
+    {
+      "name": "dream_status",
+      "effect": "Read redacted device and session status",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model", "cloud_model"],
+      "requiredScope": "dream.read.status"
+    },
+    {
+      "name": "dream_session_query",
+      "effect": "Read a bounded derived summary or timeline",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model"],
+      "requiredScope": "dream.read.session"
+    },
+    {
+      "name": "dream_memory_search",
+      "effect": "Search redacted local RuVector summaries",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model"],
+      "requiredScope": "dream.read.memory"
+    },
+    {
+      "name": "dream_intention_set",
+      "effect": "Store an awake locally confirmed intention",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.write.intention"
+    },
+    {
+      "name": "dream_report_record",
+      "effect": "Store a morning report revision",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.write.report"
+    },
+    {
+      "name": "dream_experiment_preview",
+      "effect": "Run deterministic replay against a bounded candidate",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model", "cloud_model"],
+      "requiredScope": "dream.run.preview"
+    },
+    {
+      "name": "dream_cue_propose",
+      "effect": "Store one untrusted CueProposalV1",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model"],
+      "requiredScope": "dream.write.proposal"
+    },
+    {
+      "name": "dream_mute",
+      "effect": "Request an idempotent transition toward MUTED",
+      "authority": "stop_only",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model", "cloud_model"],
+      "requiredScope": "dream.safety.stop"
+    },
+    {
+      "name": "dream_receipt_export",
+      "effect": "Request an awake user approved evidence export",
+      "authority": "export_only",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.export.request"
+    },
+    {
+      "name": "apple_watch_status",
+      "effect": "Read Apple bridge availability and coverage",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model"],
+      "requiredScope": "dream.apple.read.status"
+    },
+    {
+      "name": "apple_watch_sync_now",
+      "effect": "Request local reconciliation after protected data is available",
+      "authority": "none",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.apple.sync.request"
+    },
+    {
+      "name": "apple_watch_request_live_session",
+      "effect": "Create a pending awake local confirmation request",
+      "authority": "local_confirmation_request",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.apple.live.request"
+    },
+    {
+      "name": "apple_watch_stop_live_session",
+      "effect": "Stop optional live collection",
+      "authority": "stop_only",
+      "allowedPrincipalClasses": ["local_human", "local_service", "local_model", "cloud_model"],
+      "requiredScope": "dream.apple.live.stop"
+    },
+    {
+      "name": "apple_watch_delete_data",
+      "effect": "Request deletion and require awake local confirmation",
+      "authority": "delete_only",
+      "allowedPrincipalClasses": ["local_human", "local_service"],
+      "requiredScope": "dream.apple.delete.request"
+    }
+  ],
+  "forbiddenToolEffects": [
+    "arm",
+    "resume",
+    "cue_execute",
+    "ticket_mint",
+    "safety_limit_raise",
+    "firmware_install",
+    "network_destination_add",
+    "consent_change",
+    "candidate_promote",
+    "release_sign",
+    "pull_request_merge"
+  ]
+}

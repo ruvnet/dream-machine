@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruv.net/dream-machine/schemas/edge-v1/safety-decision.schema.json",
+  "title": "Dream Machine SafetyDecisionV1 JSON audit representation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "decisionId",
+    "decision",
+    "decidedAt",
+    "decidedMonotonicUs",
+    "reasonCodes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "decisionId": { "$ref": "#/$defs/id128" },
+    "decision": { "enum": ["authorize", "deny"] },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "decidedMonotonicUs": { "$ref": "#/$defs/uint64" },
+    "proposalDigest": { "$ref": "#/$defs/sha256" },
+    "consentDigest": { "$ref": "#/$defs/sha256" },
+    "policyDigest": { "$ref": "#/$defs/sha256" },
+    "firmwareDigest": { "$ref": "#/$defs/sha256" },
+    "reasonCodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/safeId" }
+    },
+    "ticket": { "$ref": "#/$defs/ticket" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "decision": { "const": "authorize" } },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": { "ticket": {} },
+        "required": ["ticket"],
+        "not": {
+          "anyOf": [
+            {
+              "properties": { "proposalDigest": {} },
+              "required": ["proposalDigest"]
+            },
+            {
+              "properties": { "consentDigest": {} },
+              "required": ["consentDigest"]
+            },
+            {
+              "properties": { "policyDigest": {} },
+              "required": ["policyDigest"]
+            },
+            {
+              "properties": { "firmwareDigest": {} },
+              "required": ["firmwareDigest"]
+            }
+          ]
+        }
+      },
+      "else": {
+        "properties": {
+          "proposalDigest": {},
+          "consentDigest": {},
+          "policyDigest": {},
+          "firmwareDigest": {}
+        },
+        "required": [
+          "proposalDigest",
+          "consentDigest",
+          "policyDigest",
+          "firmwareDigest"
+        ],
+        "not": {
+          "properties": { "ticket": {} },
+          "required": ["ticket"]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "id128": {
+      "type": "string",
+      "pattern": "^(?!0{32}$)[a-f0-9]{32}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "uint64": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]|1844674407370955161[0-5])$"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    },
+    "ticket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "ticketId",
+        "proposalSha256",
+        "deviceId",
+        "bootId",
+        "challengeId",
+        "policySha256",
+        "firmwareSha256",
+        "consentSha256",
+        "experimentId",
+        "consentEpoch",
+        "sequence",
+        "issuedMonotonicUs",
+        "notBeforeMonotonicUs",
+        "expiresMonotonicUs",
+        "stateDigest",
+        "confidenceQ15",
+        "modality",
+        "assetSha256",
+        "intensityQ15",
+        "durationMs",
+        "rampMs",
+        "reasonCode",
+        "signature"
+      ],
+      "properties": {
+        "version": { "const": 1 },
+        "ticketId": { "$ref": "#/$defs/id128" },
+        "proposalSha256": { "$ref": "#/$defs/sha256" },
+        "deviceId": { "$ref": "#/$defs/id128" },
+        "bootId": { "$ref": "#/$defs/id128" },
+        "challengeId": { "$ref": "#/$defs/id128" },
+        "policySha256": { "$ref": "#/$defs/sha256" },
+        "firmwareSha256": { "$ref": "#/$defs/sha256" },
+        "consentSha256": { "$ref": "#/$defs/sha256" },
+        "experimentId": { "$ref": "#/$defs/id128" },
+        "consentEpoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "sequence": { "$ref": "#/$defs/uint64" },
+        "issuedMonotonicUs": { "$ref": "#/$defs/uint64" },
+        "notBeforeMonotonicUs": { "$ref": "#/$defs/uint64" },
+        "expiresMonotonicUs": { "$ref": "#/$defs/uint64" },
+        "stateDigest": { "$ref": "#/$defs/sha256" },
+        "confidenceQ15": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32767
+        },
+        "modality": { "enum": ["audio", "light", "haptic"] },
+        "assetSha256": { "$ref": "#/$defs/sha256" },
+        "intensityQ15": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32767
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "rampMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "reasonCode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "signature": { "$ref": "#/$defs/signature" }
+      }
+    }
+  }
+}

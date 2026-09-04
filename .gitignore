@@ -5,3 +5,5 @@ coverage/
 .DS_Store
 .env
 .dream/
+.claude-flow/
+.swarm/
