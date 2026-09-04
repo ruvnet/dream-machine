@@ -116,3 +116,5 @@ export function verifySteps(gistRawUrl = '<RAW_GIST_URL>'): string {
     '# ^ this value MUST equal the published WITNESS',
   ].join('\n');
 }
+
+export * from './security-patch.js';
