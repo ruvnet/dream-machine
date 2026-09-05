@@ -248,7 +248,7 @@ function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: stri
       unpinned
         .map(
           (f) =>
-            `- \`${f.source}\` runs \`npx ${f.packageSpec}\` — no version pin. \`npx\` resolves the ` +
+            `- \`${f.source}\` runs \`npx ${f.packageSpec}\` — not pinned to an exact version. \`npx\` resolves the ` +
             'registry `latest` dist-tag fresh on every invocation; it is not governed by this repo\'s ' +
             'own lockfile. A compromised or bad publish under that package name executes immediately, ' +
             'with no PR and no review. Treat a result from this entrypoint as evidence about "whatever ' +

@@ -34,7 +34,11 @@ export interface UnpinnedNpxFinding {
   source: string;
   /** The full shell command string it was found in. */
   command: string;
-  /** The bare `npx` package spec token, e.g. "@metaharness/darwin" or "cowsay@latest". */
+  /**
+   * The `npx` package spec token that is not pinned to an exact version, e.g.
+   * "@metaharness/darwin", "cowsay@latest" or "cowsay@1.6". One finding per
+   * unpinned spec, so a `--package a@1.2.3 --package b` line yields one finding for `b`.
+   */
   packageSpec: string;
 }
 
@@ -54,40 +58,70 @@ function isLocalOrRemoteSpec(packageSpec: string): boolean {
   );
 }
 
-/** True if a package spec has no version pin, or is pinned to a floating dist-tag. */
+/**
+ * An exact semver version: `major.minor.patch`, optionally followed by a
+ * prerelease (`-beta.1`) and/or build (`+sha.5`) suffix, per semver.org. This is
+ * the only spec shape that names one immutable published artifact.
+ *
+ * Deliberately rejected, because npm resolves each of them against whatever the
+ * registry holds at invocation time: partial versions (`1`, `1.6` — npm reads
+ * these as the ranges `1.x.x` / `1.6.x`), x-ranges and wildcards (`1.x`, `1.2.*`),
+ * operator ranges (`^1.2.3`, `~1.2.3`, `>=1.2.3`, `=1.2.3`), hyphen/or ranges,
+ * a leading `v`, and dist-tags (`latest`, `next`, anything non-numeric).
+ */
+const EXACT_SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
+
+/**
+ * True unless the package spec carries an exact `major.minor.patch` pin. No
+ * version, a partial version, a range, or a dist-tag all count as unpinned.
+ */
 function isUnpinned(packageSpec: string): boolean {
   const withoutScope = packageSpec.startsWith('@') ? packageSpec.slice(1) : packageSpec;
   const atIndex = withoutScope.indexOf('@');
   if (atIndex === -1) return true;
-  const version = withoutScope.slice(atIndex + 1);
-  // A real version pin starts with a digit (npm semver, no leading "v"). Anything else
-  // (empty, "latest", "next", a range like ">=1.0.0") is still a floating resolution.
-  return version === '' || !/^\d/.test(version);
+  return !EXACT_SEMVER.test(withoutScope.slice(atIndex + 1));
 }
 
 /**
- * Find the package spec `npx`/`npm exec` would resolve for one invocation
+ * Find every package spec `npx`/`npm exec` would install for one invocation
  * starting at `tokens[start]` (the token right after the trigger). Honors
  * `--package=<spec>` / `--package <spec>` / `-p <spec>` — npx's own flag for
  * naming a *different* package than the one on the command line (e.g.
  * `npx --package=@metaharness/darwin@0.9.2 darwin-evolve`, where the bin name
- * `darwin-evolve` is not the package spec at all). Falls back to the first
- * non-flag token when no `--package`/`-p` is present.
+ * `darwin-evolve` is not the package spec at all). The flag may repeat
+ * (`npx -p a@1.2.3 -p b cmd` installs both `a` and `b`), so every occurrence is
+ * collected; a pinned first `--package` must not hide an unpinned second one.
+ * npx's own option parsing ends at the first positional token (the command it
+ * runs), so flags after that belong to the command and are not scanned. With no
+ * `--package`/`-p` at all, that first positional token is the package spec.
  */
-function extractPackageSpec(tokens: string[], start: number): string | undefined {
+function extractPackageSpecs(tokens: string[], start: number): string[] {
+  const specs: string[] = [];
   for (let j = start; j < tokens.length; j++) {
     const t = tokens[j];
-    if (t === '--package' || t === '-p') return tokens[j + 1];
-    if (t.startsWith('--package=')) return t.slice('--package='.length);
-    if (t.startsWith('-')) continue; // some other flag, e.g. -y — keep scanning
-    return t; // first non-flag token with no --package override
+    if (t === '--package' || t === '-p') {
+      const spec = tokens[j + 1];
+      if (spec) specs.push(spec);
+      j += 1; // the value is consumed; keep scanning for further --package flags
+      continue;
+    }
+    if (t.startsWith('--package=')) {
+      const spec = t.slice('--package='.length);
+      if (spec) specs.push(spec);
+      continue;
+    }
+    if (t.startsWith('-')) continue; // some other npx flag, e.g. -y — keep scanning
+    if (specs.length === 0) specs.push(t); // first positional with no --package override
+    break; // the command starts here; anything after it is the command's own argv
   }
-  return undefined;
+  return specs;
 }
 
 /**
  * Scan `controlPlaneProbes` and `evaluatorEntrypoints` command strings for
- * `npx <pkg>` / `npm exec <pkg>` invocations lacking an exact version pin.
+ * `npx <pkg>` / `npm exec <pkg>` invocations lacking an exact `major.minor.patch`
+ * version pin (see `isUnpinned` for what counts as exact).
  * Pure — no I/O, no network. Local paths (`npx ./script.js`) and direct
  * git/URL specs are never flagged — they don't resolve against the registry's
  * floating `latest`, so the risk this function detects doesn't apply to them.
@@ -110,9 +144,10 @@ export function findUnpinnedNpxInvocations(
       const isNpx = tokens[i] === 'npx';
       const isNpmExec = tokens[i] === 'npm' && tokens[i + 1] === 'exec';
       if (!isNpx && !isNpmExec) continue;
-      const packageSpec = extractPackageSpec(tokens, i + (isNpmExec ? 2 : 1));
-      if (packageSpec && !isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
-        findings.push({ source, command, packageSpec });
+      for (const packageSpec of extractPackageSpecs(tokens, i + (isNpmExec ? 2 : 1))) {
+        if (!isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
+          findings.push({ source, command, packageSpec });
+        }
       }
     }
   }

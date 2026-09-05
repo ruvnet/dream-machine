@@ -158,6 +158,15 @@ describe('compile', () => {
     expect(p).toContain('npx @metaharness/darwin');
   });
 
+  it('warns when the npx invocation is only pinned to a floating major.minor (reviewer regression)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@1.6 evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('npx @metaharness/darwin@1.6');
+  });
+
   it('does not warn when the npx invocation is version-pinned', () => {
     const p = compile({
       ...metaharness,
