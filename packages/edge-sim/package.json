@@ -1,0 +1,14 @@
+{
+  "name": "@dream-machine/edge-sim",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic, nonactuating Edge v1 safety simulator. Not firmware or hardware evidence.",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": { "@dream-machine/edge-contracts": "0.1.0" }
+}

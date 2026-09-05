@@ -176,7 +176,7 @@ backends** — a night without any of them is a *degraded* night, not a failed o
 | Bounded evolution | [`@metaharness/darwin`](https://www.npmjs.com/package/@metaharness/darwin) | the fenced Darwin stage |
 | Adversarial red/blue | [`@metaharness/redblue`](https://www.npmjs.com/package/@metaharness/redblue) | adversarial critic + reward-hack scan |
 | Security scan / genome / audit | [`metaharness`](https://www.npmjs.com/package/metaharness) CLI | security review + discovery |
-| Vector memory over prior nights | [`@ruvector/wasm`](https://www.npmjs.com/package/@ruvector/wasm) · [`@ruvector/rvf-wasm`](https://www.npmjs.com/package/@ruvector/rvf-wasm) | optional semantic recall (RVF container) |
+| Planned vector memory over prior nights | [`@ruvector/wasm`](https://www.npmjs.com/package/@ruvector/wasm) · [`@ruvector/rvf-wasm`](https://www.npmjs.com/package/@ruvector/rvf-wasm) | availability probe only; current retrieval is flat keyword scoring, not RVF or HNSW |
 
 ## Packages
 
@@ -187,7 +187,7 @@ backends** — a night without any of them is a *degraded* night, not a failed o
 | [`@dream-machine/ledger`](packages/ledger) | the 10-column `LEDGER.md` toolkit + learning signals |
 | [`@dream-machine/witness`](packages/witness) | `sha256(sha256(report) + commit)` stamp / verify |
 | [`@dream-machine/schedule`](packages/schedule) | the cloud `/schedule` routine body emitter |
-| [`@dream-machine/memory`](packages/memory) | optional ruvector/RVF semantic memory, flat-file fallback |
+| [`@dream-machine/memory`](packages/memory) | deterministic flat-file memory; optional RuVector probe, real RVF adapter pending |
 
 ## Safety
 
@@ -197,14 +197,57 @@ CI, not just documented (see [SECURITY.md](SECURITY.md) and
 
 - **Evaluation is not promotion.** The session never merges and never
   self-promotes; it opens *draft* PRs only.
-- **Guarded auto-merge.** The optional auto-merge job refuses any PR touching a
-  protected path (gates, safety, thresholds, CI, dependency manifests) and
-  requires an explicit label plus green required checks. The session never runs
-  the merge itself.
+- **Human merge authority.** Auto-merge is disabled in configuration. The
+  protected-path workflow is read-only and validates eligibility without
+  merging, enabling deferred merges, or changing labels. A human reviews and
+  merges the exact revision separately.
 - **Optional deps stay optional** (ADR-150) — a CI job proves the engine builds
   and tests with the ruvector wasm backends absent.
 - **Witnessed provenance** — every report is bound to its commit by a
   reproducible double-sha256 anyone can re-derive.
+
+### Proposed Home Core edge program
+
+The [Home Core implementation mission](docs/plans/2026-09-04-dream-machine-home-core-implementation.md)
+extends the evidence-gated engine toward an offline UNO Q sensing appliance,
+RuView Home Core, real RuVector memory, a local MCP facade, and an optional
+Apple HealthKit bridge. The proposal keeps Dream Machine as the build and
+evidence control plane: models and self-evolving candidates never receive
+direct actuator, promotion, signing, or merge authority. Start with
+[ADR-0100](docs/adrs/ADR-0100-edge-runtime-trust-boundaries.md). No bedside
+runtime or hardware-safety claim is implemented. The executable
+[software mission](docs/runbooks/software-mission.md) now supplies strict signed
+ticket parsing, deterministic nonactuating simulation, durable bounded keyword
+memory, and reproducible test/evidence commands. See
+[ADR-0106](docs/adrs/ADR-0106-executable-software-prototype-and-evidence.md)
+for the exact implemented boundary. Real RuVector, MCP service, Apple and firmware
+integrations remain unimplemented.
+
+### Development validation
+
+Use Node 24 (`.nvmrc`) or Node 22.13 and newer on the 22 LTS line. CI exercises
+both supported lines. The published CLI's older syntax target does not imply
+that end of life Node versions are secure development environments.
+
+```bash
+npm ci
+npm run check
+```
+
+The check independently typechecks source and tests without relying on stale
+build output, then builds, lints, runs unit and governance regressions, and
+validates the four Edge v1 schemas, MCP registry, and mission dependency plan.
+It also rejects exposed test API, UI and browser configuration.
+
+```bash
+node scripts/mission.mjs doctor
+npm run mission:simulate -- --full --seed 43
+node scripts/mission.mjs run --full --offline --seed 43
+```
+
+The final command intentionally exits 2 (`INCONCLUSIVE`) while hardware and
+other full-mission gates remain unproven. Its JSON separates accepted software
+checks from release readiness. No command in this harness authorizes a real cue.
 
 ## Prior art
 

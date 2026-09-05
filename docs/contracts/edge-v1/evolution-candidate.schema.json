@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruv.net/dream-machine/schemas/edge-v1/evolution-candidate.schema.json",
+  "title": "Dream Machine bounded evolution candidate version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "parentDigest",
+    "envelopeDigest",
+    "evaluationContractDigest",
+    "createdAt",
+    "proposer",
+    "mutation",
+    "authorityDelta",
+    "expectedBenefit",
+    "evidenceRefs",
+    "expiresAt",
+    "rollbackDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "dream.evolution.candidate.v1" },
+    "candidateId": { "$ref": "#/$defs/id128" },
+    "parentDigest": { "$ref": "#/$defs/sha256" },
+    "envelopeDigest": { "$ref": "#/$defs/sha256" },
+    "evaluationContractDigest": { "$ref": "#/$defs/sha256" },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z(?![\\s\\S])"
+    },
+    "proposer": { "enum": ["autogenous", "darwin", "human", "simulator"] },
+    "mutation": {
+      "oneOf": [
+        { "$ref": "#/$defs/featureWeights" },
+        { "$ref": "#/$defs/representationVersion" },
+        { "$ref": "#/$defs/timingBin" },
+        { "$ref": "#/$defs/cueId" },
+        { "$ref": "#/$defs/minimumCueSpacing" },
+        { "$ref": "#/$defs/maximumIntensity" },
+        { "$ref": "#/$defs/modelRouting" },
+        { "$ref": "#/$defs/computeBudget" },
+        { "$ref": "#/$defs/explanationPolicy" },
+        { "$ref": "#/$defs/visualizationPolicy" }
+      ]
+    },
+    "authorityDelta": { "const": "none" },
+    "expectedBenefit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 96,
+        "maxLength": 96,
+        "pattern": "^ruv://dream-machine/v1/evidence/[a-f0-9]{64}(?![\\s\\S])"
+      }
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z(?![\\s\\S])"
+    },
+    "rollbackDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "safeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*(?![\\s\\S])"
+    },
+    "id128": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 32,
+      "pattern": "^(?!0{32}$)[a-f0-9]{32}(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+    },
+    "boundedMutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "from", "to"],
+      "properties": {
+        "path": {},
+        "from": {},
+        "to": {}
+      }
+    },
+    "weights": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "featureWeights": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "retrieval.featureWeights" },
+            "from": { "$ref": "#/$defs/weights" },
+            "to": { "$ref": "#/$defs/weights" }
+          }
+        }
+      ]
+    },
+    "representationVersion": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "representation.version" },
+            "from": { "$ref": "#/$defs/safeId" },
+            "to": { "$ref": "#/$defs/safeId" }
+          }
+        }
+      ]
+    },
+    "timingBin": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "policy.timingBin" },
+            "from": { "$ref": "#/$defs/timingBinValue" },
+            "to": { "$ref": "#/$defs/timingBinValue" }
+          }
+        }
+      ]
+    },
+    "timingBinValue": {
+      "enum": ["awake_preview", "n1", "likely_nrem", "likely_rem"]
+    },
+    "cueId": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "policy.cueId" },
+            "from": { "$ref": "#/$defs/safeId" },
+            "to": { "$ref": "#/$defs/safeId" }
+          }
+        }
+      ]
+    },
+    "minimumCueSpacing": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "policy.minimumCueSpacingSeconds" },
+            "from": { "type": "integer", "minimum": 600, "maximum": 7200 },
+            "to": { "type": "integer", "minimum": 600, "maximum": 7200 }
+          }
+        }
+      ]
+    },
+    "maximumIntensity": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "policy.maximumIntensityQ15" },
+            "from": { "type": "integer", "minimum": 0, "maximum": 32767 },
+            "to": { "type": "integer", "minimum": 0, "maximum": 32767 }
+          }
+        }
+      ]
+    },
+    "computeBudget": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "router.computeBudgetMs" },
+            "from": { "type": "integer", "minimum": 1, "maximum": 500 },
+            "to": { "type": "integer", "minimum": 1, "maximum": 500 }
+          }
+        }
+      ]
+    },
+    "modelRouting": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "router.modelClass" },
+            "from": { "enum": ["none", "rules", "tiny_local", "small_local"] },
+            "to": { "enum": ["none", "rules", "tiny_local", "small_local"] }
+          }
+        }
+      ]
+    },
+    "explanationPolicy": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "ui.explanationPolicy" },
+            "from": { "enum": ["minimal", "standard", "diagnostic"] },
+            "to": { "enum": ["minimal", "standard", "diagnostic"] }
+          }
+        }
+      ]
+    },
+    "visualizationPolicy": {
+      "allOf": [
+        { "$ref": "#/$defs/boundedMutation" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "const": "ui.visualizationPolicy" },
+            "from": { "enum": ["summary", "timeline", "contrast", "diagnostic"] },
+            "to": { "enum": ["summary", "timeline", "contrast", "diagnostic"] }
+          }
+        }
+      ]
+    }
+  }
+}
