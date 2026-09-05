@@ -143,6 +143,37 @@ describe('compile', () => {
   it('golden-snapshot: metaharness prompt is stable', () => {
     expect(prompt).toMatchSnapshot();
   });
+
+  it('does not warn about unpinned npx when no entrypoint uses npx', () => {
+    expect(prompt).not.toContain('Supply-chain warning');
+  });
+
+  it('warns about an unpinned npx evaluator entrypoint (reproduces this repo\'s own dream.config.json)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('evaluatorEntrypoints.darwin');
+    expect(p).toContain('npx @metaharness/darwin');
+  });
+
+  it('warns when the npx invocation is only pinned to a floating major.minor (reviewer regression)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@1.6 evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('npx @metaharness/darwin@1.6');
+  });
+
+  it('does not warn when the npx invocation is version-pinned', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@0.9.2 evolve --sandbox mock' },
+    });
+    expect(p).not.toContain('Supply-chain warning');
+  });
 });
 
 describe('defaults', () => {
