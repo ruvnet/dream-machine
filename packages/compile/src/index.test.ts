@@ -47,6 +47,19 @@ describe('validateConfig', () => {
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
   });
+  it('accepts a well-formed bonus modulus value', () => {
+    expect(validateConfig({ ...metaharness, bonusModuli: { '25': 'vertical-packs' } }).ok).toBe(true);
+  });
+  it('rejects an empty bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
+  it('rejects a whitespace-only bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '   ' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
 });
 
 describe('compile', () => {
@@ -54,6 +67,10 @@ describe('compile', () => {
 
   it('throws on an invalid config', () => {
     expect(() => compile({ ...metaharness, repo: '' })).toThrow(/invalid dream.config/);
+  });
+
+  it('throws instead of silently compiling a dangling "add " bonus-dive line from an empty bonusModuli value', () => {
+    expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
   });
 
   it('is deterministic (same input → identical output)', () => {
