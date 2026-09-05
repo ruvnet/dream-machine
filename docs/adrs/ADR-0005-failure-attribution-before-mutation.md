@@ -1,6 +1,7 @@
 # ADR 0005: Attribute Failure Before Mutation
 
 Status: Proposed
+Date: 2026-09-03
 
 ## Context
 
