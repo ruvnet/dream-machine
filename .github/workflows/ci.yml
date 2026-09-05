@@ -33,6 +33,9 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: ClaimReceipt production benchmark
+        if: matrix.node == 22
+        run: node scripts/bench-claim-receipt.mjs
       - name: Lint
         run: npm run lint
       - name: Test (with coverage)

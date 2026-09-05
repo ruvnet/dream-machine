@@ -197,7 +197,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
-          sink.log(JSON.stringify(learningSignals(rows), null, 2));
+          sink.log(JSON.stringify(learningSignals(rows, { today: io.now() }), null, 2));
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
@@ -304,7 +304,13 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         } catch {
           md = emptyLedger();
         }
-        sink.log(renderDashboard(md, { noColor: flags['no-color'] === true, repo: flags.repo as string | undefined }));
+        sink.log(
+          renderDashboard(md, {
+            noColor: flags['no-color'] === true,
+            repo: flags.repo as string | undefined,
+            today: io.now(),
+          }),
+        );
         return { code: 0, out: sink.out, err: sink.err };
       }
 
