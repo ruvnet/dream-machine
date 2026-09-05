@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   createEnvironmentReconstructionReceipt,
@@ -128,5 +129,88 @@ describe('environment reconstruction receipts', () => {
     expect(() => createEnvironmentReconstructionReceipt(manifest({ artifacts }))).toThrow(
       /artifacts exceeds maximum/,
     );
+  });
+
+  describe('locale-independent canonicalization', () => {
+    // These paths sort differently under ICU collation than under UTF-16
+    // code units: en-US yields `_x,a,ä,B`, sv-SE yields `_x,a,B,ä`, while
+    // code-unit order is `B,_x,a,ä`. The reviewer measured two different
+    // manifest digests for the same manifest on en_US vs sv_SE hosts when
+    // the sort used `localeCompare`.
+    const LOCALE_SENSITIVE_PATHS = ['a', 'B', 'ä', '_x'];
+    const CODE_UNIT_ORDER = ['B', '_x', 'a', 'ä'];
+    // Golden digest, computed once after the fix; must hold on every host.
+    const GOLDEN_DIGEST = 'fd561e1671096cfa7953cd3186e591bd3c06c566adf3fd586e6cfbad6ef5ec52';
+
+    function localeSensitiveManifest(paths: readonly string[]): EnvironmentReconstructionManifest {
+      return {
+        schemaVersion: 1,
+        trajectoryDigest: TRAJECTORY_DIGEST,
+        artifacts: paths.map((path) => artifact({ path })),
+        gaps: [],
+      };
+    }
+
+    it('fixture discriminates: locale order differs from code-unit order', () => {
+      const localeOrder = [...LOCALE_SENSITIVE_PATHS].sort((left, right) => left.localeCompare(right));
+      expect(localeOrder).not.toEqual(CODE_UNIT_ORDER);
+      const codeUnitOrder = [...LOCALE_SENSITIVE_PATHS].sort((left, right) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      );
+      expect(codeUnitOrder).toEqual(CODE_UNIT_ORDER);
+    });
+
+    it('digest equals sha256 of the manifest canonicalized in code-unit order', () => {
+      const receipt = createEnvironmentReconstructionReceipt(localeSensitiveManifest(LOCALE_SENSITIVE_PATHS));
+      const expectedCanonical = JSON.stringify({
+        schemaVersion: 1,
+        trajectoryDigest: TRAJECTORY_DIGEST,
+        sourceCommit: null,
+        baseImageDigest: null,
+        artifacts: CODE_UNIT_ORDER.map((path) => ({
+          path,
+          contentDigest: CONTENT_A,
+          source: 'trajectory',
+          required: true,
+          verified: true,
+        })),
+        gaps: [],
+      });
+      const expectedDigest = createHash('sha256').update(expectedCanonical).digest('hex');
+      expect(receipt.manifestDigest).toBe(expectedDigest);
+      expect(receipt.manifestDigest).toBe(GOLDEN_DIGEST);
+    });
+
+    it('digest is independent of input order and of the process locale', () => {
+      const localeOrder = [...LOCALE_SENSITIVE_PATHS].sort((left, right) => left.localeCompare(right));
+      const digests = new Set(
+        [LOCALE_SENSITIVE_PATHS, localeOrder, [...LOCALE_SENSITIVE_PATHS].reverse(), CODE_UNIT_ORDER].map(
+          (paths) => createEnvironmentReconstructionReceipt(localeSensitiveManifest(paths)).manifestDigest,
+        ),
+      );
+      // The golden value was recorded with LC_ALL unset (Intl locale en-US).
+      // Whatever LC_ALL / Intl locale this process runs under (CI, sv_SE,
+      // C), the digest must not move.
+      expect([...digests]).toEqual([GOLDEN_DIGEST]);
+    });
+
+    it('gaps are canonicalized with the same code-unit order', () => {
+      const gaps = LOCALE_SENSITIVE_PATHS.map((path) => ({
+        path: `gap/${path}`,
+        reason: 'not-observed' as const,
+        required: false,
+      }));
+      const left = createEnvironmentReconstructionReceipt({
+        ...localeSensitiveManifest([]),
+        artifacts: [artifact()],
+        gaps,
+      });
+      const right = createEnvironmentReconstructionReceipt({
+        ...localeSensitiveManifest([]),
+        artifacts: [artifact()],
+        gaps: [...gaps].sort((a, b) => a.path.localeCompare(b.path)),
+      });
+      expect(left.manifestDigest).toBe(right.manifestDigest);
+    });
   });
 });

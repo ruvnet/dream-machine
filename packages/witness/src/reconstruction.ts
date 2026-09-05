@@ -83,6 +83,18 @@ const INFERRED_SOURCES = new Set<ReconstructionArtifactSource>([
   'generated-dependency',
 ]);
 
+/**
+ * Code-unit string comparator. `String#localeCompare` sorts by the host ICU
+ * locale (e.g. `ä` sorts after `z` under sv-SE but between `a` and `b` under
+ * en-US), which would make the manifest digest differ by host. Plain `<`/`>`
+ * compares UTF-16 code units and is identical on every host.
+ */
+function compareAscii(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function assertDigest(value: string, field: string): void {
   if (!HEX64.test(value)) {
     throw new Error(`${field} must be a lowercase 64 character sha256 digest`);
@@ -153,7 +165,7 @@ function assertManifest(manifest: EnvironmentReconstructionManifest): void {
 
 function canonicalManifest(manifest: EnvironmentReconstructionManifest): string {
   const artifacts = [...manifest.artifacts]
-    .sort((a, b) => a.path.localeCompare(b.path))
+    .sort((a, b) => compareAscii(a.path, b.path))
     .map((artifact) => ({
       path: artifact.path,
       contentDigest: artifact.contentDigest,
@@ -162,7 +174,7 @@ function canonicalManifest(manifest: EnvironmentReconstructionManifest): string 
       verified: artifact.verified,
     }));
   const gaps = [...manifest.gaps]
-    .sort((a, b) => a.path.localeCompare(b.path))
+    .sort((a, b) => compareAscii(a.path, b.path))
     .map((gap) => ({ path: gap.path, reason: gap.reason, required: gap.required }));
 
   return JSON.stringify({
