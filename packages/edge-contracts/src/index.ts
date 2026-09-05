@@ -73,7 +73,8 @@ function snapshot(input: unknown, signed: boolean): Record<Field, unknown> {
   const own = Reflect.ownKeys(input);
   if (own.length !== count) fail('Ticket has an incorrect field set');
   const result = Object.create(null) as Record<Field, unknown>;
-  for (const [field] of FIELDS.slice(0, count)) {
+  for (let key = 0; key < count; key++) {
+    const [field] = FIELDS[key];
     const d = Object.getOwnPropertyDescriptor(input, field);
     if (!d || !('value' in d) || !d.enumerable) fail(`Invalid data property: ${field}`);
     result[field] = d.value;
@@ -82,8 +83,14 @@ function snapshot(input: unknown, signed: boolean): Record<Field, unknown> {
 }
 
 function validate(input: unknown, signed: boolean): Record<Field, unknown> {
-  const data = snapshot(input, signed);
-  for (const [field, kind, minimum, maximum] of FIELDS.slice(0, signed ? 24 : 23)) {
+  return validateData(snapshot(input, signed), signed);
+}
+
+/** Private data only: public callers must first pass through snapshot(). */
+function validateData(data: Record<Field, unknown>, signed: boolean): Record<Field, unknown> {
+  const count = signed ? 24 : 23;
+  for (let key = 0; key < count; key++) {
+    const [field, kind, minimum, maximum] = FIELDS[key];
     const value = data[field];
     switch (kind) {
       case 'id':
@@ -174,9 +181,15 @@ class Reader {
     if (extra > 27) fail('Indefinite or reserved CBOR length');
     const size = 1 << (extra - 24);
     if (this.offset + size > this.bytes.length) fail('Truncated CBOR argument');
-    let value = 0n;
-    for (let i = 0; i < size; i++) value = (value << 8n) | BigInt(this.bytes[this.offset++]);
-    const minimum = [24n, 256n, 65536n, 4294967296n][extra - 24];
+    let value: bigint;
+    let minimum: bigint;
+    switch (size) {
+      case 1: value = BigInt(this.bytes.readUInt8(this.offset)); minimum = 24n; break;
+      case 2: value = BigInt(this.bytes.readUInt16BE(this.offset)); minimum = 256n; break;
+      case 4: value = BigInt(this.bytes.readUInt32BE(this.offset)); minimum = 65536n; break;
+      default: value = this.bytes.readBigUInt64BE(this.offset); minimum = 4294967296n; break;
+    }
+    this.offset += size;
     if (value < minimum) fail('Nonminimal CBOR argument');
     return value;
   }
@@ -207,7 +220,7 @@ export function decodeTicket(bytes: Uint8Array): CueTicketV1 {
   if (buffer instanceof SharedArrayBuffer) fail('Shared ticket memory is forbidden');
   const reader = new Reader(Buffer.from(new Uint8Array(buffer, offset, length)));
   if (reader.head(5) !== 24n) fail('Ticket requires exactly 24 CBOR keys');
-  const data: Record<string, unknown> = {};
+  const data = {} as Record<Field, unknown>;
   for (let key = 0; key < 24; key++) {
     if (reader.head(0) !== BigInt(key)) fail('Unknown, duplicate, missing, or out of order CBOR key');
     const [field, kind] = FIELDS[key];
@@ -226,7 +239,9 @@ export function decodeTicket(bytes: Uint8Array): CueTicketV1 {
     }
   }
   if (reader.offset !== reader.bytes.length) fail('Trailing CBOR data');
-  validate(data, true);
+  // The parser constructed every own field from its private byte snapshot.
+  // Keep semantic validation, but do not snapshot these local data a second time.
+  validateData(data, true);
   return data as unknown as CueTicketV1;
 }
 

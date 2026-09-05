@@ -70,6 +70,45 @@ describe('edge-v1-prototype canonical ticket codec', () => {
   });
 
   it.each([
+    ['17', '23'], ['1818', '24'], ['18ff', '255'],
+    ['190100', '256'], ['19ffff', '65535'],
+    ['1a00010000', '65536'], ['1a80000000', '2147483648'], ['1affffffff', '4294967295'],
+    ['1b0000000100000000', '4294967296'], ['1b8000000000000000', '9223372036854775808'],
+    ['1bffffffffffffffff', '18446744073709551615'],
+  ])('decodes independently assembled unsigned big endian sequence %s', (argument, sequence) => {
+    // These wire arguments are literal vectors, independent of Writer.head.
+    const input = malformedHex('0a18180b', `0a${argument}0b`);
+    expect(decodeTicket(input)).toEqual(patched({ sequence }));
+    expect(encodeTicket(patched({ sequence }))).toEqual(Uint8Array.from(input));
+  });
+
+  it.each(['1817', '1900ff', '1a0000ffff', '1b00000000ffffffff'])('preserves nonminimal error for argument %s', argument => {
+    expect(() => decodeTicket(malformedHex('0a18180b', `0a${argument}0b`)))
+      .toThrow(new TicketFormatError('Nonminimal CBOR argument'));
+  });
+
+  it.each(['1818', '190100', '1a00010000', '1b0000000100000000'])('checks complete argument bounds before reading %s', argument => {
+    const prefix = Buffer.from(wireHex.slice(0, wireHex.indexOf('0a18180b')) + '0a', 'hex');
+    const bytes = Buffer.from(argument, 'hex');
+    for (let length = 1; length < bytes.length; length++) {
+      expect(() => decodeTicket(Buffer.concat([prefix, bytes.subarray(0, length)])))
+        .toThrow(new TicketFormatError('Truncated CBOR argument'));
+    }
+  });
+
+  it.each([
+    ['identifier', `0150${'11'.repeat(16)}`, `0150${'00'.repeat(16)}`, 'Invalid identifier: ticketId'],
+    ['issued after start', '0b1a000f4240', '0b1a000f4241', 'Invalid ticket time relations'],
+    ['empty time window', '0d1a001e8480', '0d1a000f4240', 'Invalid ticket time relations'],
+    ['excessive horizon', '0d1a001e8480', '0d1a002dc6c1', 'Invalid ticket time relations'],
+    ['ramp exceeds duration', '131864140a', '131864141865', 'Ramp exceeds duration'],
+    ['zero duration', '131864140a', '1300140a', 'Invalid integer: durationMs'],
+    ['zero version', 'b8180001', 'b8180000', 'Invalid integer: version'],
+  ])('retains semantic validation after direct decoding: %s', (_name, old, replacement, message) => {
+    expect(() => decodeTicket(malformedHex(old, replacement))).toThrow(new TicketFormatError(message));
+  });
+
+  it.each([
     ['map count', 'b818', 'b817'], ['unknown extra key', 'b818', 'b819'],
     ['nonminimal map length', 'b818', 'b90018'], ['indefinite map', 'b818', 'bf'],
     ['wrong map major', 'b818', '9818'], ['map tag', 'b818', 'c0b818'],

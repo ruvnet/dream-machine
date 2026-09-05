@@ -29,6 +29,7 @@
     "mission": "node scripts/mission.mjs",
     "mission:simulate": "node scripts/mission.mjs simulate",
     "mission:benchmark": "node scripts/mission.mjs benchmark",
+    "benchmark:codec": "node scripts/benchmark-ticket-codec.mjs",
     "test:watch": "vitest",
     "lint": "eslint packages",
     "typecheck": "tsc -p tsconfig.json --noEmit",

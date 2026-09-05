@@ -96,6 +96,34 @@ schema precision. Independent read-only review found and drove these fixes:
    The alleged baseline JavaScript newline bypass was not reproducible on either
    tested runtime; this is defense in depth, not a confirmed vulnerability fix.
 
+## Ticket codec optimization follow-up
+
+The parser now reads bounded CBOR integer arguments directly through Buffer's
+unsigned big-endian methods, avoids temporary field-array slices, and skips only
+the redundant snapshot of the private object that the decoder itself constructs.
+Input bytes are still copied before parsing. Public object snapshotting, every
+semantic check, Ed25519 verification, byte limits and fail-closed error behavior
+remain unchanged.
+
+Comparison is bound to reviewed commit
+`35c9fd31ec0369f1c4b0ac7d5eda13d766bbb8cf`. The harness compiles that commit and
+the candidate with the same TypeScript version, tests public golden data and all
+CBOR integer widths, then compares independent input copies. Mutation attempts
+are detected immediately. Its fixed seed 43 corpus produced zero differences
+over 1,000,000 cases on both Node 22.23.2 and Node 24.19.0.
+
+On this shared Linux host, median batch-mean decode time fell from 11.27 to 7.71
+microseconds per operation on Node 24, a 1.46 times throughput improvement. Node
+22 fell from 11.85 to 7.85 microseconds, a 1.51 times improvement. Each timing
+path performed 30,000 decodes across 30 alternating batches. Raw batch samples
+are emitted by `npm run benchmark:codec`.
+
+These are descriptive shared-host measurements, not confidence-bounded latency,
+single-call tail latency, firmware timing or hardware evidence. The differential
+uses related TypeScript implementations and therefore is not independent
+cross-language conformance. Its result remains `INCONCLUSIVE` for release and
+hardware claims even when behavior matches exactly.
+
 ## Remaining acceptance gates
 
 1. Review and merge the exact revision manually. The base branch's old privileged
