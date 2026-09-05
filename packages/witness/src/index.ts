@@ -120,3 +120,4 @@ export function verifySteps(gistRawUrl = '<RAW_GIST_URL>'): string {
 }
 
 export * from './security-patch.js';
+export * from './reconstruction.js';
