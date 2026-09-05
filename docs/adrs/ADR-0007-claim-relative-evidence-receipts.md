@@ -1,4 +1,4 @@
-# ADR 0003: Claim Relative Evidence Receipts
+# ADR 0007: Claim Relative Evidence Receipts
 
 Status: Proposed
 
