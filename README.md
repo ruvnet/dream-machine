@@ -215,8 +215,13 @@ Apple HealthKit bridge. The proposal keeps Dream Machine as the build and
 evidence control plane: models and self-evolving candidates never receive
 direct actuator, promotion, signing, or merge authority. Start with
 [ADR-0100](docs/adrs/ADR-0100-edge-runtime-trust-boundaries.md). No bedside
-runtime or hardware-safety claim is implemented by this architecture and
-repository-hardening change.
+runtime or hardware-safety claim is implemented. The executable
+[software mission](docs/runbooks/software-mission.md) now supplies strict signed
+ticket parsing, deterministic nonactuating simulation, durable bounded keyword
+memory, and reproducible test/evidence commands. See
+[ADR-0106](docs/adrs/ADR-0106-executable-software-prototype-and-evidence.md)
+for the exact implemented boundary. Real RuVector, MCP service, Apple and firmware
+integrations remain unimplemented.
 
 ### Development validation
 
@@ -232,6 +237,17 @@ npm run check
 The check independently typechecks source and tests without relying on stale
 build output, then builds, lints, runs unit and governance regressions, and
 validates the four Edge v1 schemas, MCP registry, and mission dependency plan.
+It also rejects exposed test API, UI and browser configuration.
+
+```bash
+node scripts/mission.mjs doctor
+npm run mission:simulate -- --full --seed 43
+node scripts/mission.mjs run --full --offline --seed 43
+```
+
+The final command intentionally exits 2 (`INCONCLUSIVE`) while hardware and
+other full-mission gates remain unproven. Its JSON separates accepted software
+checks from release readiness. No command in this harness authorizes a real cue.
 
 ## Prior art
 

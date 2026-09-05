@@ -40,6 +40,8 @@ jobs:
         run: npm run test:governance
       - name: Validate Edge v1 contracts and mission plan
         run: npm run check:edge-contracts
+      - name: Prohibit exposed development test services
+        run: npm run check:development-policy
       - name: CLI smoke test (proves the published bin works)
         run: |
           node packages/cli/dist/bin.js version
@@ -49,6 +51,25 @@ jobs:
           echo "hello" > /tmp/r.md
           W=$(node packages/cli/dist/bin.js witness stamp /tmp/r.md $(git rev-parse HEAD) | awk '/witness /{print $3}')
           node packages/cli/dist/bin.js witness verify /tmp/r.md $(git rev-parse HEAD) "$W"
+
+  software-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Full deterministic nonactuating software mission
+        run: node scripts/ci-software-evidence.mjs
+      - name: Preserve synthetic evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-evidence-${{ github.sha }}
+          path: .dream/evidence/run-*/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
 
   dependency-audit:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   checkAll, compileSchemas, loadInputs, positiveFixtures, SCHEMA_NAMES,
-  validatePlan, validateProjection, validateRegistry, validateUint64Definitions,
+  validatePlan, validateProjection, validateRegistry, validateStringDefinitions, validateUint64Definitions,
 } from './check-edge-contracts.mjs';
 
 const inputs = loadInputs();
@@ -65,6 +65,80 @@ test('uint64 ranges agree with BigInt for all boundaries and fixed-seed inputs',
   for (const sequence of [0, 1, 9007199254740992, '18446744073709551616', '-1', '01', '1e3', '1\n']) {
     rejects('observation', (value) => { value.sequence = sequence; });
   }
+});
+
+test('every patterned string definition rejects newline, Unicode, noncanonical and width aliases', () => {
+  const result = validateStringDefinitions(inputs.schemas);
+  assert.equal(result.stringDefinitions, 22);
+  assert(result.stringVectors > 3000);
+  assert.deepEqual(result, validateStringDefinitions(inputs.schemas));
+});
+
+test('fixed-length and uint64 schemas retain explicit independent string bounds', () => {
+  for (const name of SCHEMA_NAMES) {
+    for (const definition of ['id128', 'sha256', 'uint64', 'signature']) {
+      if (!inputs.schemas[name].$defs[definition]) continue;
+      for (const bound of ['minLength', 'maxLength']) {
+        const schemas = copy(inputs.schemas);
+        delete schemas[name].$defs[definition][bound];
+        assert.throws(() => validateStringDefinitions(schemas), /string length/);
+      }
+    }
+  }
+});
+
+test('independent string corpus catches accidentally permissive definitions and uncovered patterns', () => {
+  for (const name of SCHEMA_NAMES) {
+    const schemas = copy(inputs.schemas);
+    schemas[name].$defs.safeId.pattern = '^[\\s\\S]+(?![\\s\\S])';
+    assert.throws(() => validateStringDefinitions(schemas), /string alias/);
+  }
+  const schemas = copy(inputs.schemas);
+  schemas.observation.properties.unreviewed = { type: 'string', pattern: '.*' };
+  assert.throws(() => validateStringDefinitions(schemas), /missing independent string corpus/);
+});
+
+test('newline and Unicode aliases fail at every populated canonical-string field and property name', () => {
+  const paths = {
+    observation: ['sourceId', 'bootId', 'sequence', 'observedAt', 'sourceMonotonicUs', 'ingestedMonotonicUs',
+      'provenance.adapter', 'provenance.calibrationId', 'provenance.inputDigest'],
+    'cue-proposal': ['proposalId', 'profileId', 'experimentId', 'assetSha256', 'earliestMonotonicUs',
+      'latestMonotonicUs', 'stateDigest', 'reasonCode', 'modelDigest', 'createdBy'],
+    'safety-decision': ['decisionId', 'decidedAt', 'decidedMonotonicUs', 'reasonCodes.0',
+      ...Object.entries(fixtures['safety-decision'].ticket)
+        .filter(([field, value]) => typeof value === 'string' && field !== 'modality')
+        .map(([field]) => `ticket.${field}`)],
+    'evolution-candidate': ['candidateId', 'parentDigest', 'envelopeDigest', 'evaluationContractDigest',
+      'createdAt', 'evidenceRefs.0', 'expiresAt', 'rollbackDigest'],
+  };
+  for (const [name, fields] of Object.entries(paths)) {
+    for (const path of fields) {
+      for (const suffix of ['\n', '\r', '\r\n', '\u2028', '\u2029', '\u200b', '\0', '\uff19']) {
+        const value = copy(fixtures[name]);
+        const segments = path.split('.');
+        const field = segments.pop();
+        const object = segments.reduce((parent, key) => parent[key], value);
+        object[field] += suffix;
+        assert.equal(validators[name](value), false, `${name}.${path} must reject ${JSON.stringify(suffix)}`);
+      }
+    }
+  }
+  for (const suffix of ['\n', '\r', '\r\n', '\u2028', '\u2029', '\u200b', '\0', '\uff19']) {
+    rejects('observation', (value) => { value.values[`presence${suffix}`] = true; });
+    rejects('observation', (value) => { value.rawRef = `urn:dream-machine:calibration:${'a'.repeat(64)}${suffix}`; });
+    rejects('evolution-candidate', (value) => {
+      value.mutation = { path: 'representation.version', from: 'v1', to: `v2${suffix}` };
+    });
+  }
+});
+
+test('free-form fields still allow bounded human Unicode text and line breaks', () => {
+  const proposal = copy(fixtures['cue-proposal']);
+  proposal.objective = 'Rêves\n夢 🌙';
+  assert(validateProjection(validators, 'cue-proposal', proposal));
+  const candidate = copy(fixtures['evolution-candidate']);
+  candidate.expectedBenefit = 'Repos\n安静 🌙';
+  assert(validateProjection(validators, 'evolution-candidate', candidate));
 });
 
 test('observation rejects raw strings, private addresses, secrets, malformed IDs and times', () => {

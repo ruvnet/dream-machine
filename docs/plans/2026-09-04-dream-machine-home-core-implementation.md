@@ -365,6 +365,16 @@ test, current gaps are explicit, and review accepts the authority model.
 
 ### PR 2: edge contracts and simulator
 
+Implementation update, 2026-09-05: PR 75 now contains the bounded TypeScript
+codec, ten-template URI subset, virtual safety controller, synthetic corpora,
+development policy tripwire, durable keyword memory, SBOM/inventory and evidence
+harness described by [ADR-0106](../adrs/ADR-0106-executable-software-prototype-and-evidence.md).
+This completes an executable software tranche, not all of P1/P2: independent
+language fixtures, target-Mac reproducibility, actual 30-day data, hardware and
+research acceptance remain unproven. The four unspecified night/window URI
+grammars are rejected. See the [software runbook](../runbooks/software-mission.md)
+for implemented commands; the remaining text describes the broader exit target.
+
 The review hardening moves development to supported Node.js 22 and 24 and patches
 the Vitest, Vite, esbuild, and ESLint dependency graph. The
 [dependency adjudication](../security/dependency-adjudication-2026-09-04.md)
@@ -463,6 +473,11 @@ memory and two performance cores for macOS, Xcode, simulators, and supervisor.
 Default to three workers on 32 GB, five on 64 GB, and six on 128 GB or more.
 
 ### 10.2 Reproducible command surface
+
+The implemented software surface is `node scripts/mission.mjs` with `doctor`,
+`bootstrap`, `test`, `policy`, `security`, `simulate`, `benchmark`, `run` and
+`verify`. The `just` surface below is still a planned hardware contract, not an
+available command. Offline flags do not themselves establish OS network isolation.
 
 The current repository commands remain the baseline. Phase one adds a single
 task-runner interface:

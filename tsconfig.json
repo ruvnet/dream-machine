@@ -7,7 +7,9 @@
       "@dream-machine/ledger": ["./packages/ledger/src/index.ts"],
       "@dream-machine/compile": ["./packages/compile/src/index.ts"],
       "@dream-machine/schedule": ["./packages/schedule/src/index.ts"],
-      "@dream-machine/memory": ["./packages/memory/src/index.ts"]
+      "@dream-machine/memory": ["./packages/memory/src/index.ts"],
+      "@dream-machine/edge-contracts": ["./packages/edge-contracts/src/index.ts"],
+      "@dream-machine/edge-sim": ["./packages/edge-sim/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "vitest.config.ts"],

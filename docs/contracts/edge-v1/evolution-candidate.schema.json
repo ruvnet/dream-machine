@@ -28,7 +28,7 @@
     "createdAt": {
       "type": "string",
       "format": "date-time",
-      "pattern": "Z$"
+      "pattern": "Z(?![\\s\\S])"
     },
     "proposer": { "enum": ["autogenous", "darwin", "human", "simulator"] },
     "mutation": {
@@ -58,13 +58,15 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^ruv://dream-machine/v1/evidence/[a-f0-9]{64}$"
+        "minLength": 96,
+        "maxLength": 96,
+        "pattern": "^ruv://dream-machine/v1/evidence/[a-f0-9]{64}(?![\\s\\S])"
       }
     },
     "expiresAt": {
       "type": "string",
       "format": "date-time",
-      "pattern": "Z$"
+      "pattern": "Z(?![\\s\\S])"
     },
     "rollbackDigest": { "$ref": "#/$defs/sha256" }
   },
@@ -73,15 +75,19 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*(?![\\s\\S])"
     },
     "id128": {
       "type": "string",
-      "pattern": "^(?!0{32}$)[a-f0-9]{32}$"
+      "minLength": 32,
+      "maxLength": 32,
+      "pattern": "^(?!0{32}$)[a-f0-9]{32}(?![\\s\\S])"
     },
     "sha256": {
       "type": "string",
-      "pattern": "^[a-f0-9]{64}$"
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
     },
     "boundedMutation": {
       "type": "object",

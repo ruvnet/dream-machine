@@ -336,10 +336,94 @@ export function validateUint64Definitions(schemas) {
   return corpus.size;
 }
 
+/** Independent string-boundary corpus. Length bounds and a true end assertion also
+ * defend projections consumed by validators whose `$` permits a final newline.
+ * Native ECMAScript without multiline already rejects that alias; this is not a
+ * claim of a demonstrated bypass in the pinned AJV/Node runtime.
+ */
+export function validateStringDefinitions(schemas) {
+  const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: true,
+    coerceTypes: false, useDefaults: false, removeAdditional: false });
+  addFormats(ajv);
+  const forbidden = ['\n', '\r', '\r\n', '\u2028', '\u2029', '\0', '\t', ' ',
+    '\u00a0', '\u200b', '\u202e', '\uff0f', '\ud800', '\udfff', '\u0661', '\uff19', '\ud83d\ude00'];
+  let stringDefinitions = 0;
+  let stringVectors = 0;
+  for (const name of SCHEMA_NAMES) {
+    const visit = (node, path = '') => {
+      if (!node || typeof node !== 'object') return;
+      if (typeof node.pattern === 'string') {
+        assert.equal(node.type, 'string', `${name}${path}: pattern requires string type`);
+        let valid;
+        let invalid = ['', 0, null, true, [], {}];
+        let bounds;
+        if (path === '/$defs/id128') {
+          valid = [ID, 'f'.repeat(32), `${'0'.repeat(31)}1`];
+          invalid.push('0'.repeat(32), 'A'.repeat(32), '1'.repeat(31), '1'.repeat(33));
+          bounds = [32, 32];
+        } else if (path === '/$defs/sha256') {
+          valid = [DIGEST, '0'.repeat(64), 'f'.repeat(64)];
+          invalid.push('A'.repeat(64), 'a'.repeat(63), 'a'.repeat(65));
+          bounds = [64, 64];
+        } else if (path === '/$defs/safeId') {
+          valid = ['a', 'A0._:-', 'a'.repeat(128)];
+          if (name !== 'evolution-candidate') valid.push('._:-');
+          else invalid.push('.id', '_id', ':id', '-id');
+          invalid.push('a'.repeat(129), 'a/b', 'a%2fb', 'a?b', 'a#b', 'a\\b');
+          bounds = [1, 128];
+        } else if (path === '/$defs/uint64') {
+          valid = ['0', '1', '9007199254740993', UINT64_MAX.toString()];
+          invalid.push('00', '01', '-0', '-1', '+1', '1.0', '1e0', '0x1', (UINT64_MAX + 1n).toString());
+          bounds = [1, 20];
+        } else if (path === '/$defs/signature') {
+          valid = [...'AQgw'].map((last) => `${'A'.repeat(85)}${last}`);
+          invalid.push('A'.repeat(85), 'A'.repeat(87), `${'A'.repeat(86)}=`,
+            ...[...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_']
+              .filter((last) => !'AQgw'.includes(last)).map((last) => `${'A'.repeat(85)}${last}`));
+          bounds = [86, 86];
+        } else if (path === '/properties/rawRef') {
+          valid = [`urn:dream-machine:calibration:${DIGEST}`];
+          invalid.push(`urn:dream-machine:calibration:${'A'.repeat(64)}`, `${valid[0]}?raw=1`, `${valid[0]}#raw`);
+          bounds = [94, 94];
+        } else if (path === '/properties/evidenceRefs/items') {
+          valid = [`ruv://dream-machine/v1/evidence/${DIGEST}`];
+          invalid.push(`ruv://dream-machine/v1/evidence/${'A'.repeat(64)}`, `${valid[0]}?raw=1`, `${valid[0]}#raw`,
+            valid[0].replace('/v1/', '/v1/../v1/'), valid[0].replace('/evidence/', '/%65vidence/'));
+          bounds = [96, 96];
+        } else if (node.format === 'date-time') {
+          valid = [STAMP, '2026-09-04T00:00:00.123Z'];
+          invalid.push('2026-02-30T00:00:00Z', '2026-09-04T00:00:00+00:00');
+        } else assert.fail(`${name}${path}: missing independent string corpus`);
+        if (bounds) {
+          assert.equal(node.minLength, bounds[0], `${name}${path}: minimum string length`);
+          assert.equal(node.maxLength, bounds[1], `${name}${path}: maximum string length`);
+        }
+        const validator = ajv.compile(node);
+        for (const value of valid) {
+          assert.equal(validator(value), true, `${name}${path}: valid string ${JSON.stringify(value)}`);
+          for (const separator of forbidden) {
+            invalid.push(`${value}${separator}`, `${separator}${value}`,
+              `${value.slice(0, 1)}${separator}${value.slice(1)}`);
+          }
+        }
+        for (const value of invalid) {
+          assert.equal(validator(value), false, `${name}${path}: string alias ${JSON.stringify(value)}`);
+        }
+        stringDefinitions++;
+        stringVectors += valid.length + invalid.length;
+      }
+      for (const [key, child] of Object.entries(node)) visit(child, `${path}/${key}`);
+    };
+    visit(schemas[name]);
+  }
+  return { stringDefinitions, stringVectors };
+}
+
 export function checkAll(inputs = loadInputs()) {
   const validators = compileSchemas(inputs.schemas);
   for (const [name, fixture] of Object.entries(positiveFixtures())) validateProjection(validators, name, fixture);
   return { schemas: SCHEMA_NAMES.length, uint64VectorsPerSchema: validateUint64Definitions(inputs.schemas),
+    ...validateStringDefinitions(inputs.schemas),
     ...validateRegistry(inputs.registry), ...validatePlan(inputs.plan),
     scope: 'offline architecture validation only; no runtime, cryptography, or hardware conformance claim' };
 }

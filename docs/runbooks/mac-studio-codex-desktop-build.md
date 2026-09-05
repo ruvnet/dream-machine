@@ -215,6 +215,13 @@ per-lane validation receipts, and reviewed commit identifiers.
 
 ## 6. Gate 3: build and simulate the integrated candidate
 
+Implemented software subset: use the repository's
+[software mission commands](software-mission.md) and ADR-0106. Doctor, fixed
+bootstrap/test, deterministic simulation, descriptive benchmarks, dependency
+inventory, SBOM and bounded evidence verification now execute. Full `run` keeps
+hardware readiness inconclusive. The commands below remain the broader planned
+hardware contract; they are not installed `just` recipes.
+
 The following **planned contract** becomes mandatory when the hardware packages
 land. It must be implemented by repository scripts or a task runner; CI calls
 the same entrypoints:
