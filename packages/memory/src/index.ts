@@ -1,15 +1,15 @@
 /**
  * @dream-machine/memory
  *
- * Optional semantic memory over prior dream nights. When RuVector's wasm
- * packages (`@ruvector/wasm`, `@ruvector/rvf-wasm`) are installed, nights are
- * stored as vectors in an RVF cognitive container for HNSW similarity recall.
- * When they are ABSENT, this degrades to a deterministic flat-file backend
+ * Deterministic memory over prior dream nights. RuVector's optional wasm
+ * package is probed for availability, but an RVF adapter is not implemented.
+ * Auto mode uses the flat-file backend even when the module is available.
+ * When the module is ABSENT, auto mode remains a deterministic flat-file backend
  * with keyword scoring — never an error (the ADR-150 optional-augmentation
  * invariant: a `MODULE_NOT_FOUND` is a graceful no-op, not a failure).
  *
- * Either way the {@link DreamMemory} contract is identical, so callers never
- * branch on which backend is active.
+ * An explicit request for the unimplemented RVF backend fails instead of
+ * claiming vector storage or HNSW recall that never executed.
  */
 
 /** One remembered dream night. */
@@ -145,10 +145,9 @@ export async function probeRuvector(
 }
 
 /**
- * Open a DreamMemory. With backend 'auto' (default), probes for ruvector and
- * uses it when present; otherwise silently falls back to the flat-file backend.
- * The RVF-backed path is only selected when the module actually loads — so this
- * function is safe to call in any environment.
+ * Open a DreamMemory. Auto mode probes optional module availability and returns
+ * the implemented flat-file backend. Explicit RVF requests fail until the real
+ * adapter passes its write, reopen, query and digest-verification contract.
  */
 export async function openMemory(opts: OpenOptions = {}): Promise<DreamMemory> {
   const want = opts.backend ?? 'auto';
@@ -157,17 +156,13 @@ export async function openMemory(opts: OpenOptions = {}): Promise<DreamMemory> {
   if (want === 'ruvector-rvf' || want === 'auto') {
     const mod = await probeRuvector(opts.loadRuvector);
     if (mod) {
-      // A real ruvector integration would build an RVF HNSW index here. We keep
-      // the surface honest: until the wasm binding API is wired and tested
-      // end-to-end, we log the availability and use the deterministic backend
-      // so behavior is identical and reproducible. The probe proves optionality.
+      if (want === 'ruvector-rvf') {
+        throw new Error('ruvector-rvf backend is not implemented; use auto or flat-file');
+      }
+      // Availability is not proof of an executing adapter.
       const flat = new FlatMemory(opts);
       // Tag the backend so callers/telemetry can see ruvector was available.
       (flat as unknown as { _ruvectorAvailable: boolean })._ruvectorAvailable = true;
-      if (want === 'ruvector-rvf') {
-        // Explicit request but binding not yet wired — surface it, don't crash.
-        return Object.assign(flat, { backend: 'ruvector-rvf' as const });
-      }
       return flat;
     }
     if (want === 'ruvector-rvf') {

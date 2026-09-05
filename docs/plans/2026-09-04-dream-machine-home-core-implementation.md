@@ -352,18 +352,25 @@ and retains their exact digests.
 ### PR 1: architecture and contracts
 
 This pull request freezes trust boundaries, ADRs, threat model, benchmark plan,
-Mac runbook, schemas, and the machine-readable work breakdown. It also disables
-the existing `autoMerge` configuration so the program's human-only merge rule
-is true in the branch, not just prose. It does not claim hardware implementation.
+Mac runbook, schemas, and the machine-readable work breakdown. Review hardening
+adds executable contract and governance tests, independent source typechecking,
+a patched development toolchain, and honest memory backend identity. It disables
+`autoMerge` and removes merge authority from the workflow. The base branch's old
+workflow remains in force until this change is human reviewed and merged; do not
+apply an `automerge-safe` label during that transition. No hardware implementation
+is claimed.
 
 Exit gate: existing CI is green, every schema parses, all requirements have a
 test, current gaps are explicit, and review accepts the authority model.
 
 ### PR 2: edge contracts and simulator
 
-First move the development baseline to Node.js 20 or newer and land the patched
-Vitest, Vite, esbuild, and ESLint graph required by the
-[dependency adjudication](../security/dependency-adjudication-2026-09-04.md).
+The review hardening moves development to supported Node.js 22 and 24 and patches
+the Vitest, Vite, esbuild, and ESLint dependency graph. The
+[dependency adjudication](../security/dependency-adjudication-2026-09-04.md)
+remains historical baseline evidence; the review report records the replacement
+lockfile and scans. P1 still owns Mac reproducibility, offline caches, SBOM and
+toolchain provenance, not merely a green Node build.
 Add a check that prohibits browser, UI, API, and exposed development-server
 modes unless a later security ADR authorizes them. Then implement
 `@dream-machine/edge-contracts` and `@dream-machine/edge-sim`. Include
@@ -502,8 +509,10 @@ Each tranche runs the same ordered gate:
    and regression tests.
 5. Secret, dependency, source, CodeQL, entitlement, license, supply-chain, MCP,
    privacy, and prompt-injection review.
-6. Five benchmark warmups and 30 measured runs with median, p95, p99, memory,
-   temperature, power, versions, and exact command.
+6. Benchmark warmups, per-operation samples, and independent batches following
+   the benchmark contract's confidence and dependence rules. Record raw timings,
+   descriptive percentiles, confidence bounds, memory, temperature, power,
+   versions, and exact command; insufficient data remain inconclusive.
 7. SBOM, artifact digests, provenance, raw results, exclusions, witness, and
    rollback manifest.
 8. Independent critic review for reward hacking, leakage, cherry picking,
@@ -577,15 +586,28 @@ test instruments, Apple devices, and the development Mac. A phone-only protocol
 costs almost nothing and remains the fastest behavioral feasibility check.
 
 Phases P0 through P6 total 82 engineer days with a 50 workday dependency path.
-With one experienced engineer plus the swarm, plan 10 to 14 elapsed engineering
-weeks, including integration contingency, to reach a secure observation pod,
-retrospective Apple import, real RuVector, MCP, simulator, and disconnected HIL.
+At five working days per week, one engineer requires 16.4 weeks before
+contingency, or about 20.5 weeks with a 25 percent reserve, absent measured agent
+productivity savings. A staffed concurrent team has a 10 week dependency lower
+bound, roughly 12.5 weeks with that reserve, and still needs 82 engineer days of
+capacity. Swarm execution is not interchangeable with human hardware, signing,
+integration or review labor. The observation pod, retrospective Apple import,
+real RuVector, MCP, simulator and disconnected HIL are the P0 through P6 outputs.
 The full P0 through P9 program totals 120 engineer days with an 88 workday
-dependency path before research calendar time. Parallel hardware and Apple work
-can reduce elapsed time, but evidence still requires at least 14 observation
+dependency path: 24 single engineer weeks or a staffed 17.6 week dependency lower
+bound, before contingency and research calendar time. Parallel hardware and
+Apple work can reduce elapsed time only when staffing and dependencies permit.
+Evidence still requires at least 14 observation
 nights, 30 learning baseline nights, and about 70 eligible nights for the first
 meaningful personal audio comparison. A credible research result therefore
 takes months, not a sprint.
+
+The 70 night comparison is a frozen, separately consented human research
+protocol, not generated candidate exploration. A generated candidate needing
+14 exposures under the ten percent cap requires at least 140 eligible nights.
+Null and inconclusive studies complete with an honest report, but do not pass
+promotion. A demonstrated flash and debug isolation boundary, or an external
+safety controller, is required before any physical cue protocol starts.
 
 ## 15. Completion evidence
 

@@ -106,7 +106,7 @@
     },
     "signature": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9_-]{86}$"
+      "pattern": "^[A-Za-z0-9_-]{85}[AQgw]$"
     },
     "ticket": {
       "type": "object",

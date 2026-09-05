@@ -76,6 +76,13 @@ or over-limit requests resolve to no actuation. Loss of the cognition-plane
 heartbeat resolves to the same safe state. A physical mute or stop control
 overrides all software.
 
+This independence is a release prerequisite, not a stock UNO Q guarantee. The
+Linux MPU has a development path for programming the integrated STM32.
+[ADR-0101](ADR-0101-uno-q-ruview-home-core-runtime.md#production-isolation-prerequisite)
+requires independently witnessed debug, flash, and gate isolation, or an
+external safety controller, before any physical cue. Signatures verified by
+replaceable firmware cannot substitute for this evidence.
+
 ### 2.1 Interface and authority rules
 
 The canonical message flow is:

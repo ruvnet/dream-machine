@@ -94,7 +94,7 @@
       ],
       "exitCriteria": [
         "all-existing-tests-pass",
-        "independent-typecheck-gap-resolved-or-formally-waived",
+        "independent-source-typecheck-passes",
         "zero-critical-or-high-unresolved-production-dependency-findings",
         "zero-reachable-critical-or-high-development-dependency-findings",
         "sbom-provenance-and-witness-generated"
@@ -272,6 +272,8 @@
       "dependsOn": ["P7"],
       "estimatedEngineerDays": 8,
       "minimumCalendarNights": 70,
+      "protocolKind": "frozen-human-approved-randomized-study-not-generated-exploration",
+      "generatedCandidateMinimumEligibleNights": 140,
       "deliverables": [
         "fourteen-baseline-nights",
         "twenty-eight-trained-audio-nights",
@@ -287,6 +289,11 @@
         "absolute-rates-uncertainty-null-nights-and-exclusions-published"
       ],
       "exitCriteria": [
+        "preregistered-report-with-accept-reject-or-inconclusive-verdict",
+        "safety-findings-adjudicated-before-any-related-profile-proceeds",
+        "null-result-never-relabeled-as-promotion"
+      ],
+      "promotionCriteria": [
         "posterior-benefit-probability-above-zero-point-nine-five",
         "sleep-harm-probability-below-zero-point-zero-five",
         "cue-associated-awakening-increase-under-five-percentage-points",

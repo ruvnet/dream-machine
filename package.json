@@ -15,23 +15,31 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=18"
+    "node": "^22.13.0 || ^24.0.0"
   },
   "scripts": {
     "build": "npm run build -w packages/witness && npm run build -w packages/ledger && npm run build -w packages/compile && npm run build -w packages/schedule && npm run build -w packages/memory && npm run build -w packages/cli",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:governance",
+    "test:unit": "vitest run",
+    "test:governance": "node --test scripts/*.test.mjs",
+    "test:edge-contracts": "node --test scripts/check-edge-contracts.test.mjs",
+    "check:edge-contracts": "node scripts/check-edge-contracts.mjs",
+    "check": "npm run typecheck && npm run build && npm run lint && npm test && npm run check:edge-contracts",
     "test:watch": "vitest",
     "lint": "eslint packages",
-    "typecheck": "tsc -b --noEmit || tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf packages/*/dist coverage"
   },
   "devDependencies": {
-    "@eslint/js": "^9.15.0",
+    "@eslint/js": "10.0.1",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^2.1.0",
-    "eslint": "^9.15.0",
+    "@vitest/coverage-v8": "4.1.11",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "eslint": "10.10.0",
     "typescript": "^5.6.0",
-    "typescript-eslint": "^8.15.0",
-    "vitest": "^2.1.0"
+    "typescript-eslint": "8.69.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.11"
   }
 }

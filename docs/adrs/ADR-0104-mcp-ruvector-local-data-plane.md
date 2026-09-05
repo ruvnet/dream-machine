@@ -15,17 +15,19 @@ stationary WebUI. These are different responsibilities: a memory store must not
 become an actuator or a general command bus.
 
 The current `@dream-machine/memory` implementation probes for
-`@ruvector/wasm` but still uses `FlatMemory`. An explicit `ruvector-rvf` request
-can report that label while retaining flat-memory behavior. The code comments
-acknowledge that the real binding is not wired. This program therefore treats a
-real RuVector adapter as new work and makes backend identity part of the
+`@ruvector/wasm` but still uses `FlatMemory`. The review hardening now rejects
+an explicit `ruvector-rvf` request even when the module loads, rather than
+mislabeling keyword retrieval as RVF. Auto mode reports `flat-file` honestly.
+A real RuVector adapter remains new work and backend identity is part of the
 acceptance evidence.
 
 RuVector 0.2.40 is the latest stable GitHub release at this decision date. It
 requires Node.js 20 or newer and exposes a read-only MCP profile for selected
-MetaHarness operations. The Dream Machine workspace currently supports Node.js
-18 through 22, so the edge service must either have a Node.js 20 boundary or
-wait for a deliberate workspace engine migration.
+MetaHarness operations. The reviewed development workspace now targets supported
+Node.js 22 and 24 lines, with Node 24 the canonical local build. An upstream
+Node 20 minimum does not justify deploying an unsupported runtime. Exact patch
+versions belong in each evidence manifest; see the
+[Node release policy](https://nodejs.org/en/about/previous-releases).
 
 The current MCP specification supports stdio and Streamable HTTP. A Streamable
 HTTP response may use request-scoped server-sent events. The former paired HTTP
@@ -156,8 +158,9 @@ security, performance, and rollback gates as local changes.
 The local model and WebUI gain useful memory and explanations without receiving
 physical authority. Memory can degrade honestly when RuVector is unavailable.
 Separating stores reduces accidental cross-use but adds migration and backup
-work. Node.js 20 becomes the minimum for the edge service even while the core
-workspace continues testing Node.js 18.
+work. Development and edge services use supported Node.js 22 or 24 releases.
+The published CLI's existing Node 18 syntax target is not a support or security
+claim for end of life runtimes.
 
 Request-scoped streams are less convenient than a global telemetry feed, but
 they reduce cross-session leakage and resource exhaustion. Raw data remains

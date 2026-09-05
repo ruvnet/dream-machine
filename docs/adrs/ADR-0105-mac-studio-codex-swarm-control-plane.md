@@ -139,7 +139,7 @@ that same interface rather than maintaining separate CI-only logic.
 
 CI has six logical lanes:
 
-1. Linux portability across the repository's Node 18, 20, and 22 matrix.
+1. Linux portability across the supported Node 22 and 24 development matrix.
 2. macOS arm64 unsigned Swift, iOS simulator, and watchOS simulator builds.
 3. Fixed-seed simulation, fault injection, and deterministic verdict checks.
 4. Static analysis, dependency review, secret scanning, fuzz smoke tests,
@@ -251,8 +251,8 @@ This ADR is satisfied when all of the following are evidenced:
 1. A clean `dream-builder` account records its exact hardware and toolchain,
    primes verified dependencies, loses WAN access, and completes the repository
    build, typecheck, lint, tests, simulation, security checks, and packaging.
-2. Local and CI orchestration invoke the same commands, and the existing Node
-   18, 20, and 22 matrix remains green.
+2. Local and CI orchestration invoke the same commands, and the supported Node
+   22 and 24 matrix remains green, including independent source typechecking.
 3. Two fixed-seed runs produce the same normalized unsigned artifact hashes,
    verdict, ledger inputs, and witness.
 4. Computer control tests stop at every credential, permission, consent,

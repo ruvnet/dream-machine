@@ -440,7 +440,7 @@ security, benchmark, review, and signed-release workflow.
 | Batch is duplicated or reordered | Batch identifier, hash chain, and receiver journal | Return the original receipt for a duplicate and quarantine an invalid chain |
 | Clock uncertainty exceeds 3 seconds | Periodic four-timestamp phone and Watch exchange | Mark frame unsuitable for same-night timing while retaining it for coarse retrospective analysis |
 | Watch battery falls below 20 percent | Local battery monitor | End live collection, persist a terminal event, and leave native sleep tracking undisturbed |
-| Thermal state becomes serious or critical | Process thermal state | Reduce sampling at `serious`; stop at `critical` and record the reason |
+| Thermal state becomes serious or critical | Process thermal state | Stop live research collection within five seconds at either state, persist a terminal event, and record the reason |
 | Pairing or certificate changes | Key identifier or pinned fingerprint mismatch | Refuse the connection and require a new physical pairing ceremony |
 | Consent epoch is stale | Receiver scope comparison | Reject the payload and create no RuVector event |
 | Schema, range, size, or signature is invalid | Strict parser and verifier | Reject or quarantine metadata, create no observation, and expose no actuator effect |
@@ -559,7 +559,7 @@ actually starts and protected data plus pod connectivity are available.
 | Watch outbox capacity | One 10-hour session within 8 MiB | Serialized encrypted frames and journal |
 | Watch memory | Less than 50 MiB peak with no jetsam or session termination | Physical-device Instruments run |
 | Additional Watch battery drain | No more than 25 percentage points median versus native sleep tracking across five matched nights | Release build, disconnected from debugger, start battery at least 80 percent |
-| Stop behavior | Sampling ends within 5 seconds of user stop, consent revocation, critical thermal state, or low-battery trigger | Physical device receipt and signpost trace |
+| Stop behavior | Sampling ends within 5 seconds of user stop, consent revocation, serious or critical thermal state, or low-battery trigger | Physical device receipt and signpost trace |
 | Invalid-frame safety | Zero accepted frames and zero actuator effects from 1,000,000 malformed, unsigned, stale, replayed, or oversized frames | Swift and bedside fuzz targets |
 
 Failure of a live gate leaves post-night mode available and keeps the live

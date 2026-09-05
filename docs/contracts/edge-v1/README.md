@@ -16,6 +16,19 @@ but are not implementation-ready until PR 2 adds their schemas, numeric CBOR
 registries, semantic validators, and golden vectors. No current code may claim
 Edge Contract v1 conformance.
 
+Run `npm run check:edge-contracts` and `npm run test:edge-contracts` from the
+repository root to validate the four JSON Schema 2020-12 projections, frozen
+registry privacy and privilege ceilings, and graph-derived work estimates.
+The offline checker additionally enforces proposal timing and ramp relations,
+ticket time ordering and the two-second horizon, and candidate expiry,
+spacing direction, intensity direction, and feature-vector dimension.
+Its synthetic signature fixture is not a valid authorization signature.
+These checks do not verify CBOR canonicalization, signatures, policy membership,
+consent, replay state, active capability graphs, MCP request authorization,
+physical output, or efficacy. Those require the separately governed runtime
+and hardware validation phases. Template regression tests freeze registry
+strings; they do not implement or validate the future runtime URI parser.
+
 The terms MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT, and MAY are normative.
 All quantitative values are provisional v1 limits or acceptance targets. A
 measured claim requires a committed evidence report and the artifact hashes
@@ -372,7 +385,9 @@ otherwise equals the digest of the exact preceding signed receipt bytes.
 signed bundle. A verifier rejects a bad signature, key, sequence, boot, ticket
 digest, or chain link and never repairs a broken chain.
 The JSON audit projection encodes `signature` as exactly 86 unpadded base64url
-characters representing 64 bytes.
+characters representing 64 bytes. Its last character is one of `A`, `Q`, `g`,
+or `w`, enforcing zero unused pad bits and rejecting alternate encodings of the
+same signature bytes.
 
 The initial reason vocabulary includes `ok`, `malformed`, `unsupported_version`,
 `identity_mismatch`, `boot_mismatch`, `firmware_mismatch`, `policy_mismatch`,

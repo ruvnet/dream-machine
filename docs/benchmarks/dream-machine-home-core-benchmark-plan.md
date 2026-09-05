@@ -21,9 +21,10 @@ does not establish clinical efficacy, sleep-stage accuracy, or dream influence.
 5. Run safety and privacy gates before benefit or throughput metrics. A safety
    failure cannot be offset by higher utility.
 6. Separate Mac Studio development results from UNO Q target results.
-7. Run five warmups followed by at least thirty measured iterations for latency
-   and throughput. Report median, p95, p99, dispersion, host load, temperature,
-   power context, versions, and exact command.
+7. Run five warmups and use the sampling contract below for latency and
+   throughput. Report median, p95, p99, confidence bounds, dispersion, host load,
+   temperature, power context, versions, and exact command. Thirty operations
+   are a smoke test, not sufficient tail latency evidence.
 8. Disable unrelated work, record cache state, and either pin performance cores
    or report scheduler variability. Do not compare shared CI timing with an
    isolated local benchmark.
@@ -31,6 +32,46 @@ does not establish clinical efficacy, sleep-stage accuracy, or dream influence.
    toolchain fingerprint, and artifact digest.
 10. A missing evaluator, unavailable device, insufficient sample, or unstable
     measurement yields `INCONCLUSIVE`.
+
+### 1.1 Tail latency and claim confidence
+
+For each preregistered hardware, workload, load, and cache condition, collect
+at least 10,000 individual timed operations across at least 30 separately
+initialized batches after warmup. Preserve operation timestamps and batch IDs;
+do not replace operation samples with batch averages. Measure the UNO Q and
+MCU paths on their actual targets, never by extrapolating Mac timings. Include
+timeout, dropped, and failed operations in the denominator as violations.
+
+For a p99 threshold `T`, a violation is latency greater than or equal to `T`.
+Acceptance requires both the empirical p99 below `T` and an exact one sided
+95 percent upper confidence bound on the violation probability below 0.01.
+For a p95 threshold use 0.05 instead. Freeze thresholds, sample size, workload,
+and stopping rule before execution. For multiple simultaneous performance
+claims, predeclare an error allocation, such as Bonferroni `alpha = 0.05 / m`
+for `m` claims; use that alpha in each bound. Repeat runs after a failure do not
+erase the original result or permit selective stopping.
+
+The exact binomial calculation applies only to justified independent trials.
+Cache bursts, repeated identical queries, queue contention, temporal drift, or
+multiple windows from one night do not create independent samples. Inspect and
+report serial and batch dependence. A correlated series requires a
+preregistered, validated block or cluster method with enough independent
+blocks and a declared confidence bound; absent that method or adequate data,
+the tail claim is `INCONCLUSIVE`, even when 10,000 raw samples exist. The sample
+floor is an engineering default, not a proof of independence or statistical
+power. [NIST exact binomial confidence limits](https://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/exacbici.htm)
+
+For a single claim with zero violations in `n` independent trials, the upper
+bound is `1 - 0.05^(1/n)`. At `n = 30` it is about 9.50 percent, not below one
+percent. At `n = 10,000` it is about 0.030 percent. Record the evaluator version,
+confidence method, alpha, denominators, exclusions, dependence assessment, and
+bound alongside every verdict. Independently verify these boundary fixtures
+before using the evaluator for promotion.
+
+Hard safety shutdown limits S05 and S06 remain all observed trial requirements;
+a percentile or confidence interval never excuses an observed safety violation.
+Fuzz case counts and deterministic replay are coverage evidence, not an estimate
+of real world failure probability.
 
 ## 2. Benchmark environments
 
@@ -108,6 +149,7 @@ corpus family before that parser can be released.
 | S10 | Rollback | Previous signed release active and verified within 60 seconds |
 | S11 | Audio asset substitution, corruption, or peripheral hang | Zero unapproved content and gate closed within S05 |
 | S12 | Stale, ambiguous, missing, or low-quality MCU safety snapshot | Every sleep cue denied with a specific receipt |
+| S13 | Hostile MPU firmware replacement, debug, memory access, and gate bypass | No safety controller bypass on exact hardware; independently witnessed with actuator power disconnected; missing isolation blocks live cueing |
 
 Measure actual sound pressure at the pillow, optical output, haptic acceleration,
 current, temperature, duration, ramp, and cumulative duty cycle. Software values
@@ -221,7 +263,7 @@ connectivity available.
 
 | ID | Metric | Initial gate |
 |---|---|---|
-| R01 | Nightly runtime completion | Above 99 percent over observation period |
+| R01 | Nightly runtime completion | Report observed rate for pilot; above 99 percent claim requires one sided 95 percent lower confidence bound above 0.99 |
 | R02 | Safe restart | Safety state within one second; observation resumed within 30 seconds |
 | R03 | WAN egress | Zero public DNS query and zero unexpected connection in 24-hour capture |
 | R04 | Local deletion | User content deleted within 60 seconds after all local devices are reachable |
@@ -233,6 +275,17 @@ connectivity available.
 The initial engineering estimate is 6 to 15 watts for the bedside appliance.
 This is not a pass criterion until the exact board, storage, audio path, and
 enclosure are measured.
+
+Fourteen observation nights and seven HIL runs are integration gates, not proof
+of greater than 99 percent field reliability. With 14 successes in 14 independent
+nights the exact one sided 95 percent lower bound is `0.05^(1/14)`, about 80.7
+percent. For a single claim, even zero failures requires at least 299 independent,
+representative nights to put that lower bound above 0.99; correlated nights or
+multiple claims require a separately justified design. Never count 30 second
+windows, replayed nights, or synthetic HIL runs as independent field nights.
+An underpowered pilot may finish as an engineering milestone while its R01 field
+claim remains `INCONCLUSIVE`. Promotion still requires all applicable physical
+safety gates; lack of reliability evidence cannot be presented as a passed SLO.
 
 ## 11. Learning and evolution benchmarks
 
@@ -253,8 +306,14 @@ enclosure are measured.
    personal policy can advance.
 5. The full influence comparison uses 14 baseline, 28 trained-cue, and 28 matched
    control nights.
-6. At most ten percent exploration, one active generated candidate at a time,
-   and one human approved bounded policy promotion per month.
+6. Generated candidate exploration is at most ten percent of eligible nights,
+   with one active generated candidate at a time and at most one human approved
+   bounded policy promotion per month. Fourteen candidate exposure nights
+   therefore need at least 140 eligible nights under that cap. The fixed
+   70 night influence protocol is a separately consented, human approved study
+   with a frozen randomized assignment, not an automatic exploration allowance.
+   A live optimizer cannot change the study assignment or use it to expand the
+   generated candidate budget.
 
 ### Promotion gates
 

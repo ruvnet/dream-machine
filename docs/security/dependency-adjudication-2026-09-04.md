@@ -2,6 +2,12 @@
 
 **Status:** Baseline evidence for the architecture pull request
 
+**Superseded operational disposition:** The subsequent PR 75 review replaces
+this dependency graph and repairs the independent typecheck. Preserve this
+record as historical evidence, not current clearance or a current Node 20
+recommendation. See the [review report](../reviews/2026-09-05-pr75-review.md)
+for the replacement lockfile, exact commands, scans, and remaining P1 gates.
+
 **Commit inspected:** `7933c3599abe22df5290f4609d1f93f598feb3de`
 
 **Tool scope:** Ruflo 3.25.6 deep dependency scan, Ruflo CVE list,

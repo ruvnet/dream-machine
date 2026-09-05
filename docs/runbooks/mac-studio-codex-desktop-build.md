@@ -94,7 +94,8 @@ version. The implementation plan first commits an exact toolchain contract:
 
 - `.xcode-version` plus required iOS and watchOS SDK versions.
 - `rust-toolchain.toml` plus WASM targets and component versions.
-- Node 18, 20, and 22 in CI, with Node 22 as the canonical local build.
+- Supported Node 22 and 24 in CI, with Node 24 as the canonical local build
+  selected by `.nvmrc`. Record the exact patch and npm version for every run.
 - Exact npm, Arduino CLI, board core, CMake, Ninja, WASM bindgen, and Ruflo CLI
   versions.
 - Lockfiles and checksums for packages and board indexes.
@@ -320,9 +321,11 @@ documented disposition for every critical or high finding.
 
 Benchmarks run on an idle, powered Mac with no concurrent worker, indexing,
 backup, or simulator not required by the scenario. Record machine fingerprint,
-power mode, temperature, free memory, background load, and commit. Run five
-warmups and thirty measured iterations. Preserve raw observations plus median,
-p95, and p99.
+power mode, temperature, free memory, background load, and commit. Use the
+[benchmark sampling contract](../benchmarks/dream-machine-home-core-benchmark-plan.md)
+for warmups, independent sessions, per-operation counts, and confidence bounds.
+Thirty repetitions may characterize coarse throughput, but cannot certify p99.
+Preserve raw observations and distinguish descriptive percentiles from gates.
 
 Compare every candidate against:
 
@@ -509,9 +512,11 @@ unapproved gate, protected-path mutation, or suspicious-silent evaluator.
 The Mac control plane is operational only when all statements are true:
 
 - [ ] A clean dedicated account can reproduce the sanitized toolchain record.
-- [ ] The current Node 18, 20, and 22 matrix remains green until the reviewed
-      P1 toolchain change retires Node 18; the replacement Node 20 or newer
-      matrix is green before browser or runtime work starts.
+- [ ] The supported Node 22 and 24 matrix is green, including independent
+      typechecking, governance tests, and the Edge v1 contract check.
+- [ ] Before physical cue work, demonstrate that compromised UNO Q Linux cannot
+      debug, flash, or override the safety controller or gate. If not, use the
+      independently provisioned external controller required by ADR-0101.
 - [ ] A primed checkout builds and tests with WAN unavailable.
 - [ ] Local and CI jobs call the same repository task entrypoints.
 - [ ] Two fixed-seed runs match in normalized artifact hashes, verdict, and

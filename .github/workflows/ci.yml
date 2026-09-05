@@ -17,9 +17,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
-        node: [18, 20, 22]
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,12 +28,18 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - name: Typecheck + build
+      - name: Independent source typecheck
+        run: npm run typecheck
+      - name: Build
         run: npm run build
       - name: Lint
         run: npm run lint
       - name: Test (with coverage)
         run: npx vitest run --coverage
+      - name: Governance and contract regression tests
+        run: npm run test:governance
+      - name: Validate Edge v1 contracts and mission plan
+        run: npm run check:edge-contracts
       - name: CLI smoke test (proves the published bin works)
         run: |
           node packages/cli/dist/bin.js version
@@ -43,6 +50,17 @@ jobs:
           W=$(node packages/cli/dist/bin.js witness stamp /tmp/r.md $(git rev-parse HEAD) | awk '/witness /{print $3}')
           node packages/cli/dist/bin.js witness verify /tmp/r.md $(git rev-parse HEAD) "$W"
 
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Audit locked dependency graph
+        run: npm audit --audit-level=high
+
   no-optional-deps:
     # ADR-150 invariant: the engine builds and tests with the optional
     # ruvector/RVF wasm backends ABSENT. They are declared peer-optional in
@@ -51,10 +69,11 @@ jobs:
     # do NOT pass `npm ci --omit=optional`, which trips the known npm bug
     # npm/cli#4828 and removes rollup's platform binary that vitest needs.)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Assert ruvector backends are NOT installed
         run: |

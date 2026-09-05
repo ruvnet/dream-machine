@@ -132,6 +132,13 @@ exist. Only one generated candidate may be active at a time, and at most one
 human approved bounded policy can be promoted per month after the research gate
 is enabled.
 
+Generated candidate exposures count against that ten percent budget. Fourteen
+exposures therefore require at least 140 eligible nights, before exclusions or
+missed opportunities; matched controls may come from the remaining eligible
+nights. The 70 night P8 study is a different, frozen, human approved randomized
+audio protocol with separate consent and allocation. It cannot self modify and
+does not exempt generated candidates from the exploration cap.
+
 ### 2.7 Require a staged promotion envelope
 
 A candidate advances only through all applicable stages:
@@ -149,6 +156,11 @@ A candidate advances only through all applicable stages:
 
 Missing data, inconsistent clocks, evaluator disagreement, insufficient power,
 and unavailable controls produce `INCONCLUSIVE`, never an inferred pass.
+
+Research completion is distinct from promotion: a valid negative or inconclusive
+report completes a study without deploying its candidate. A safety failure
+requires remediation before a related profile can proceed. Independent practical
+profiles need their own safety and evidence gates, not positive dream results.
 
 ### 2.8 Restrict LatentMesh to transport experiments
 

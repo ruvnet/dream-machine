@@ -19,9 +19,12 @@ Internet, and prevent any untrusted principal from directly energizing output.
 A compromised Linux root process can still request an otherwise allowed cue
 during a physically armed session. The independent MCU must reject requests
 outside the signed envelope and enforce hard physical ceilings, freshness,
-dose, and mute even in that case. The trusted MCU and driver path is a residual
-safety boundary; redundant hardware ceilings, supervision, and fault injection
-bound rather than erase its risk.
+dose, and mute even in that case. This guarantee is conditional on proving that
+the MPU cannot replace or debug the enforcing MCU firmware or bypass its output
+gates. Arduino's stock MCU programming path originates on Linux, so two chips
+alone do not establish that isolation. The trusted MCU and driver path is a
+residual safety boundary; redundant hardware ceilings, supervision, and fault
+injection bound rather than erase its risk.
 
 The security invariant is:
 
@@ -120,7 +123,7 @@ then writes a content-free receipt.
 | RuVector and memory | Trusted for stored evidence after verification | Retrieval only; not consent or physical authority |
 | RuView Home Core plugin | Sandboxed, signed, still untrusted for actuation | Read bounded features and propose |
 | Native cue broker | High-trust deterministic service | Mint a ticket inside a fixed envelope |
-| UNO Q Linux root | Potentially compromisable | Cannot energize outputs without MCU gate |
+| UNO Q Linux root | Potentially compromisable | Cannot bypass the MCU gate only after independent programming, debug, and gate isolation is demonstrated; otherwise observe only |
 | STM32 safety controller | Small trusted computing base | Final actuator authorization and hardware gating |
 | iPhone companion | Trusted after physical pairing | Read consented HealthKit data and sign local batches |
 | Apple Watch | Advisory evidence source | No direct pod or actuator authority |
@@ -164,6 +167,7 @@ hardware cueing until the listed control and test are complete.
 | T14 | Imported bundle abuses parser or exhausts resources | 3 | 4 | 12 | Size and depth bounds; strict schemas; signature after bounded parse; fuzzing; quarantine |
 | T15 | Evidence, holdout, or scorer is altered to force promotion | 3 | 5 | 15 | Frozen digests; independent judges; blind assignment; protected paths; human review; replay receipt |
 | T16 | Marketing turns research into diagnosis or covert manipulation | 3 | 5 | 15 | Claim allowlist and tests; explicit research labeling; legal review; ban third-party goals |
+| T17 | Hostile MPU replaces or debugs the integrated STM32 safety controller | 3 | 5 | 15 | Exact board programming, debug, memory, key, and gate isolation proof; human interlocked updates; external safety controller if isolation cannot be demonstrated |
 
 ## 7. STRIDE analysis
 
@@ -260,6 +264,33 @@ Secure boot and hardware-backed attestation are not claimed until demonstrated
 on the chosen UNO Q production carrier. Before that milestone, receipts are
 signed and hash chained but not labeled hardware attested.
 
+### MCU programming and debug isolation release blocker
+
+Arduino's official `remoteocd` can flash MCU firmware from the UNO Q Linux MPU.
+This is an intended development capability, not a vulnerability report against
+Arduino. It conflicts with treating stock MCU firmware as immutable under Linux
+root compromise. Disabling ADB or SSH does not remove the local programming
+path. [Arduino remoteocd](https://github.com/arduino/remoteocd)
+
+Live cueing requires a reviewed, device specific proof that MPU root cannot
+rewrite or debug safety firmware, RAM, keys, policy, cue assets, or final gate
+outputs. Capture board and bootloader identities, protection configuration,
+debug accessibility, independent witness results, update authorization, and
+recovery behavior. Tests run only on a human approved bench device with actuator
+power disconnected. Exercise native programming and debug paths, not merely
+permissions on the installed utility; reset and interrupted update must keep
+outputs off. A signature verified by replaceable firmware or its self reported
+hash cannot establish this property.
+
+If that proof is unavailable, use a separately provisioned external safety
+controller whose programming and debug interfaces are physically isolated from
+the MPU during operation. It owns sensor freshness, cue bytes, mute, dose, and
+final enable; update mode requires a human physical interlock and disconnected
+actuator power. Irreversible lock or fuse changes require a separate hardware
+review. Until either design passes T17, only observation and simulation are
+eligible, with actuator power disconnected. Signed receipts remain useful for
+integrity but do not waive this physical release gate.
+
 ## 10. Health, consent, and misuse controls
 
 1. Adult, consenting, single-occupant use only in the first prototype.
@@ -329,6 +360,10 @@ signed and hash chained but not labeled hardware attested.
 3. Ten thousand restart and fault sequences and seven supervised eight-hour HIL
    runs with zero duplicate cue and zero safety violation.
 4. Physical mute and abort work without Linux, network, browser, model, or phone.
+5. T17 attempts from hostile MPU root cannot replace, debug, halt, or bypass the
+   deployed safety controller or its final gates. Independent instrumentation
+   witnesses reset and rejected or interrupted update behavior. Missing device
+   access or isolation evidence is `INCONCLUSIVE`, not a live release pass.
 
 ## 12. Vulnerability and incident response
 
@@ -357,6 +392,9 @@ Hardware cueing remains disabled until all of the following are true:
 6. A rollback restores the verified previous release within sixty seconds.
 7. Consent, physical mute, abort, deletion, and serious-adverse-event drills pass.
 8. A human reviews and signs the exact evidence bundle, firmware, policy, and cue assets.
+9. T17 programming, debug, and output gate isolation passes on the exact
+   production controller, or an external independent controller passes the same
+   contract. Host hardening or signed self reports alone cannot satisfy it.
 
 ## References
 
@@ -367,6 +405,7 @@ Hardware cueing remains disabled until all of the following are true:
 - [EU AI Act consolidated text, Article 5](https://eur-lex.europa.eu/eli/reg/2024/1689)
 - [Apple HealthKit privacy](https://developer.apple.com/documentation/healthkit/protecting-user-privacy)
 - [Arduino UNO Q documentation](https://docs.arduino.cc/hardware/uno-q/)
+- [Arduino remoteocd: Linux MPU firmware programming modes](https://github.com/arduino/remoteocd)
 - [RuView](https://github.com/ruvnet/RuView)
 - [RuVector](https://github.com/ruvnet/RuVector)
 - [Autogenous](https://github.com/ruvnet/autogenous)

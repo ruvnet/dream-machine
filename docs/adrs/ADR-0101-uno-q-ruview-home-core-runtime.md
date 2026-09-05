@@ -127,6 +127,35 @@ Arduino Router is used for small MessagePack RPC requests and responses. Bulk
 CSI does not traverse it. Final cue onset is scheduled from the STM32 monotonic
 clock so Linux scheduling jitter is not part of the final timing loop.
 
+#### Production isolation prerequisite
+
+The integrated STM32 is not automatically an independent security boundary.
+Arduino's official `remoteocd` supports MCU flashing from the UNO Q Linux MPU,
+as well as through ADB and SSH. An attacker with Linux root could therefore
+replace the verifier unless the exact production configuration prevents that
+path. Disabling ADB, removing a flashing utility, systemd permissions, a signed
+Linux bundle, and a secure element alone do not establish MCU isolation.
+[Arduino remoteocd](https://github.com/arduino/remoteocd)
+
+Before any live cue, the release must demonstrate that hostile MPU software
+cannot rewrite or debug safety firmware, RAM, keys, policy, cue assets, or
+output gates. Record the exact board, bootloader, debug and boot configuration,
+protection state, update authorization, and recovery procedure. Test direct
+programming and debug paths as well as the installed flashing tools, with
+actuators disconnected and an independent witness. A reset or rejected update
+must leave every gate off. The claim remains `INCONCLUSIVE` without this
+evidence; signed receipts alone are not proof of an untampered verifier.
+
+If the integrated MCU cannot meet that gate, use an externally provisioned
+safety controller whose programming and debug interfaces are physically
+unavailable to the Linux MPU during operation. That controller owns the direct
+safety sensor, cue bytes, mute, dose limits, and final enable lines; its update
+mode requires a human physical interlock with actuator power disconnected.
+Selecting protection settings or irreversible device locks is a separate
+hardware review, never an unattended provisioning action. Observe and simulator
+profiles may proceed with all actuator power disconnected while isolation is
+unproven. The fallback requires a revised BOM and schedule before approval.
+
 ### 2.3 Use two radar integration modes behind one contract
 
 The first development mode uses the Seeed MR60BHA2 kit with its included XIAO
@@ -265,7 +294,8 @@ dependency.
 6. The Ed25519 ticket prevents forgery and corruption but does not by itself
    make a compromised Debian root trustworthy. Duplicated MCU limits, physical
    arming, hardware gates, a watchdog, release signatures, and an optional
-   secure element provide defense in depth.
+   secure element provide defense in depth only after the production isolation
+   prerequisite proves the host cannot replace or debug the enforcing code.
 7. App Lab is not the production supervisor. This reduces convenience but
    creates an auditable appliance boundary.
 
@@ -311,8 +341,12 @@ thermal, content integrity, and timing measurements stabilize.
 
 ## 5. Implementation sequence
 
-All durations are planning estimates for one Mac Studio, one primary engineer,
-and a Ruflo assisted swarm. They are not delivery claims.
+These are subsystem planning estimates, not a second program schedule or
+measured swarm productivity. The
+[implementation plan](../plans/2026-09-04-dream-machine-home-core-implementation.md#14-cost-and-schedule)
+and its machine readable phase dependencies govern staffing, total effort, and
+calendar time. Hardware work, review, and research nights are not shortened by
+adding agent roles.
 
 | Milestone | Scope | Exit evidence | Estimate |
 |---|---|---|---|
@@ -321,7 +355,7 @@ and a Ruflo assisted swarm. They are not delivery claims.
 | M2, sensing | MR60BHA2 bring up, direct UART path, external CSI path, clock alignment, quality model | Eight hour traces, loss report, independent radar comparison, provenance | 2 weeks |
 | M3, local intelligence | HOMECORE adapter, RuVector memory, contrastive baseline, MCP, WebUI | Offline integration test, resource access tests, no direct actuator capability | 2 weeks |
 | M4, observation pilot | No cue nights, calibration, drift, false state analysis | At least 14 usable nights and a predeclared promotion plan | 2 to 4 weeks |
-| M5, audio only experiment | Approved assets, manual nightly arm, randomized or controlled protocol | Safety receipts and outcome report; no automatic policy promotion | At least 30 evaluated nights |
+| M5, audio only experiment | Approved assets, manual nightly arm, frozen randomized protocol | Safety receipts and ACCEPT, REJECT, or INCONCLUSIVE outcome report; no automatic policy promotion | At least 70 eligible nights for the fixed study; generated exploration has a separate budget |
 | M6, light and haptic research | Separate modality policies and independent dose measurement | Each modality passes its own safety and effect gate | 4 weeks after M5 gate |
 | M7, appliance release | Signed bundle, SBOM, service hardening, offline update, rollback, soak | Reproducible build and full completion matrix | 2 weeks |
 
@@ -355,6 +389,8 @@ Quantitative values below are acceptance targets. They are not current
 measurements. A target becomes a claim only when a committed report identifies
 hardware revision, firmware and software hashes, fixture, sample count, raw
 receipt location, and calculation.
+Latency claims follow the sampling and confidence contract in the
+[benchmark plan](../benchmarks/dream-machine-home-core-benchmark-plan.md#11-tail-latency-and-claim-confidence).
 
 ### 6.1 Safety invariants
 
@@ -374,6 +410,11 @@ receipt location, and calculation.
    firmware installation, or promotion operation.
 7. Remote voice, HomeKit, and WebUI can always request stop. None can bypass a
    physical rearm after MUTED or FAULT.
+8. With actuator power disconnected, hostile MPU root attempts cannot replace,
+   halt, debug, patch, or bypass the safety controller, its keys, policy, cue
+   bytes, or final gate outputs. Reset and interrupted authorized update leave
+   outputs off. Missing evidence blocks live cueing and requires the external
+   controller fallback or a new reviewed isolation design.
 
 ### 6.2 Contract and integration
 
@@ -434,6 +475,9 @@ receipt location, and calculation.
 7. Security completion includes dependency audit, secret scan, static analysis,
    ticket and URI fuzzing, network exposure review, threat model review, and a
    clean rescan after every confirmed critical or high fix.
+8. The exact deployed controller passes the production isolation prerequisite,
+   including hostile MPU debug and firmware replacement attempts. A readback
+   hash reported by the potentially compromised host does not satisfy this gate.
 
 ## 7. References
 
@@ -457,3 +501,4 @@ receipt location, and calculation.
 18. [MCP security best practices](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices)
 19. [RFC 8949, CBOR](https://www.rfc-editor.org/rfc/rfc8949)
 20. [RFC 8032, Ed25519](https://www.rfc-editor.org/rfc/rfc8032)
+21. [Arduino remoteocd: MCU flashing from the UNO Q Linux MPU](https://github.com/arduino/remoteocd)
