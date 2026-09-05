@@ -12,6 +12,7 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0005](./ADR-0005-failure-attribution-before-mutation.md) | Attribute failure before mutation | Proposed |
 | [ADR-0006](./ADR-0006-root-cause-security-patch-evaluation.md) | Root cause security patch evaluation | Proposed |
 | [ADR-0007](./ADR-0007-claim-relative-evidence-receipts.md) | Claim-relative evidence receipts bind sufficiency and committed experiment coverage without granting authority | Proposed |
+| [ADR-0008](./ADR-0008-provenance-bound-environment-reconstruction.md) | Provenance bound environment reconstruction | Proposed |
 
 ## How to amend
 
