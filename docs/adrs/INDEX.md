@@ -10,6 +10,8 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0001](./ADR-0001-dream-machine-engine.md) | The Dream Machine engine — a config-driven, evidence-gated nightly evolution loop composed from the ruvnet stack | Accepted (v0.1.0 shipped) |
 | [ADR-0002](./ADR-0002-dream-cycle-security-adversarial-entrypoint-liveness.md) | Evaluator entrypoints must be classified live/blocked/suspicious-silent before an EVALUATED verdict is recorded | Proposed |
 | [ADR-0005](./ADR-0005-failure-attribution-before-mutation.md) | Attribute failure before mutation | Proposed |
+| [ADR-0006](./ADR-0006-root-cause-security-patch-evaluation.md) | Root cause security patch evaluation | Proposed |
+| [ADR-0007](./ADR-0007-claim-relative-evidence-receipts.md) | Claim-relative evidence receipts bind sufficiency and committed experiment coverage without granting authority | Proposed |
 
 ## How to amend
 
