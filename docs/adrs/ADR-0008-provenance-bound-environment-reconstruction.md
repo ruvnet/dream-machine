@@ -1,4 +1,4 @@
-# ADR 0080: Provenance Bound Environment Reconstruction
+# ADR 0008: Provenance Bound Environment Reconstruction
 
 Status: Proposed
 
