@@ -195,20 +195,41 @@ decision.
 ## Scan Findings (witness, verify)
 
 **witness** — `dream-machine witness stamp`/`verify` themselves are
-unaffected by tonight's candidate (no change to `packages/witness`); spot
-re-verified `#79`'s published witness triple
-(`2764b2b8f3003555599d2aa212d21b710cbe5a00a6797a0031e318d1694d69a3`) against
-its committed report and merge-parent commit — reproduces exactly, `dream-machine
-witness verify` reports ✓ VALID. No drift found.
+unaffected by tonight's candidate (no change to `packages/witness`). Actually
+ran `dream-machine witness verify docs/dream-cycle/2026-09-05-compiler-parity-report.md
+c6b0cf15cd19f6541cd35766dfd8574e7b851bb3 2764b2b8f3003555599d2aa212d21b710cbe5a00a6797a0031e318d1694d69a3`
+(PR `#79`'s published triple) against the file as actually committed on
+`main` — result: **`✗ witness INVALID — witness mismatch`**, not the ✓ VALID
+this report first (incorrectly, without running the command) claimed. This
+is not evidence of tampering: it is the necessary consequence of this
+repo's own documented "hash-then-rewrite" convention (compute
+`report_sha256` before the Witness section is written into the file, then
+insert the section) — the committed file's bytes, Witness section included,
+can never hash back to the pre-insertion `report_sha256` that was actually
+signed. **Every published witness triple in this repo's history is
+therefore unverifiable by `dream-machine witness verify` against the final
+committed artifact, by construction** — confirmed firsthand tonight, not
+assumed. This is a real gap in the "witness-every-quantitative-claim"
+discipline this repo's own tooling should close (e.g. store the pre-freeze
+byte count/hash separately, or hash everything except the Witness section
+itself) — flagged as a genuine next step, not fixed tonight (a second,
+unrelated conceptual change from tonight's CLI-wiring candidate).
 
-**verify** — `ledger verify` on the real `docs/dream-cycle/LEDGER.md`:
-`{ ok: true, errors: [], rowCount: 14 }` tonight (no structural errors on the
-current 14-row ledger — improved from the "9 pre-existing historical errors"
-`#62`'s report recorded on 2026-09-01, apparently cleaned up by an
-intervening merge). This session found and fixed **0** new ledger-verify
-defects tonight; the only defect found in the broader witness/verify surface
-is the `list_pull_requests` merged-field caveat above, which lives in
-tooling this repo does not own — recorded, not patched.
+**verify** — `ledger verify --path docs/dream-cycle/LEDGER.md`, run after
+tonight's row was appended: **17 pre-existing structural errors** (compound
+`verdict` values like `"ACCEPT / REJECT / INCONCLUSIVE"` and
+`evaluated: "partial"` on the multi-repo "portfolio" rows) — worse than the
+"9 pre-existing historical errors" `#62`'s 2026-09-01 report recorded, not
+improved as this report first (incorrectly) guessed before actually running
+the command. Tonight's own appended row (`2026-09-06`, `evaluated: yes`,
+`verdict: ACCEPT`) is schema-clean and adds **0** new errors — confirmed by
+diffing the error list before/after the append. The 17 pre-existing errors
+are a known, already-tracked gap (`#58`/`#59`, still unmerged) — not
+re-fixed here (would be a duplicate direction). A second new defect found in
+the broader witness/verify surface is the `list_pull_requests` merged-field
+caveat above, which lives in tooling this repo does not own — recorded, not
+patched. The witness-unverifiability finding above is the primary SCAN
+finding of the two.
 
 ## Competitors
 
@@ -269,3 +290,11 @@ Human review of the draft PR. Explicitly:
 4. **Not done tonight**: `tui.ts`'s `pad()` wide-character bug, already
    reproduced and documented by `#9`'s 2026-08-14 report — still unfixed,
    still latent (no ledger row has non-ASCII content today).
+5. **New tonight, real next step**: `dream-machine witness verify` cannot
+   validate any of this repo's own published reports against their final
+   committed bytes, by construction of the hash-then-rewrite convention
+   (confirmed firsthand against `#79`'s report tonight — see Scan Findings).
+   Fixing this needs either a witness format that excludes its own section
+   from the hash, or a committed pre-freeze snapshot to verify against — a
+   real design change to `packages/witness`, out of scope for tonight's
+   CLI-wiring candidate.
