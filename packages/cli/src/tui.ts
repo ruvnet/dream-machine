@@ -40,6 +40,13 @@ export interface DashboardOptions {
   repo?: string;
   /** Today's date (YYYY-MM-DD), for the ledger-staleness warning. Omit to skip that check. */
   today?: string;
+  /**
+   * PR numbers confirmed merged (e.g. via a live GitHub check the caller
+   * already ran), so the zero-merge signal reflects real state instead of
+   * defaulting to "nothing merged". See `learningSignals`'s `mergedPrNumbers`
+   * option — this dashboard stays network-free and never fetches it itself.
+   */
+  mergedPrNumbers?: Set<string>;
 }
 
 /** Render the dashboard framebuffer from a ledger markdown string. */
@@ -47,7 +54,7 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const c = opts.noColor ? new Proxy({}, { get: () => '' }) as typeof C : C;
   const { rows } = parseLedger(ledgerMd);
   const stats = verdictStats(rows);
-  const signals = learningSignals(rows, { today: opts.today });
+  const signals = learningSignals(rows, { today: opts.today, mergedPrNumbers: opts.mergedPrNumbers });
   const limit = opts.limit ?? 10;
   const recent = rows.slice(-limit).reverse();
   const total = rows.length;
