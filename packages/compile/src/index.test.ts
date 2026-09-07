@@ -207,8 +207,8 @@ describe('self-hosted config (ruvnet/dream-machine)', () => {
     expect(validateConfig(selfConfig).ok).toBe(true);
   });
 
-  it('resolves autoMerge: true (the one config in the wild that enables it)', () => {
-    expect(withDefaults(selfConfig).autoMerge).toBe(true);
+  it('resolves autoMerge: false (this repo deliberately never auto-merges)', () => {
+    expect(withDefaults(selfConfig).autoMerge).toBe(false);
   });
 
   it('compiles deterministically', () => {
