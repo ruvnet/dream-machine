@@ -58,6 +58,13 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/@]{0,127}$/;
 const MAX_CRITERIA = 16;
 const MAX_REPLICATES = 1_000_000;
+const ALLOWED_CRITERIA = new Set<DiscoveryCriterion>([
+  'controls',
+  'falsification',
+  'robustness',
+  'cross_dataset_generalization',
+  'reproducibility',
+]);
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -87,6 +94,9 @@ function requireCanonicalTimestamp(value: string, field: string): string {
 function normalizedCriteria(values: readonly DiscoveryCriterion[]): DiscoveryCriterion[] {
   if (values.length === 0) throw new Error('requiredCriteria must not be empty');
   if (values.length > MAX_CRITERIA) throw new Error(`requiredCriteria exceeds ${MAX_CRITERIA} items`);
+  for (const value of values) {
+    if (!ALLOWED_CRITERIA.has(value)) throw new Error(`requiredCriteria contains unknown criterion ${String(value)}`);
+  }
   const unique = new Set(values);
   if (unique.size !== values.length) throw new Error('requiredCriteria contains duplicates');
   return [...unique].sort();
@@ -102,6 +112,9 @@ function normalizedMinReplicates(value: number | undefined): number {
 
 /** Canonical digest of the discovery policy frozen before candidate outcomes. */
 export function discoveryEvidencePolicyDigest(policy: DiscoveryEvidencePolicy): string {
+  if (typeof policy.requireIndependentEvidence !== 'boolean') {
+    throw new Error('requireIndependentEvidence must be boolean');
+  }
   const canonical = JSON.stringify({
     policyId: requireId(policy.policyId, 'policyId'),
     protocolVersion: requireId(policy.protocolVersion, 'protocolVersion'),
@@ -124,11 +137,20 @@ function normalizedEvidence(
   const normalized: DiscoveryEvidenceObservation[] = [];
 
   for (const observation of observations) {
+    if (!ALLOWED_CRITERIA.has(observation.criterion)) {
+      throw new Error(`observation contains unknown criterion ${String(observation.criterion)}`);
+    }
     if (!requiredSet.has(observation.criterion)) {
       throw new Error(`observation contains undeclared criterion ${observation.criterion}`);
     }
     if (seen.has(observation.criterion)) {
       throw new Error(`observation contains duplicate criterion ${observation.criterion}`);
+    }
+    if (observation.status !== 'PASS' && observation.status !== 'FAIL') {
+      throw new Error(`status for ${observation.criterion} must be PASS or FAIL`);
+    }
+    if (typeof observation.independent !== 'boolean') {
+      throw new Error(`independent for ${observation.criterion} must be boolean`);
     }
     seen.add(observation.criterion);
     if (!Number.isSafeInteger(observation.replicates) || observation.replicates < 1 || observation.replicates > MAX_REPLICATES) {
