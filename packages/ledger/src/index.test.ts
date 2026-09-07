@@ -187,6 +187,8 @@ describe('learning signals', () => {
     expect(s.lastRowDate).toBeNull();
     expect(s.daysSinceLastRow).toBeNull();
     expect(s.ledgerStale).toBe(false);
+  });
+
   it('counts pending (still-open PR) findings toward duplicateDirections', () => {
     // Only 1 merged row + 2 pending (open, unmerged) PR findings sharing the
     // same opening words — none alone would cross the >= 3 threshold from

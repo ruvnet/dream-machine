@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { run, parseArgs, VERSION, type IO } from './index.js';
-import { renderDashboard, displayWidth, pad } from './tui.js';
 import { run, parseArgs, parsePendingFindings, VERSION, type IO } from './index.js';
-import { renderDashboard } from './tui.js';
+import { renderDashboard, displayWidth, pad } from './tui.js';
 import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
 
@@ -198,6 +196,7 @@ describe('ledger', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('--merged expects a comma-separated PR number list');
     expect(r.err).not.toContain('is not a function');
+  });
   it('signals --pending folds in open-PR findings for duplicate-direction detection', async () => {
     const solo = appendRow(emptyLedger(), sampleRow({ finding: 'zero merge streak reported false when pr merged' }));
     const io = mockIO({ 'L.md': solo });
@@ -436,6 +435,7 @@ describe('tui', () => {
     const r = await run(['tui', '--path', 'L.md', '--merged'], mockIO({ 'L.md': md }));
     expect(r.code).toBe(1);
     expect(r.err).toContain('--merged expects a comma-separated PR number list');
+  });
 
   it('displayWidth matches .length for plain ASCII (no regression)', () => {
     expect(displayWidth('hello world')).toBe('hello world'.length);

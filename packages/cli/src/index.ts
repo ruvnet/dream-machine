@@ -112,11 +112,11 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path L] [--merged "7,12"]          Print STEP 1.1 learning signals
+  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
+                                                       Print STEP 1.1 learning signals
                                                          (--merged: known-merged PR numbers;
                                                          omitted → zeroMergeStreak defaults
                                                          to a worst-case, unverified true)
-  ledger signals  [--path LEDGER.md] [--pending "f1|f2"] Print STEP 1.1 learning signals
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
@@ -245,9 +245,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
           const mergedPrNumbers = parseMergedPrNumbers(flags.merged);
-          sink.log(JSON.stringify(learningSignals(rows, { today: io.now(), mergedPrNumbers }), null, 2));
           const pendingFindings = parsePendingFindings(flags.pending as string | undefined);
-          sink.log(JSON.stringify(learningSignals(rows, { pendingFindings }), null, 2));
+          sink.log(
+            JSON.stringify(
+              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings }),
+              null,
+              2,
+            ),
+          );
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
