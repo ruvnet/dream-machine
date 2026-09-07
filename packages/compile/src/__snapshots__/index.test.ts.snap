@@ -500,7 +500,10 @@ real evaluator, then the candidate on the identical corpus/policy.
 
 Evaluator entrypoints for this repo:
 - bench: \`npm test\`
-- darwin: \`npx @metaharness/darwin evolve\`
+- darwin: \`rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock\`
+
+**Supply-chain warning — unpinned \`npx\` evaluator entrypoint(s):**
+- \`evaluatorEntrypoints.darwin\` runs \`npx @metaharness/darwin\` — not pinned to an exact version. \`npx\` resolves the registry \`latest\` dist-tag fresh on every invocation; it is not governed by this repo's own lockfile. A compromised or bad publish under that package name executes immediately, with no PR and no review. Treat a result from this entrypoint as evidence about "whatever is latest right now", not a reproducible receipt, until it is pinned to an exact version or vendored as a real dependency. Do not silently pin it yourself as part of an unrelated candidate — flag it for human decision.
 
 Do not infer results from logs. Preserve the real receipt. If evaluation is
 blocked by infrastructure/credentials: \`EVALUATED=blocked / VERDICT=INCONCLUSIVE\`
@@ -549,8 +552,13 @@ and the 5-step verifier procedure anyone can reproduce.
 
 # STEP 17–18: PUBLISH GIST + ISSUE
 
-Skip if FALLBACK. Otherwise \`gh gist create --public\` the report, capture
-GIST_URL (never fabricate). Open an issue titled
+Skip if FALLBACK. Otherwise publish the report as a public gist using
+whichever gist-creation capability this environment actually provides
+(\`gh gist create --public\`, an equivalent MCP tool) and capture GIST_URL —
+never fabricate one. Neither present (observed on real nights: \`gh\` absent,
+no MCP gist tool) is not FALLBACK: record \`GIST=LOCAL\`, commit the report
+file itself into the PR as the durable artifact, and continue — gist
+publication is best-effort, not a stop condition. Open an issue titled
 \`[Dream Cycle <DATE>] <deep>: <finding> + <scan1>,<scan2> scan\` with labels
 \`dream-cycle\`, \`research\` plus the surface labels. Body sections
 in order: Rotation, Ledger Check, Deep Dive, Hypothesis, Evaluation Receipt,
@@ -579,13 +587,8 @@ Hypothesis, Candidate, Evaluation Receipt, Baseline, Darwin Lineage, Evidence,
 Reward-Hack Check, Security Review, Regression Analysis, ADR, Gist, Issue,
 Witness, Merge Policy.
 
-**Merge policy (guarded auto-merge ENABLED for this target).** Human review
-is still the default. Auto-merge may occur ONLY for a PR that (a) carries the
-explicit low-risk label configured for this repo, (b) is green on every required
-check, and (c) touched no evaluation/gate/safety infrastructure. Any candidate
-that changed a benchmark, gate, threshold, or security boundary is human-review-
-only, full stop. The session itself still never runs the merge — a separate,
-auditable CI job does, under those conditions.
+**Merge policy.** Human review required. The session never self-merges and
+never autonomously promotes candidate state.
 
 Append exactly ONE row to \`docs/dream-cycle/LEDGER.md\`:
 
