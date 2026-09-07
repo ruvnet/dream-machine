@@ -218,15 +218,6 @@ export interface SignalOptions {
   today?: string;
   /** Days tolerated between the ledger's last row and `today` before it's "stale". Default 1 (nightly cron). */
   staleAfterDays?: number;
-}
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
-function daysBetween(from: string, to: string): number {
-  const a = Date.parse(`${from}T00:00:00Z`);
-  const b = Date.parse(`${to}T00:00:00Z`);
-  return Math.round((b - a) / 86_400_000);
   /**
    * Finding text from currently-open, unmerged dream-cycle PRs (e.g. their
    * titles), supplied by the caller after a live GitHub check. `duplicateDirections`
@@ -237,6 +228,15 @@ function daysBetween(from: string, to: string): number {
    * alongside merged-row findings. Omit for byte-identical prior behavior.
    */
   pendingFindings?: string[];
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
 }
 
 function prNumber(pr: string): string | null {

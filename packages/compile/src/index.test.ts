@@ -61,6 +61,7 @@ describe('validateConfig', () => {
     const r = validateConfig({ ...metaharness, bonusModuli: { '25': '   ' } });
     expect(r.ok).toBe(false);
     expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
   it('accepts a well-formed object-form adrConvention', () => {
     const r = validateConfig({ ...metaharness, adrConvention: { pad: 5, dir: 'decisions' } });
     expect(r.ok).toBe(true);
@@ -105,6 +106,8 @@ describe('compile', () => {
 
   it('throws instead of silently compiling a dangling "add " bonus-dive line from an empty bonusModuli value', () => {
     expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
+  });
+
   it('throws instead of silently compiling a corrupted ADR path from a malformed adrConvention', () => {
     expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
       /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
