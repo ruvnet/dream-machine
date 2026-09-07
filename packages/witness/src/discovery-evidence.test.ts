@@ -151,4 +151,35 @@ describe('discovery evidence gate', () => {
     badReplicates[0] = { ...badReplicates[0]!, replicates: 0 };
     expect(evaluateDiscoveryEvidence(POLICY, discoveryEvidencePolicyDigest(POLICY), badReplicates).status).toBe('INVALID');
   });
+
+  it('invalidates untrusted runtime values that bypass TypeScript types', () => {
+    const expected = discoveryEvidencePolicyDigest(POLICY);
+
+    const badStatus = completeEvidence();
+    badStatus[0] = {
+      ...badStatus[0]!,
+      status: 'UNKNOWN',
+    } as unknown as DiscoveryEvidenceObservation;
+    expect(evaluateDiscoveryEvidence(POLICY, expected, badStatus).reason).toMatch(/must be PASS or FAIL/);
+
+    const badIndependent = completeEvidence();
+    badIndependent[0] = {
+      ...badIndependent[0]!,
+      independent: 'yes',
+    } as unknown as DiscoveryEvidenceObservation;
+    expect(evaluateDiscoveryEvidence(POLICY, expected, badIndependent).reason).toMatch(/must be boolean/);
+
+    const badCriterion = completeEvidence();
+    badCriterion[0] = {
+      ...badCriterion[0]!,
+      criterion: 'novelty_only',
+    } as unknown as DiscoveryEvidenceObservation;
+    expect(evaluateDiscoveryEvidence(POLICY, expected, badCriterion).reason).toMatch(/unknown criterion/);
+
+    const badPolicy = {
+      ...POLICY,
+      requireIndependentEvidence: 'true',
+    } as unknown as DiscoveryEvidencePolicy;
+    expect(evaluateDiscoveryEvidence(badPolicy, '0'.repeat(64), completeEvidence()).reason).toMatch(/must be boolean/);
+  });
 });
