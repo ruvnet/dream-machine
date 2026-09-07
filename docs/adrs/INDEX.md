@@ -13,6 +13,7 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0006](./ADR-0006-root-cause-security-patch-evaluation.md) | Root cause security patch evaluation | Proposed |
 | [ADR-0007](./ADR-0007-claim-relative-evidence-receipts.md) | Claim-relative evidence receipts bind sufficiency and committed experiment coverage without granting authority | Proposed |
 | [ADR-0008](./ADR-0008-provenance-bound-environment-reconstruction.md) | Provenance bound environment reconstruction | Proposed |
+| [ADR-0010](./ADR-0010-evidence-freshness-before-promotion.md) | Evidence freshness — re-verify the read set before promotion | Proposed |
 | [ADR-0100](./ADR-0100-edge-runtime-trust-boundaries.md) | Separate the Dream Machine control plane from the bedside runtime and actuator safety authority | Proposed |
 | [ADR-0101](./ADR-0101-uno-q-ruview-home-core-runtime.md) | Governed edge runtime on Arduino UNO Q with RuView HOMECORE | Proposed |
 | [ADR-0102](./ADR-0102-apple-watch-healthkit-local-bridge.md) | Apple Watch HealthKit local bridge with retrospective default and research-only live sensing | Proposed |

@@ -248,6 +248,133 @@ describe('ledger', () => {
   });
 });
 
+describe('freshness', () => {
+  const cfgV1 = '{"autoMerge":true}';
+  const cfgV2 = '{"autoMerge":false}';
+  const srcV1 = 'export const compile = 1;';
+
+  async function stampPolicy(files: Record<string, string>, extra: string[] = []) {
+    const io = mockIO(files);
+    const r = await run(
+      ['freshness', 'stamp', '--base', 'abc1234', '--paths', Object.keys(files).join(','), '--out', 'p.json', ...extra],
+      io,
+    );
+    return { io, r };
+  }
+
+  it('stamp freezes the declared read set and reports a policy digest', async () => {
+    const { io, r } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    expect(r.code).toBe(0);
+    const doc = JSON.parse(io.files['p.json']);
+    expect(doc.policyDigest).toMatch(/^[0-9a-f]{64}$/);
+    expect(doc.policy.dependencies.map((d: { path: string }) => d.path).sort()).toEqual([
+      'dream.config.json',
+      'src.ts',
+    ]);
+  });
+
+  it('verify is FRESH (exit 0) when the read set has not moved', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.out).status).toBe('FRESH');
+  });
+
+  // The PR #11 regression, end to end through the CLI.
+  it('verify is STALE (exit 1) when a read-set file drifted, even with no diff conflict', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    io.files['dream.config.json'] = cfgV2; // changed underneath, never in the candidate's diff
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(1);
+    const receipt = JSON.parse(r.out);
+    expect(receipt.status).toBe('STALE');
+    expect(receipt.driftedPaths).toEqual(['dream.config.json']);
+    expect(r.err).toContain('Re-evaluate before promoting');
+  });
+
+  it('verify is indeterminate (exit 2) when a declared dependency vanished', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    delete io.files['src.ts'];
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(2);
+    expect(JSON.parse(r.out).status).toBe('INDETERMINATE');
+    expect(r.err).toContain('no longer present');
+  });
+
+  it('verify rejects a policy whose read set was rewritten after stamping', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    const doc = JSON.parse(io.files['p.json']);
+    doc.policy.dependencies = doc.policy.dependencies.filter(
+      (d: { path: string }) => d.path !== 'dream.config.json',
+    );
+    io.files['p.json'] = JSON.stringify(doc);
+    io.files['dream.config.json'] = cfgV2;
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    // Rejected at parse time, before any dependency is read -- so there is no
+    // receipt on stdout at all, which is strictly stronger than emitting an
+    // INVALID one after having already touched the filesystem.
+    expect(r.code).toBe(2);
+    expect(r.out).toBe('');
+    expect(r.err).toMatch(/digest mismatch/);
+  });
+
+  it('stamp fails clearly when a declared dependency cannot be read', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    const r = await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts,missing.ts'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('cannot read declared dependency missing.ts');
+  });
+
+  it('stamp rejects an absolute or traversing dependency path', async () => {
+    const io = mockIO({ '/etc/shadow': 'root' });
+    const r = await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', '/etc/shadow'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toMatch(/repository-relative/);
+  });
+
+  it('never reads a path outside the repo, even before rejecting the policy', async () => {
+    // Regression: the CLI used to digest every declared path first and only
+    // then let the library reject traversal, which made an attacker-supplied
+    // policy file a read/existence oracle for paths outside the repository.
+    const reads: string[] = [];
+    const io = mockIO({ 'p.json': JSON.stringify({
+      policy: {
+        policyId: 'evil',
+        baseCommit: 'abc1234',
+        evaluatedAt: '2026-09-01T00:00:00.000Z',
+        dependencies: [{ path: '../../../etc/hosts', digest: '0'.repeat(64) }],
+        requireDeclaredDependencies: true,
+      },
+      policyDigest: '0'.repeat(64),
+    }) });
+    const inner = io.readFile.bind(io);
+    io.readFile = async (p: string) => { reads.push(p); return inner(p); };
+
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'abc1234'], io);
+    expect(r.code).toBe(2);
+    expect(reads).toEqual(['p.json']); // the policy itself, and nothing else
+    expect(r.err).toMatch(/malformed policy|traverse/);
+  });
+
+  it('rejects a policy whose digest does not anchor its read set', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts', '--out', 'p.json'], io);
+    const doc = JSON.parse(io.files['p.json']);
+    doc.policyDigest = 'f'.repeat(64); // anchor no longer matches the policy
+    io.files['p.json'] = JSON.stringify(doc);
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toMatch(/digest mismatch/);
+  });
+
+  it('errors with usage on a missing subcommand or flags', async () => {
+    const io = mockIO({});
+    expect((await run(['freshness'], io)).code).toBe(2);
+    expect((await run(['freshness', 'stamp'], io)).code).toBe(2);
+    expect((await run(['freshness', 'verify'], io)).code).toBe(2);
+  });
+});
+
 describe('witness', () => {
   it('stamp prints the triple', async () => {
     const io = mockIO({ 'r.md': 'report body' });

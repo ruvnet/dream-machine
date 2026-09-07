@@ -17,7 +17,15 @@ import {
   EVALS,
   type LedgerRow,
 } from '@dream-machine/ledger';
-import { stamp, verify, verifySteps } from '@dream-machine/witness';
+import {
+  stamp,
+  verify,
+  verifySteps,
+  evaluateEvidenceFreshness,
+  evidenceFreshnessPolicyDigest,
+  type EvidenceDependency,
+  type EvidenceFreshnessPolicy,
+} from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
 import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
@@ -124,7 +132,9 @@ Commands:
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
   tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
-  tui             [--path LEDGER.md] [--no-color]      Render the dashboard
+  freshness stamp --base <sha> --paths "a,b" [--out F]  Freeze the evidence read set at evaluation time
+  freshness verify --policy <file> --head <sha>         Re-verify that read set against the promotion target
+                                                         (exit 0 FRESH, 1 STALE, 2 indeterminate/invalid)
   version | --version                                  Print version
   help    | --help                                     This help
 
@@ -386,6 +396,134 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         );
         const code = r.verdict === 'clear' ? 0 : r.verdict === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
+      }
+
+      /**
+       * Evidence freshness gate (see `@dream-machine/witness/evidence-freshness`).
+       *
+       * `stamp` freezes the read set at evaluation time; `verify` re-digests
+       * those same paths against the tree a candidate would land in. The CLI
+       * owns all I/O so the witness primitive stays pure.
+       */
+      case 'freshness': {
+        const sub = _[1];
+        const sha256Hex = async (content: string): Promise<string> =>
+          (await import('node:crypto')).createHash('sha256').update(content).digest('hex');
+
+        if (sub === 'stamp') {
+          const base = flags.base as string | undefined;
+          const pathsFlag = flags.paths as string | undefined;
+          if (!base || !pathsFlag) {
+            sink.error(
+              'usage: dream-machine freshness stamp --base <sha> --paths "a.json,b/c.ts" [--id ID] [--max-age DAYS] [--out FILE]',
+            );
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          const paths = pathsFlag
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean);
+          const dependencies: EvidenceDependency[] = [];
+          for (const path of paths) {
+            try {
+              dependencies.push({ path, digest: await sha256Hex(await io.readFile(path)) });
+            } catch (e) {
+              sink.error(`freshness stamp: cannot read declared dependency ${path}: ${(e as Error).message}`);
+              return { code: 2, out: sink.out, err: sink.err };
+            }
+          }
+          const maxAgeRaw = flags['max-age'];
+          const policy: EvidenceFreshnessPolicy = {
+            policyId: (flags.id as string) || 'dream-cycle-candidate',
+            baseCommit: base,
+            evaluatedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
+            dependencies,
+            requireDeclaredDependencies: true,
+            ...(maxAgeRaw === undefined ? {} : { maxAgeDays: Number(maxAgeRaw) }),
+          };
+          let policyDigest: string;
+          try {
+            policyDigest = evidenceFreshnessPolicyDigest(policy);
+          } catch (e) {
+            sink.error(`freshness stamp: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          const doc = JSON.stringify({ policy, policyDigest }, null, 2);
+          const out = flags.out as string | undefined;
+          if (out) {
+            await io.writeFile(out, doc + '\n');
+            sink.log(`freshness stamp: wrote ${out} (policyDigest ${policyDigest})`);
+          } else {
+            sink.log(doc);
+          }
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+
+        if (sub === 'verify') {
+          const policyPath = flags.policy as string | undefined;
+          const head = flags.head as string | undefined;
+          if (!policyPath || !head) {
+            sink.error('usage: dream-machine freshness verify --policy <file> --head <sha>');
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          let doc: { policy: EvidenceFreshnessPolicy; policyDigest: string };
+          try {
+            doc = JSON.parse(await io.readFile(policyPath));
+          } catch (e) {
+            sink.error(`freshness verify: could not read/parse ${policyPath}: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          // Validate and anchor the policy BEFORE touching the filesystem.
+          // The policy file is untrusted input: without this, a crafted policy
+          // could name `../../etc/hosts` and make us read (and confirm the
+          // existence of) paths outside the repository, even though the receipt
+          // would later come back INVALID. Fail closed, then read.
+          let anchoredDigest: string;
+          try {
+            anchoredDigest = evidenceFreshnessPolicyDigest(doc.policy);
+          } catch (e) {
+            sink.error(`freshness verify: malformed policy in ${policyPath}: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          if (anchoredDigest !== doc.policyDigest) {
+            sink.error(
+              'freshness verify: policy digest mismatch — the read set was rewritten after it was stamped',
+            );
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+
+          // A declared path that no longer exists is simply not observed; the
+          // receipt then reports it as missing (INDETERMINATE), never FRESH.
+          const observedDeps: EvidenceDependency[] = [];
+          const absent: string[] = [];
+          for (const dependency of doc.policy?.dependencies ?? []) {
+            try {
+              observedDeps.push({ path: dependency.path, digest: await sha256Hex(await io.readFile(dependency.path)) });
+            } catch {
+              absent.push(dependency.path);
+            }
+          }
+          const receipt = evaluateEvidenceFreshness(doc.policy, doc.policyDigest, {
+            headCommit: head,
+            observedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
+            dependencies: observedDeps,
+          });
+          sink.log(JSON.stringify(receipt, null, 2));
+          if (absent.length > 0) {
+            sink.error(`freshness verify: declared dependencies no longer present: ${absent.join(', ')}`);
+          }
+          if (receipt.status === 'STALE') {
+            sink.error(
+              `freshness verify: STALE — the evidence no longer describes this tree ` +
+                `(drifted: ${receipt.driftedPaths.join(', ') || 'none'}${receipt.ageExceeded ? '; age budget exceeded' : ''}). Re-evaluate before promoting.`,
+            );
+          }
+          const code = receipt.status === 'FRESH' ? 0 : receipt.status === 'STALE' ? 1 : 2;
+          return { code, out: sink.out, err: sink.err };
+        }
+
+        sink.error('usage: dream-machine freshness <stamp|verify> ...');
+        return { code: 2, out: sink.out, err: sink.err };
       }
 
       case 'tui': {
