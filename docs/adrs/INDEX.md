@@ -20,6 +20,7 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0104](./ADR-0104-mcp-ruvector-local-data-plane.md) | Use RuVector as the local evidence plane behind a capability-minimal MCP facade | Proposed |
 | [ADR-0105](./ADR-0105-mac-studio-codex-swarm-control-plane.md) | A Mac Studio and Codex desktop swarm form the governed development control plane | Proposed |
 | [ADR-0106](./ADR-0106-executable-software-prototype-and-evidence.md) | Executable software prototype and bounded evidence | Implemented for software prototype; hardware and research blocked |
+| [ADR-0004](./ADR-0004-evidence-carrying-termination.md) | Completion requires claim-level in-scope evidence and deterministic closed replay | Proposed |
 
 ## How to amend
 
