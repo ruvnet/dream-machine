@@ -123,6 +123,7 @@ export function verifySteps(gistRawUrl = '<RAW_GIST_URL>'): string {
 export * from './security-patch.js';
 export * from './reconstruction.js';
 export * from './termination.js';
+export * from './evidence-freshness.js';
 // `trace-replay` and `termination` were developed on separate branches and each
 // grew its own `canonicalJson`, so `export *` from both is ambiguous (TS2308).
 // They are NOT interchangeable -- trace-replay's carries WeakSet cycle detection
