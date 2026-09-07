@@ -55,7 +55,7 @@ export interface DiscoveryEvidenceReceipt {
 }
 
 const HEX64 = /^[0-9a-f]{64}$/;
-const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/@]{0,127}$/;
+const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,127}$/;
 const MAX_CRITERIA = 16;
 const MAX_REPLICATES = 1_000_000;
 const ALLOWED_CRITERIA = new Set<DiscoveryCriterion>([
