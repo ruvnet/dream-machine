@@ -47,6 +47,19 @@ describe('validateConfig', () => {
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
   });
+  it('accepts a well-formed bonus modulus value', () => {
+    expect(validateConfig({ ...metaharness, bonusModuli: { '25': 'vertical-packs' } }).ok).toBe(true);
+  });
+  it('rejects an empty bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
+  it('rejects a whitespace-only bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '   ' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
 });
 
 describe('compile', () => {
@@ -54,6 +67,10 @@ describe('compile', () => {
 
   it('throws on an invalid config', () => {
     expect(() => compile({ ...metaharness, repo: '' })).toThrow(/invalid dream.config/);
+  });
+
+  it('throws instead of silently compiling a dangling "add " bonus-dive line from an empty bonusModuli value', () => {
+    expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
   });
 
   it('is deterministic (same input → identical output)', () => {
@@ -125,6 +142,37 @@ describe('compile', () => {
 
   it('golden-snapshot: metaharness prompt is stable', () => {
     expect(prompt).toMatchSnapshot();
+  });
+
+  it('does not warn about unpinned npx when no entrypoint uses npx', () => {
+    expect(prompt).not.toContain('Supply-chain warning');
+  });
+
+  it('warns about an unpinned npx evaluator entrypoint (reproduces this repo\'s own dream.config.json)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('evaluatorEntrypoints.darwin');
+    expect(p).toContain('npx @metaharness/darwin');
+  });
+
+  it('warns when the npx invocation is only pinned to a floating major.minor (reviewer regression)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@1.6 evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('npx @metaharness/darwin@1.6');
+  });
+
+  it('does not warn when the npx invocation is version-pinned', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@0.9.2 evolve --sandbox mock' },
+    });
+    expect(p).not.toContain('Supply-chain warning');
   });
 });
 

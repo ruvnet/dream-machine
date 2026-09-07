@@ -1,7 +1,7 @@
 {
   "name": "@dream-machine/memory",
   "version": "0.1.0",
-  "description": "Optional semantic memory over prior dream nights — ruvector/RVF wasm when present, deterministic flat-file fallback otherwise.",
+  "description": "Bounded deterministic keyword memory with atomic flat-file persistence. Optional RuVector module probe; the RVF adapter is not implemented.",
   "type": "module",
   "license": "MIT",
   "author": "rUv <ruv@ruv.net>",

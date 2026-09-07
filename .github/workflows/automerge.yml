@@ -1,56 +1,28 @@
-name: Guarded auto-merge
+name: Human merge policy guard
 
-# Implements the ADR-0001 guarded auto-merge policy. A Dream Cycle (or any) PR
-# is auto-merged ONLY when ALL of these hold:
-#   1. it carries the explicit `automerge-safe` label (a human or the gate adds it),
-#   2. it touches NO protected path (evaluation gates, safety, CI, publish, deps),
-#   3. every required status check passes (enforced by branch protection when
-#      `gh pr merge --auto` waits for checks before merging).
-# Anything touching a benchmark, gate, threshold, security boundary, workflow,
-# or dependency manifest is human-review-only, full stop. The nightly session
-# itself never runs the merge — this auditable job does, under these conditions.
+# This legacy filename no longer grants merge authority. The base revision's
+# configuration and policy are evaluated without executing pull request code.
+# Even an eligible result requires a separate human review and merge decision.
 
 on:
   pull_request_target:
-    types: [labeled, opened, synchronize, reopened]
+    types: [labeled, unlabeled, opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
-  guard-and-merge:
-    if: contains(github.event.pull_request.labels.*.name, 'automerge-safe')
+  guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.sha }}
-      - name: Check for protected-path changes
+          persist-credentials: false
+      - name: Evaluate merge policy without merge authority
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          files=$(gh pr view "$PR" --json files --jq '.files[].path')
-          echo "changed files:"; echo "$files"
-          # Any match here disqualifies auto-merge.
-          protected='^(\.github/|packages/[^/]+/package\.json$|package\.json$|package-lock\.json$|.*/safety|.*/gate|.*(threshold|promotion|scorer).*|SECURITY\.md$)'
-          if echo "$files" | grep -qE "$protected"; then
-            echo "blocked=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Protected path touched — auto-merge disabled, human review required."
-          else
-            echo "blocked=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Enable auto-merge (waits for required checks)
-        if: steps.guard.outputs.blocked == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR" --auto --squash --delete-branch
-      - name: Remove label if blocked
-        if: steps.guard.outputs.blocked == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh pr edit "$PR" --remove-label automerge-safe
+        run: node scripts/automerge-guard.mjs

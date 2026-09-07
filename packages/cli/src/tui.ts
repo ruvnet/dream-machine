@@ -38,6 +38,8 @@ export interface DashboardOptions {
   limit?: number;
   /** Repo name for the header. */
   repo?: string;
+  /** Today's date (YYYY-MM-DD), for the ledger-staleness warning. Omit to skip that check. */
+  today?: string;
 }
 
 /** Render the dashboard framebuffer from a ledger markdown string. */
@@ -45,7 +47,7 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const c = opts.noColor ? new Proxy({}, { get: () => '' }) as typeof C : C;
   const { rows } = parseLedger(ledgerMd);
   const stats = verdictStats(rows);
-  const signals = learningSignals(rows);
+  const signals = learningSignals(rows, { today: opts.today });
   const limit = opts.limit ?? 10;
   const recent = rows.slice(-limit).reverse();
   const total = rows.length;
@@ -84,6 +86,7 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   // Signals footer.
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
   const sig: string[] = [];
+  if (signals.ledgerStale) sig.push(`${c.red}⚠ ledger stale (${signals.daysSinceLastRow}d since last row) — signals below may be blind${c.reset}`);
   if (signals.zeroMergeStreak) sig.push(`${c.yellow}⚠ zero merges in ${signals.nightsConsidered} nights${c.reset}`);
   if (signals.blockedEvalStreak) sig.push(`${c.yellow}⚠ eval blocked streak${c.reset}`);
   if (signals.lowScoreStreak) sig.push(`${c.yellow}⚠ low-score streak${c.reset}`);

@@ -15,8 +15,10 @@ import {
   adrDir,
   adrPad,
 } from './config.js';
+import { findUnpinnedNpxInvocations } from './supplychain.js';
 
 export * from './config.js';
+export * from './supplychain.js';
 
 const LEDGER_SCHEMA = '| Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |';
 
@@ -39,7 +41,7 @@ export function compile(config: DreamConfig): string {
   sections.push(step2Evidence(adrDir(c.adrConvention)));
   sections.push(step3Research(c.competitors));
   sections.push(step45Hypothesis());
-  sections.push(step6to9Candidate(c.evaluatorEntrypoints));
+  sections.push(step6to9Candidate(c.evaluatorEntrypoints, c.controlPlaneProbes));
   sections.push(step10to14Gates());
   sections.push(step15Security());
   sections.push(step16Witness());
@@ -235,11 +237,27 @@ hypothesis, benchmarks, evaluation, witness, 3 concrete next steps. No fabricate
 benchmarks; every quantitative claim carries its evidence grade.`;
 }
 
-function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints']): string {
+function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: string[]): string {
   const evLines = Object.entries(ev ?? {})
     .filter(([, val]) => val)
     .map(([k, val]) => `- ${k}: \`${val}\``)
     .join('\n');
+  const unpinned = findUnpinnedNpxInvocations(probes, ev ?? {});
+  const unpinnedBlock = unpinned.length
+    ? '\n\n**Supply-chain warning — unpinned `npx` evaluator entrypoint(s):**\n' +
+      unpinned
+        .map(
+          (f) =>
+            `- \`${f.source}\` runs \`npx ${f.packageSpec}\` — not pinned to an exact version. \`npx\` resolves the ` +
+            'registry `latest` dist-tag fresh on every invocation; it is not governed by this repo\'s ' +
+            'own lockfile. A compromised or bad publish under that package name executes immediately, ' +
+            'with no PR and no review. Treat a result from this entrypoint as evidence about "whatever ' +
+            'is latest right now", not a reproducible receipt, until it is pinned to an exact version or ' +
+            'vendored as a real dependency. Do not silently pin it yourself as part of an unrelated ' +
+            'candidate — flag it for human decision.',
+        )
+        .join('\n')
+    : '';
   return `# STEP 5–9: TESTABILITY GATE → CANDIDATE → BASELINE → EVALUATION
 
 If the finding is not testable tonight: \`EVALUATED=no / VERDICT=INCONCLUSIVE /
@@ -249,7 +267,7 @@ change), locate the committed benchmark corpus, evaluate the PARENT first on the
 real evaluator, then the candidate on the identical corpus/policy.
 
 Evaluator entrypoints for this repo:
-${evLines || '- (discover at runtime — none pinned in config)'}
+${evLines || '- (discover at runtime — none pinned in config)'}${unpinnedBlock}
 
 Do not infer results from logs. Preserve the real receipt. If evaluation is
 blocked by infrastructure/credentials: \`EVALUATED=blocked / VERDICT=INCONCLUSIVE\`

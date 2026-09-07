@@ -6,3 +6,8 @@ coverage/
 .env
 .dream/
 .metaharness/
+.claude-flow/
+.swarm/
+.claude/memory.db*
+.claude/proven-config.json
+.claude/.proven-config-version

@@ -13,6 +13,8 @@
  */
 import { createHash } from 'node:crypto';
 
+export * from './claim-receipt.js';
+
 /** A 40-char lowercase hex git commit sha (short shas of >=7 also accepted). */
 export type CommitSha = string;
 
@@ -116,3 +118,6 @@ export function verifySteps(gistRawUrl = '<RAW_GIST_URL>'): string {
     '# ^ this value MUST equal the published WITNESS',
   ].join('\n');
 }
+
+export * from './security-patch.js';
+export * from './reconstruction.js';

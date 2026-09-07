@@ -1,0 +1,358 @@
+{
+  "schemaVersion": "dream.mission.plan.v1",
+  "missionId": "home-core-edge-program",
+  "createdAt": "2026-09-04T00:00:00Z",
+  "repository": "ruvnet/dream-machine",
+  "baselineCommit": "7933c3599abe22df5290f4609d1f93f598feb3de",
+  "objective": "Deliver an offline personal sensing and governed adaptation platform with independent physical safety enforcement and replayable evidence.",
+  "status": "proposed",
+  "estimates": {
+    "totalEngineerDays": 120,
+    "p0ThroughP6EngineerDays": 82,
+    "p0ThroughP6CriticalPathWorkdays": 50,
+    "fullCriticalPathWorkdays": 88,
+    "excludesResearchCalendarNights": true
+  },
+  "invariants": [
+    "evaluation-is-not-promotion",
+    "model-has-no-actuator-authority",
+    "memory-has-no-actuator-authority",
+    "consent-and-safety-cannot-self-evolve",
+    "no-cloud-required-for-nightly-operation",
+    "all-candidates-have-parent-expiry-evidence-and-rollback",
+    "accept-reject-or-inconclusive-only",
+    "human-signs-flashes-promotes-and-merges"
+  ],
+  "swarm": {
+    "coordinator": "integration-and-release",
+    "workers": [
+      "edge-runtime",
+      "apple-bridge",
+      "simulation",
+      "learning-and-evaluation",
+      "security",
+      "performance"
+    ],
+    "maxConcurrentWorkersByMemoryGb": {
+      "32": 3,
+      "64": 5,
+      "128": 6
+    },
+    "requiredFreeMemoryGb": 16,
+    "fileOwnershipRule": "one-owner-per-file"
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Ratify boundaries and measure the build host",
+      "dependsOn": [],
+      "estimatedEngineerDays": 5,
+      "deliverables": [
+        "accepted-edge-adrs",
+        "program-auto-merge-disabled",
+        "exact-mac-hardware-and-toolchain-fingerprint",
+        "data-inventory-and-retention-map",
+        "threat-model",
+        "benchmark-baselines",
+        "claim-and-research-boundary"
+      ],
+      "verification": [
+        "all-requirements-map-to-tests",
+        "no-agent-or-hardware-runner-has-merge-authority",
+        "all-current-capabilities-classified-verified-proposed-or-blocked",
+        "no-unbounded-self-evolution-language",
+        "legal-and-human-research-review-gates-recorded"
+      ],
+      "exitCriteria": [
+        "ADR-0100-through-ADR-0105-reviewed",
+        "dream-config-auto-merge-remains-false",
+        "protected-branch-or-ruleset-enabled",
+        "release-approvers-named",
+        "first-hardware-bom-approved"
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Build reproducible local control plane",
+      "dependsOn": ["P0"],
+      "estimatedEngineerDays": 8,
+      "deliverables": [
+        "pinned-node-rust-xcode-arduino-and-ruflo-toolchains",
+        "patched-test-lint-and-development-server-toolchain",
+        "single-command-doctor-bootstrap-build-test-security-bench-interface",
+        "isolated-worktrees",
+        "offline-dependency-cache",
+        "evidence-bundle-schema",
+        "unsigned-artifact-packaging"
+      ],
+      "verification": [
+        "clean-account-bootstrap",
+        "browser-ui-api-and-development-server-modes-prohibited-until-patched",
+        "network-disconnected-build-after-bootstrap",
+        "repeatable-artifact-hashes-or-documented-nondeterminism",
+        "ci-command-parity"
+      ],
+      "exitCriteria": [
+        "all-existing-tests-pass",
+        "independent-source-typecheck-passes",
+        "zero-critical-or-high-unresolved-production-dependency-findings",
+        "zero-reachable-critical-or-high-development-dependency-findings",
+        "sbom-provenance-and-witness-generated"
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Freeze edge contracts and deterministic simulator",
+      "dependsOn": ["P1"],
+      "estimatedEngineerDays": 12,
+      "deliverables": [
+        "edge-contracts-package",
+        "canonical-cbor-cue-ticket-vectors",
+        "simulated-radar-watch-environment-and-actuators",
+        "virtual-clock-and-fault-injection",
+        "thirty-day-and-eight-hour-replay-fixtures",
+        "accept-reject-inconclusive-receipts"
+      ],
+      "verification": [
+        "one-million-malformed-cue-requests",
+        "ten-thousand-restart-and-fault-sequences",
+        "cross-language-golden-vectors",
+        "fixed-seed-determinism",
+        "prompt-injection-cannot-reach-ticket-minting"
+      ],
+      "exitCriteria": [
+        "zero-unauthorized-actuation-in-simulation",
+        "all-schema-negative-cases-pass",
+        "rollback-under-sixty-seconds",
+        "all-verdict-paths-replayable"
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Implement UNO Q sensing and independent safety",
+      "dependsOn": ["P2"],
+      "estimatedEngineerDays": 18,
+      "deliverables": [
+        "ruview-homecore-arm64-adapter",
+        "mr60bha2-driver",
+        "optional-esp32-csi-adapter",
+        "native-cue-broker",
+        "stm32-ticket-verifier-and-state-machine",
+        "mcu-gated-local-audio",
+        "physical-arm-mute-and-abort",
+        "a-b-release-bundle"
+      ],
+      "verification": [
+        "driver-contract-tests",
+        "host-compiled-firmware-tests",
+        "hardware-in-loop-with-actuators-disconnected",
+        "heartbeat-loss-power-cycle-corruption-and-clock-fault-tests",
+        "twenty-four-hour-egress-capture"
+      ],
+      "exitCriteria": [
+        "safety-decision-p99-under-fifty-ms",
+        "state-to-dispatch-p99-under-one-second",
+        "runtime-rss-under-two-point-five-gb",
+        "zero-wan-egress",
+        "seven-eight-hour-hardware-runs-without-safety-violation"
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Implement real RuVector and local MCP data plane",
+      "dependsOn": ["P2"],
+      "estimatedEngineerDays": 14,
+      "deliverables": [
+        "native-ruvector-adapter",
+        "separate-versioned-stores",
+        "redacted-ruvector-wasm-browser-cache",
+        "strict-ruv-uri-parser",
+        "capability-minimal-mcp-server",
+        "streamable-http-and-stdio-transports",
+        "deletion-and-backup-restore"
+      ],
+      "verification": [
+        "write-close-reopen-query-delete-and-corrupt-store-tests",
+        "backend-identity-proof",
+        "origin-dns-rebinding-auth-and-resource-fuzz-tests",
+        "prompt-injection-resource-tests",
+        "browser-redaction-and-deletion-tests"
+      ],
+      "exitCriteria": [
+        "recall-at-ten-at-least-zero-point-nine-at-one-hundred-thousand-episodes",
+        "query-p95-under-twenty-five-ms-on-uno-q",
+        "no-mcp-path-to-ticket-minting",
+        "flat-fallback-reports-honest-degradation"
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Implement Apple retrospective bridge",
+      "dependsOn": ["P2"],
+      "estimatedEngineerDays": 20,
+      "deliverables": [
+        "iphone-healthkit-consent-and-anchored-import",
+        "encrypted-outbox",
+        "physical-pairing-and-pinned-local-tls",
+        "revisioned-night-assembly",
+        "deletion-tombstones",
+        "ruvector-provenance-mapping"
+      ],
+      "verification": [
+        "swift-and-pod-golden-fixtures",
+        "crash-injection-at-every-anchor-transaction-boundary",
+        "duplicate-late-delete-time-zone-and-daylight-saving-tests",
+        "real-device-locked-phone-and-offline-pod-tests",
+        "no-public-internet-capture"
+      ],
+      "exitCriteria": [
+        "exactly-once-effective-import",
+        "reachable-pod-ack-p95-under-five-seconds-for-one-thousand-samples",
+        "apple-data-remains-advisory",
+        "retrospective-mode-battery-regression-under-two-percentage-points"
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "Observe, calibrate, and establish baselines",
+      "dependsOn": ["P3", "P4", "P5"],
+      "estimatedEngineerDays": 5,
+      "minimumCalendarNights": 14,
+      "deliverables": [
+        "observation-only-night-dataset",
+        "radar-versus-watch-calibration-report",
+        "signal-quality-and-missingness-report",
+        "energy-and-reliability-report",
+        "frozen-outcome-rubric"
+      ],
+      "verification": [
+        "no-physical-cue-output",
+        "chronological-split",
+        "all-exclusions-and-missing-data-reported",
+        "raw-private-data-absent-from-git-ci-and-model-context"
+      ],
+      "exitCriteria": [
+        "usable-signal-windows-above-eighty-five-percent",
+        "nightly-completion-above-ninety-nine-percent",
+        "event-loss-below-zero-point-one-percent",
+        "no-serious-adverse-event"
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "Enable bounded learning in shadow mode",
+      "dependsOn": ["P6"],
+      "estimatedEngineerDays": 15,
+      "minimumCalendarNights": 30,
+      "deliverables": [
+        "contrastive-context-retrieval",
+        "randomized-experiment-service",
+        "autogenous-or-darwin-typed-candidate-adapter",
+        "metaharness-replay-and-adversarial-gate",
+        "shadow-policy-comparison",
+        "signed-expiring-candidate-bundles"
+      ],
+      "verification": [
+        "frozen-static-and-simple-adaptive-baselines",
+        "candidate-cannot-read-holdout-labels",
+        "reward-hack-tests-for-awakening-and-leading-report-language",
+        "at-least-thirty-held-out-nights-and-seven-shadow-nights",
+        "authority-expansion-rejected"
+      ],
+      "exitCriteria": [
+        "candidate-beats-parent-or-remains-inconclusive",
+        "zero-safety-privacy-reliability-or-energy-regression",
+        "human-approves-any-prospective-canary",
+        "rollback-drill-passes"
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "Run supervised audio research canary",
+      "dependsOn": ["P7"],
+      "estimatedEngineerDays": 8,
+      "minimumCalendarNights": 70,
+      "protocolKind": "frozen-human-approved-randomized-study-not-generated-exploration",
+      "generatedCandidateMinimumEligibleNights": 140,
+      "deliverables": [
+        "fourteen-baseline-nights",
+        "twenty-eight-trained-audio-nights",
+        "twenty-eight-matched-control-nights",
+        "blinded-score-audit",
+        "benefit-safety-and-null-report"
+      ],
+      "verification": [
+        "night-level-randomization",
+        "awake-preview-and-consent",
+        "maximum-three-cues-and-ten-minute-spacing",
+        "arousal-and-distress-stop-rules",
+        "absolute-rates-uncertainty-null-nights-and-exclusions-published"
+      ],
+      "exitCriteria": [
+        "preregistered-report-with-accept-reject-or-inconclusive-verdict",
+        "safety-findings-adjudicated-before-any-related-profile-proceeds",
+        "null-result-never-relabeled-as-promotion"
+      ],
+      "promotionCriteria": [
+        "posterior-benefit-probability-above-zero-point-nine-five",
+        "sleep-harm-probability-below-zero-point-zero-five",
+        "cue-associated-awakening-increase-under-five-percentage-points",
+        "no-distress-or-next-day-sleepiness-regression"
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "Evaluate optional live Watch and additional profiles",
+      "dependsOn": ["P5", "P8"],
+      "estimatedEngineerDays": 15,
+      "deliverables": [
+        "watchos-live-research-spike",
+        "profile-capability-manifests",
+        "haptic-or-light-separate-research-protocol",
+        "latentmesh-delay-tolerant-node-experiment",
+        "non-dream-practical-profile-evaluations"
+      ],
+      "verification": [
+        "separate-consent-and-build-flags",
+        "battery-transport-and-app-review-feasibility",
+        "one-profile-cannot-read-or-actuate-another",
+        "latentmesh-compared-with-exact-structured-transport",
+        "each-new-modality-has-independent-hardware-ceiling-and-control"
+      ],
+      "exitCriteria": [
+        "optional-feature-earns-complexity-on-frozen-benchmark",
+        "no-authority-expansion",
+        "human-approved-release",
+        "otherwise-rejected-or-inconclusive"
+      ]
+    }
+  ],
+  "completionEvidence": [
+    "evidence-manifest.json",
+    "toolchain.json",
+    "host.json",
+    "build-manifest.json",
+    "tests.junit.xml",
+    "coverage.json",
+    "property-tests.json",
+    "fuzz-summary.json",
+    "simulation-verdict.json",
+    "benchmark-manifest.json",
+    "dataset-manifest.json",
+    "configuration.json",
+    "raw-measurements.jsonl",
+    "summary.json",
+    "energy.json",
+    "exclusions.json",
+    "security.sarif",
+    "sbom.cdx.json",
+    "network-egress.json",
+    "firmware.sha256",
+    "apple.xcresult",
+    "hil-events.jsonl",
+    "rollback-drill.json",
+    "provenance.intoto.jsonl",
+    "witness.json",
+    "promotion-manifest.json"
+  ]
+}

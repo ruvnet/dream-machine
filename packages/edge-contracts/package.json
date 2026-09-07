@@ -1,0 +1,17 @@
+{
+  "name": "@dream-machine/edge-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bounded edge-v1-prototype ticket codec and Ed25519 verification. No actuator authority.",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./fuzz": { "types": "./dist/fuzz.d.ts", "import": "./dist/fuzz.js" }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "engines": { "node": ">=22" }
+}
