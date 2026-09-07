@@ -226,8 +226,13 @@ and the 5-step verifier procedure anyone can reproduce.
 
 # STEP 17–18: PUBLISH GIST + ISSUE
 
-Skip if FALLBACK. Otherwise \`gh gist create --public\` the report, capture
-GIST_URL (never fabricate). Open an issue titled
+Skip if FALLBACK. Otherwise publish the report as a public gist using
+whichever gist-creation capability this environment actually provides
+(\`gh gist create --public\`, an equivalent MCP tool) and capture GIST_URL —
+never fabricate one. Neither present (observed on real nights: \`gh\` absent,
+no MCP gist tool) is not FALLBACK: record \`GIST=LOCAL\`, commit the report
+file itself into the PR as the durable artifact, and continue — gist
+publication is best-effort, not a stop condition. Open an issue titled
 \`[Dream Cycle <DATE>] <deep>: <finding> + <scan1>,<scan2> scan\` with labels
 \`dream-cycle\`, \`research\` plus the surface labels. Body sections
 in order: Rotation, Ledger Check, Deep Dive, Hypothesis, Evaluation Receipt,
