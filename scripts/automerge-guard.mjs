@@ -13,7 +13,11 @@ const blocked = (reason) => ({ eligible: false, reason });
 // packages are human-only even if a future base config enables eligibility.
 const PROTECTED = [
   /^(?:\.github|scripts|docs|benchmarks?|tests?|fixtures|schemas?|contracts?|firmware|hardware|edge|security|safety|policy|policies|config)(?:\/|$)/i,
-  /^packages\/(?:compile|ledger|witness|memory|schedule)(?:\/|$)/i,
+  // Every workspace package is human-only, not an enumerated subset: an
+  // allowlist-of-blocked-packages must be updated every time a new package is
+  // added, and drifts silently when it isn't (e.g. `cli`, `edge-contracts` and
+  // `edge-sim` were never added here after their packages shipped).
+  /^packages\/[^/]+(?:\/|$)/i,
   /(?:^|\/)(?:AGENTS\.md|SECURITY\.md|CODEOWNERS|dream\.config\.json)$/i,
   /(?:^|\/)(?:package(?:-lock)?\.json|npm-shrinkwrap\.json|(?:yarn|bun)\.lockb?|pnpm-lock\.yaml|Cargo\.(?:toml|lock)|go\.(?:mod|sum)|pyproject\.toml|uv\.lock|requirements[^/]*\.txt|\.npmrc|\.yarnrc[^/]*|\.gitmodules)$/i,
   /(?:^|\/)[^/]*(?:safety|gate|threshold|promotion|scorer|benchmark|evaluator|consent|actuator|watchdog|arming|retention|encrypt|signing|capability|policy|rollback|witness|provenance|release|deploy|auth|holdout)[^/]*(?:\/|$)/i,
