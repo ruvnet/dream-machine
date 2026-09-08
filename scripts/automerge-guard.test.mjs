@@ -60,6 +60,25 @@ test('all constitutional paths, manifests, tooling and tests require human revie
   }
 });
 
+test('every workspace package is protected, not an enumerated subset', () => {
+  // Regression: packages/cli, packages/edge-contracts and packages/edge-sim
+  // shipped after the original PROTECTED list was written and were never
+  // added to it, so a PR touching only these non-test, non-keyword-matching
+  // source files was previously classified eligible for auto-merge despite
+  // packages/cli being the actual CLI executable this repo's own tooling
+  // (ledger append, witness stamp, verify-entrypoints) runs.
+  const paths = [
+    'packages/cli/src/bin.ts', 'packages/cli/src/index.ts',
+    'packages/cli/src/entrypoint.ts', 'packages/cli/src/tui.ts',
+    'packages/edge-contracts/src/index.ts', 'packages/edge-sim/src/index.ts',
+    'packages/anything-not-yet-invented/src/index.ts',
+  ];
+  for (const path of paths) {
+    assert.equal(protectedPath(path), true, path);
+    assert.equal(evaluateGuard(input({ pages: [[file(path)]] })).reason, 'protected-path', path);
+  }
+});
+
 test('both sides of renames and copies are checked', () => {
   for (const status of ['renamed', 'copied']) {
     assert.equal(evaluateGuard(input({ pages: [[file('README.md', {
