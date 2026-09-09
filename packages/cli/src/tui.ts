@@ -18,11 +18,11 @@ const C = {
   gray: '\x1b[38;5;245m',
 };
 
-function verdictColor(v: string): string {
-  if (v === 'ACCEPT') return C.green;
-  if (v === 'REJECT') return C.red;
-  if (v === 'INCONCLUSIVE') return C.yellow;
-  return C.gray;
+function verdictColor(v: string, c: typeof C): string {
+  if (v === 'ACCEPT') return c.green;
+  if (v === 'REJECT') return c.red;
+  if (v === 'INCONCLUSIVE') return c.yellow;
+  return c.gray;
 }
 
 const ANSI_TOKEN = '\\x1b\\[[0-9;]*m';
@@ -164,7 +164,7 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
       const row =
         `${pad(r.date, 11)} ` +
         `${c.magenta}${pad(r.deep, 20)}${c.reset} ` +
-        `${verdictColor(r.verdict)}${pad(r.verdict, 14)}${c.reset} ` +
+        `${verdictColor(r.verdict, c)}${pad(r.verdict, 14)}${c.reset} ` +
         `${pad(r.finding, 28)}`;
       lines.push(`${c.violet}│${c.reset} ${pad(row, W - 2)} ${c.violet}│${c.reset}`);
     }

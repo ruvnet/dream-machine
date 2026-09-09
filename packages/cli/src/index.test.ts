@@ -564,6 +564,22 @@ describe('tui', () => {
     expect(r.err).toContain('--merged expects a comma-separated PR number list');
   });
 
+  it('renderDashboard with noColor:true emits no ANSI escape anywhere, including the verdict cell (regression: verdictColor bypassed the no-color proxy, flagged unfixed in PR #21)', () => {
+    let md = emptyLedger();
+    for (const verdict of ['ACCEPT', 'REJECT', 'INCONCLUSIVE', 'HALT: budget'] as const) {
+      md = appendRow(md, sampleRow({ pr: `#${verdict}`, verdict }));
+    }
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toMatch(/\x1b\[/);
+  });
+
+  it('renderDashboard with noColor:false still colors the verdict cell per verdict (no regression to the colored path)', () => {
+    const accept = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'ACCEPT' })), {});
+    const reject = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'REJECT' })), {});
+    expect(accept).toContain('\x1b[32m'); // green
+    expect(reject).toContain('\x1b[31m'); // red
+  });
+
   it('displayWidth matches .length for plain ASCII (no regression)', () => {
     expect(displayWidth('hello world')).toBe('hello world'.length);
     expect(displayWidth('')).toBe(0);
