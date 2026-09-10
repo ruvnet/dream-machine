@@ -13,12 +13,23 @@ import {
   emptyLedger,
   learningSignals,
   verdictStats,
+  VERDICTS,
+  EVALS,
   type LedgerRow,
 } from '@dream-machine/ledger';
-import { stamp, verify, verifySteps } from '@dream-machine/witness';
+import {
+  stamp,
+  verify,
+  verifySteps,
+  evaluateEvidenceFreshness,
+  evidenceFreshnessPolicyDigest,
+  type EvidenceDependency,
+  type EvidenceFreshnessPolicy,
+} from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
 import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyAuditGate } from './auditgate.js';
 
 export const VERSION = '0.1.1';
 
@@ -82,6 +93,24 @@ export function parseArgs(argv: string[]): { _: string[]; flags: Record<string, 
   return { _, flags };
 }
 
+/**
+ * Parse `--pending "finding one|finding two"` into a finding list for
+ * `learningSignals`'s `pendingFindings` option (pipe-separated open-PR
+ * titles/findings, supplied by the caller after a live GitHub check).
+ * Pipe, not comma, matches LEDGER.md's own field separator (`escapeCell`
+ * already strips raw `|` from anything that becomes a ledger cell) and
+ * survives real PR titles/findings, which very often contain commas.
+ * A boolean (bare `--pending`) or absent flag safely yields `undefined`.
+ */
+export function parsePendingFindings(raw: string | boolean | undefined): string[] | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const findings = raw
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return findings.length ? findings : undefined;
+}
+
 const HELP = `☾ dream-machine — nightly, evidence-gated repository evolution
 
 Usage: dream-machine <command> [options]
@@ -91,18 +120,46 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path LEDGER.md]                   Print STEP 1.1 learning signals
+  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
+                                                       Print STEP 1.1 learning signals
+                                                         (--merged: known-merged PR numbers;
+                                                         omitted → zeroMergeStreak defaults
+                                                         to a worst-case, unverified true)
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
-  tui             [--path LEDGER.md] [--no-color]      Render the dashboard
+  tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
+  audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
+  freshness stamp --base <sha> --paths "a,b" [--out F]  Freeze the evidence read set at evaluation time
+  freshness verify --policy <file> --head <sha>         Re-verify that read set against the promotion target
+                                                         (exit 0 FRESH, 1 STALE, 2 indeterminate/invalid)
   version | --version                                  Print version
   help    | --help                                     This help
 
 The Dream Machine never merges. Evaluation is not promotion — a human decides.
 Docs: https://ruvnet.github.io/dream-machine/`;
+
+/**
+ * Parse `--merged "7,#12, 30"` into a bare-number Set for `learningSignals`'
+ * `mergedPrNumbers` option. `parseArgs` turns a value-less `--merged`
+ * (nothing after it, or another flag right after) into the boolean `true`,
+ * not a string — that case throws a clear usage error instead of an opaque
+ * "flag.split is not a function" crash. Omitted entirely → `undefined`,
+ * preserving today's worst-case-default `zeroMergeStreak` behavior.
+ */
+function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> | undefined {
+  if (flag === undefined) return undefined;
+  if (typeof flag !== 'string') {
+    throw new Error('--merged expects a comma-separated PR number list, e.g. --merged "7,12"');
+  }
+  const nums = flag
+    .split(',')
+    .map((s) => s.trim().replace(/^#/, ''))
+    .filter(Boolean);
+  return new Set(nums);
+}
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
   const raw = await io.readFile(path);
@@ -197,7 +254,15 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'signals') {
           const { rows } = parseLedger(md);
-          sink.log(JSON.stringify(learningSignals(rows), null, 2));
+          const mergedPrNumbers = parseMergedPrNumbers(flags.merged);
+          const pendingFindings = parsePendingFindings(flags.pending as string | undefined);
+          sink.log(
+            JSON.stringify(
+              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings }),
+              null,
+              2,
+            ),
+          );
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'stats') {
@@ -218,6 +283,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             witness: (flags.witness as string) || '',
             priorFates: (flags.priorFates as string) || '',
           };
+          if (!VERDICTS.includes(row.verdict)) {
+            sink.error(`ledger append: verdict "${row.verdict}" not in ${VERDICTS.join('|')}`);
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          if (!EVALS.includes(row.evaluated)) {
+            sink.error(`ledger append: evaluated "${row.evaluated}" not in ${EVALS.join('|')}`);
+            return { code: 1, out: sink.out, err: sink.err };
+          }
           const next = appendRow(md, row);
           await io.writeFile(path, next);
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);
@@ -292,8 +365,165 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         const result = await io.exec(cmd);
         const check = classifyEntrypointResult(result);
         sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
-        const code = check.verdict === 'live' ? 0 : check.verdict === 'blocked' ? 1 : 2;
+        const code =
+          check.verdict === 'live'
+            ? 0
+            : check.verdict === 'blocked'
+              ? 1
+              : check.verdict === 'suspicious-silent'
+                ? 2
+                : 3; // stale-state
         return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'audit-gate': {
+        const path = flags.path as string | undefined;
+        if (!path) {
+          sink.error('usage: dream-machine audit-gate --path <npm-audit.json>');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let report: unknown;
+        try {
+          report = JSON.parse(await io.readFile(path));
+        } catch (e) {
+          sink.error(`audit-gate: could not read/parse ${path}: ${(e as Error).message}`);
+          return { code: 2, out: sink.out, err: sink.err };
+        }
+        const r = classifyAuditGate(report);
+        sink.log(
+          `audit-gate: ${r.verdict} — ${r.reason} ` +
+            `(critical=${r.critical} high=${r.high} moderate=${r.moderate} low=${r.low})`,
+        );
+        const code = r.verdict === 'clear' ? 0 : r.verdict === 'blocked' ? 1 : 2;
+        return { code, out: sink.out, err: sink.err };
+      }
+
+      /**
+       * Evidence freshness gate (see `@dream-machine/witness/evidence-freshness`).
+       *
+       * `stamp` freezes the read set at evaluation time; `verify` re-digests
+       * those same paths against the tree a candidate would land in. The CLI
+       * owns all I/O so the witness primitive stays pure.
+       */
+      case 'freshness': {
+        const sub = _[1];
+        const sha256Hex = async (content: string): Promise<string> =>
+          (await import('node:crypto')).createHash('sha256').update(content).digest('hex');
+
+        if (sub === 'stamp') {
+          const base = flags.base as string | undefined;
+          const pathsFlag = flags.paths as string | undefined;
+          if (!base || !pathsFlag) {
+            sink.error(
+              'usage: dream-machine freshness stamp --base <sha> --paths "a.json,b/c.ts" [--id ID] [--max-age DAYS] [--out FILE]',
+            );
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          const paths = pathsFlag
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean);
+          const dependencies: EvidenceDependency[] = [];
+          for (const path of paths) {
+            try {
+              dependencies.push({ path, digest: await sha256Hex(await io.readFile(path)) });
+            } catch (e) {
+              sink.error(`freshness stamp: cannot read declared dependency ${path}: ${(e as Error).message}`);
+              return { code: 2, out: sink.out, err: sink.err };
+            }
+          }
+          const maxAgeRaw = flags['max-age'];
+          const policy: EvidenceFreshnessPolicy = {
+            policyId: (flags.id as string) || 'dream-cycle-candidate',
+            baseCommit: base,
+            evaluatedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
+            dependencies,
+            requireDeclaredDependencies: true,
+            ...(maxAgeRaw === undefined ? {} : { maxAgeDays: Number(maxAgeRaw) }),
+          };
+          let policyDigest: string;
+          try {
+            policyDigest = evidenceFreshnessPolicyDigest(policy);
+          } catch (e) {
+            sink.error(`freshness stamp: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          const doc = JSON.stringify({ policy, policyDigest }, null, 2);
+          const out = flags.out as string | undefined;
+          if (out) {
+            await io.writeFile(out, doc + '\n');
+            sink.log(`freshness stamp: wrote ${out} (policyDigest ${policyDigest})`);
+          } else {
+            sink.log(doc);
+          }
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+
+        if (sub === 'verify') {
+          const policyPath = flags.policy as string | undefined;
+          const head = flags.head as string | undefined;
+          if (!policyPath || !head) {
+            sink.error('usage: dream-machine freshness verify --policy <file> --head <sha>');
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          let doc: { policy: EvidenceFreshnessPolicy; policyDigest: string };
+          try {
+            doc = JSON.parse(await io.readFile(policyPath));
+          } catch (e) {
+            sink.error(`freshness verify: could not read/parse ${policyPath}: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          // Validate and anchor the policy BEFORE touching the filesystem.
+          // The policy file is untrusted input: without this, a crafted policy
+          // could name `../../etc/hosts` and make us read (and confirm the
+          // existence of) paths outside the repository, even though the receipt
+          // would later come back INVALID. Fail closed, then read.
+          let anchoredDigest: string;
+          try {
+            anchoredDigest = evidenceFreshnessPolicyDigest(doc.policy);
+          } catch (e) {
+            sink.error(`freshness verify: malformed policy in ${policyPath}: ${(e as Error).message}`);
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+          if (anchoredDigest !== doc.policyDigest) {
+            sink.error(
+              'freshness verify: policy digest mismatch — the read set was rewritten after it was stamped',
+            );
+            return { code: 2, out: sink.out, err: sink.err };
+          }
+
+          // A declared path that no longer exists is simply not observed; the
+          // receipt then reports it as missing (INDETERMINATE), never FRESH.
+          const observedDeps: EvidenceDependency[] = [];
+          const absent: string[] = [];
+          for (const dependency of doc.policy?.dependencies ?? []) {
+            try {
+              observedDeps.push({ path: dependency.path, digest: await sha256Hex(await io.readFile(dependency.path)) });
+            } catch {
+              absent.push(dependency.path);
+            }
+          }
+          const receipt = evaluateEvidenceFreshness(doc.policy, doc.policyDigest, {
+            headCommit: head,
+            observedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
+            dependencies: observedDeps,
+          });
+          sink.log(JSON.stringify(receipt, null, 2));
+          if (absent.length > 0) {
+            sink.error(`freshness verify: declared dependencies no longer present: ${absent.join(', ')}`);
+          }
+          if (receipt.status === 'STALE') {
+            sink.error(
+              `freshness verify: STALE — the evidence no longer describes this tree ` +
+                `(drifted: ${receipt.driftedPaths.join(', ') || 'none'}${receipt.ageExceeded ? '; age budget exceeded' : ''}). Re-evaluate before promoting.`,
+            );
+          }
+          const code = receipt.status === 'FRESH' ? 0 : receipt.status === 'STALE' ? 1 : 2;
+          return { code, out: sink.out, err: sink.err };
+        }
+
+        sink.error('usage: dream-machine freshness <stamp|verify> ...');
+        return { code: 2, out: sink.out, err: sink.err };
       }
 
       case 'tui': {
@@ -304,7 +534,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         } catch {
           md = emptyLedger();
         }
-        sink.log(renderDashboard(md, { noColor: flags['no-color'] === true, repo: flags.repo as string | undefined }));
+        sink.log(
+          renderDashboard(md, {
+            noColor: flags['no-color'] === true,
+            repo: flags.repo as string | undefined,
+            today: io.now(),
+            mergedPrNumbers: parseMergedPrNumbers(flags.merged),
+          }),
+        );
         return { code: 0, out: sink.out, err: sink.err };
       }
 

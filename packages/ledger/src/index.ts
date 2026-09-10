@@ -145,8 +145,8 @@ export function appendRow(markdown: string, row: LedgerRow): string {
   return `${base}\n${renderRow(row)}\n`;
 }
 
-const VERDICTS: readonly string[] = ['ACCEPT', 'REJECT', 'INCONCLUSIVE'];
-const EVALS: readonly string[] = ['yes', 'no', 'blocked'];
+export const VERDICTS: readonly string[] = ['ACCEPT', 'REJECT', 'INCONCLUSIVE'];
+export const EVALS: readonly string[] = ['yes', 'no', 'blocked'];
 
 export interface VerifyResult {
   ok: boolean;
@@ -191,6 +191,20 @@ export interface LearningSignals {
   blockedEvalStreak: boolean;
   /** Count of nights considered. */
   nightsConsidered: number;
+  /**
+   * Most recent valid row date (YYYY-MM-DD), or null if the ledger has no
+   * dated rows. The nightly cron runs daily, but every candidate PR ships its
+   * ledger row on its own branch — a row lands on `main` only once that PR
+   * merges. A local checkout's ledger can silently go stale for many real
+   * nights while `zeroMergeStreak` holds, undermining every signal above
+   * (duplicateDirections in particular: a night can't rotate away from a
+   * direction it can't see).
+   */
+  lastRowDate: string | null;
+  /** Days between `today` and `lastRowDate` (0 if same day), or null if there is no dated row. */
+  daysSinceLastRow: number | null;
+  /** true when daysSinceLastRow exceeds `staleAfterDays` — treat every signal above as unreliable. */
+  ledgerStale: boolean;
 }
 
 export interface SignalOptions {
@@ -200,11 +214,39 @@ export interface SignalOptions {
   recentScores?: number[];
   /** Which PR numbers actually merged (so we can detect the zero-merge streak). */
   mergedPrNumbers?: Set<string>;
+  /** Today's date (YYYY-MM-DD) for staleness. Defaults to no staleness check when omitted. */
+  today?: string;
+  /** Days tolerated between the ledger's last row and `today` before it's "stale". Default 1 (nightly cron). */
+  staleAfterDays?: number;
+  /**
+   * Finding text from currently-open, unmerged dream-cycle PRs (e.g. their
+   * titles), supplied by the caller after a live GitHub check. `duplicateDirections`
+   * only ever sees rows already merged into LEDGER.md on main, so a repeated
+   * direction proposed across several still-open draft PRs is invisible to it
+   * until one of them lands — by which point duplicate work may already be
+   * done. Passing those findings here lets the same detector count them
+   * alongside merged-row findings. Omit for byte-identical prior behavior.
+   */
+  pendingFindings?: string[];
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
 }
 
 function prNumber(pr: string): string | null {
   const m = pr.match(/#?(\d+)/);
   return m ? m[1] : null;
+}
+
+/** Normalize a finding string to the same first-6-words key used for duplicate-direction detection. */
+function directionKey(finding: string): string {
+  return finding.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
 }
 
 /** Compute the STEP 1.1 learning signals from parsed rows. */
@@ -218,13 +260,16 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const zeroMergeStreak =
     prsInWindow.length > 0 && (!merged || prsInWindow.every((n) => !merged.has(n)));
 
-  // Duplicate directions: normalized finding text repeated >= 3 times.
+  // Duplicate directions: normalized finding text repeated >= 3 times, counting
+  // both merged ledger rows and (optionally) still-open PRs' pending findings.
   const counts = new Map<string, number>();
-  for (const r of rows) {
-    const key = r.finding.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
-    if (!key) continue;
+  const bumpDirection = (finding: string) => {
+    const key = directionKey(finding);
+    if (!key) return;
     counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  };
+  for (const r of rows) bumpDirection(r.finding);
+  for (const f of opts.pendingFindings ?? []) bumpDirection(f);
   const duplicateDirections = [...counts.entries()].filter(([, c]) => c >= 3).map(([k]) => k);
 
   // Low-score streak: last 3 scores all < 5.
@@ -237,12 +282,23 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const blockedEvalStreak =
     recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
 
+  // Staleness: the newest valid row date, regardless of row order.
+  const validDates = rows.map((r) => r.date).filter((d) => DATE_RE.test(d));
+  const lastRowDate = validDates.length ? validDates.reduce((max, d) => (d > max ? d : max)) : null;
+  const today = opts.today;
+  const staleAfterDays = opts.staleAfterDays ?? 1;
+  const daysSinceLastRow = lastRowDate && today ? daysBetween(lastRowDate, today) : null;
+  const ledgerStale = daysSinceLastRow !== null && daysSinceLastRow > staleAfterDays;
+
   return {
     zeroMergeStreak,
     duplicateDirections,
     lowScoreStreak,
     blockedEvalStreak,
     nightsConsidered: recent.length,
+    lastRowDate,
+    daysSinceLastRow,
+    ledgerStale,
   };
 }
 

@@ -17,22 +17,35 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
-        node: [18, 20, 22]
+        node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 } # Pinned historical codec differential oracle.
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - name: Typecheck + build
+      - name: Independent source typecheck
+        run: npm run typecheck
+      - name: Build
         run: npm run build
+      - name: ClaimReceipt production benchmark
+        if: matrix.node == 22
+        run: node scripts/bench-claim-receipt.mjs
       - name: Lint
         run: npm run lint
       - name: Test (with coverage)
         run: npx vitest run --coverage
+      - name: Governance and contract regression tests
+        run: npm run test:governance
+      - name: Validate Edge v1 contracts and mission plan
+        run: npm run check:edge-contracts
+      - name: Prohibit exposed development test services
+        run: npm run check:development-policy
       - name: CLI smoke test (proves the published bin works)
         run: |
           node packages/cli/dist/bin.js version
@@ -43,6 +56,61 @@ jobs:
           W=$(node packages/cli/dist/bin.js witness stamp /tmp/r.md $(git rev-parse HEAD) | awk '/witness /{print $3}')
           node packages/cli/dist/bin.js witness verify /tmp/r.md $(git rev-parse HEAD) "$W"
 
+  software-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 } # Pinned historical codec differential oracle.
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Full deterministic nonactuating software mission
+        run: node scripts/ci-software-evidence.mjs
+      - name: Preserve synthetic evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-evidence-${{ github.sha }}
+          path: .dream/evidence/run-*/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Audit locked dependency graph
+        run: npm audit --audit-level=high
+  dependency-security:
+    # Issue #43: `npm ci` can report critical/high findings while CI stays
+    # green, because nothing gates on the audit output. This job classifies
+    # `npm audit --omit=dev` (the production-reachable dependency graph —
+    # npm's own authoritative reachability computation, not re-derived here)
+    # through `dream-machine audit-gate` and fails only on a reachable
+    # high/critical production finding. Dev-toolchain findings (e.g. today's
+    # vitest/vite/esbuild advisories, tracked separately in #37) are reported
+    # by `npm audit` in the job log but never gate CI here — see ADR-0002's
+    # "classify, don't silently trust or silently fix" precedent.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - name: Typecheck + build
+        run: npm run build
+      - name: Full audit (report only, includes dev toolchain)
+        run: npm audit || true
+      - name: Production-scoped audit gate (fails on reachable high/critical)
+        run: |
+          npm audit --omit=dev --json > /tmp/audit-prod.json || true
+          node packages/cli/dist/bin.js audit-gate --path /tmp/audit-prod.json
+
   no-optional-deps:
     # ADR-150 invariant: the engine builds and tests with the optional
     # ruvector/RVF wasm backends ABSENT. They are declared peer-optional in
@@ -51,10 +119,11 @@ jobs:
     # do NOT pass `npm ci --omit=optional`, which trips the known npm bug
     # npm/cli#4828 and removes rollup's platform binary that vitest needs.)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Assert ruvector backends are NOT installed
         run: |

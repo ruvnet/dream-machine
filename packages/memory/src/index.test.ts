@@ -66,14 +66,23 @@ describe('ruvector probe / optional degradation', () => {
       loadRuvector: async () => ({ fakeRuvector: true }),
     });
     // Still functionally the deterministic backend, but availability is tagged.
+    expect(mem.backend).toBe('flat-file');
     expect((mem as unknown as { _ruvectorAvailable?: boolean })._ruvectorAvailable).toBe(true);
     await mem.remember(nights[1]);
     expect((await mem.recall('router calibration'))[0].night.date).toBe('2026-08-14');
   });
 
-  it('throws only when ruvector-rvf is explicitly demanded but absent', async () => {
+  it('rejects an explicit RVF request when the module is absent', async () => {
     await expect(
       openMemory({ backend: 'ruvector-rvf', inMemory: true, loadRuvector: async () => null }),
     ).rejects.toThrow(/not installed/);
+  });
+
+  it('never labels keyword memory as RVF when the optional module loads', async () => {
+    await expect(openMemory({
+      backend: 'ruvector-rvf',
+      inMemory: true,
+      loadRuvector: async () => ({ fakeRuvector: true }),
+    })).rejects.toThrow(/not implemented/);
   });
 });

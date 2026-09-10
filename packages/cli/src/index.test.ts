@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { run, parseArgs, VERSION, type IO } from './index.js';
-import { renderDashboard } from './tui.js';
+import { run, parseArgs, parsePendingFindings, VERSION, type IO } from './index.js';
+import { renderDashboard, displayWidth, pad } from './tui.js';
 import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
 
@@ -41,6 +41,31 @@ describe('parseArgs', () => {
     expect(flags.out).toBe('x.md');
     expect(flags.env).toBe('e1');
     expect(flags['no-color']).toBe(true);
+  });
+});
+
+describe('parsePendingFindings', () => {
+  it('splits a pipe-separated list and trims each entry', () => {
+    expect(parsePendingFindings('finding one| finding two | finding three')).toEqual([
+      'finding one',
+      'finding two',
+      'finding three',
+    ]);
+  });
+  it('preserves commas inside a finding — real PR titles routinely contain them', () => {
+    // e.g. PR #27's real title: "developer-experience: thread real merge
+    // state into zero-merge learning signal (cli, tui)" — a naive
+    // comma-split would fracture this into a bogus extra "finding".
+    expect(parsePendingFindings('developer-experience: thread state into signal (cli, tui)')).toEqual([
+      'developer-experience: thread state into signal (cli, tui)',
+    ]);
+  });
+  it('returns undefined for absent or bare-boolean flags (no behavior change)', () => {
+    expect(parsePendingFindings(undefined)).toBeUndefined();
+    expect(parsePendingFindings(true)).toBeUndefined();
+  });
+  it('returns undefined for an empty string', () => {
+    expect(parsePendingFindings('')).toBeUndefined();
   });
 });
 
@@ -133,6 +158,65 @@ describe('ledger', () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
   });
+  it('signals wires io.now() through as `today`, flagging a stale ledger', async () => {
+    const io = mockIO({ 'L.md': ledgerMd }); // ledgerMd's newest row is dated 2026-08-14
+    io.now = () => '2026-08-20';
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], io);
+    const signals = JSON.parse(r.out);
+    expect(signals.lastRowDate).toBe('2026-08-14');
+    expect(signals.daysSinceLastRow).toBe(6);
+    expect(signals.ledgerStale).toBe(true);
+  });
+  it('signals defaults zeroMergeStreak to a worst-case true without --merged, even for a real PR', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(true);
+  });
+  it('signals reports zeroMergeStreak=false once --merged names the window\'s PR', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '181'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
+  it('signals --merged tolerates a leading # and surrounding whitespace in the CSV', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', ' #181 , 999'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(false);
+  });
+  it('signals --merged naming only an unrelated PR leaves zeroMergeStreak true', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '999'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).zeroMergeStreak).toBe(true);
+  });
+  it('signals composes --merged with the existing `today` staleness wiring', async () => {
+    const io = mockIO({ 'L.md': ledgerMd });
+    io.now = () => '2026-08-20';
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged', '181'], io);
+    const signals = JSON.parse(r.out);
+    expect(signals.zeroMergeStreak).toBe(false);
+    expect(signals.ledgerStale).toBe(true);
+  });
+  it('signals rejects a value-less --merged with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--merged'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--merged expects a comma-separated PR number list');
+    expect(r.err).not.toContain('is not a function');
+  });
+  it('signals --pending folds in open-PR findings for duplicate-direction detection', async () => {
+    const solo = appendRow(emptyLedger(), sampleRow({ finding: 'zero merge streak reported false when pr merged' }));
+    const io = mockIO({ 'L.md': solo });
+    const withoutPending = await run(['ledger', 'signals', '--path', 'L.md'], io);
+    expect(JSON.parse(withoutPending.out).duplicateDirections).toEqual([]);
+    const withPending = await run(
+      [
+        'ledger',
+        'signals',
+        '--path',
+        'L.md',
+        '--pending',
+        'zero merge streak reported false when cli lacks it|zero merge streak reported false when tui lacks it',
+      ],
+      io,
+    );
+    expect(JSON.parse(withPending.out).duplicateDirections.some((d: string) => d.includes('zero merge streak'))).toBe(
+      true,
+    );
+  });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
     const r = await run(
@@ -141,6 +225,153 @@ describe('ledger', () => {
     );
     expect(r.code).toBe(0);
     expect(io.files['L.md']).toContain('| perf |');
+  });
+  it('append rejects an invalid verdict and does not write', async () => {
+    const io = mockIO();
+    const r = await run(
+      ['ledger', 'append', '--path', 'L.md', '--deep', 'perf', '--finding', 'x', '--verdict', 'ACCEPT / INCONCLUSIVE'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('verdict');
+    expect(io.files['L.md']).toBeUndefined();
+  });
+  it('append rejects an invalid evaluated value and does not write', async () => {
+    const io = mockIO();
+    const r = await run(
+      ['ledger', 'append', '--path', 'L.md', '--deep', 'perf', '--finding', 'x', '--evaluated', 'partial'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('evaluated');
+    expect(io.files['L.md']).toBeUndefined();
+  });
+});
+
+describe('freshness', () => {
+  const cfgV1 = '{"autoMerge":true}';
+  const cfgV2 = '{"autoMerge":false}';
+  const srcV1 = 'export const compile = 1;';
+
+  async function stampPolicy(files: Record<string, string>, extra: string[] = []) {
+    const io = mockIO(files);
+    const r = await run(
+      ['freshness', 'stamp', '--base', 'abc1234', '--paths', Object.keys(files).join(','), '--out', 'p.json', ...extra],
+      io,
+    );
+    return { io, r };
+  }
+
+  it('stamp freezes the declared read set and reports a policy digest', async () => {
+    const { io, r } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    expect(r.code).toBe(0);
+    const doc = JSON.parse(io.files['p.json']);
+    expect(doc.policyDigest).toMatch(/^[0-9a-f]{64}$/);
+    expect(doc.policy.dependencies.map((d: { path: string }) => d.path).sort()).toEqual([
+      'dream.config.json',
+      'src.ts',
+    ]);
+  });
+
+  it('verify is FRESH (exit 0) when the read set has not moved', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.out).status).toBe('FRESH');
+  });
+
+  // The PR #11 regression, end to end through the CLI.
+  it('verify is STALE (exit 1) when a read-set file drifted, even with no diff conflict', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    io.files['dream.config.json'] = cfgV2; // changed underneath, never in the candidate's diff
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(1);
+    const receipt = JSON.parse(r.out);
+    expect(receipt.status).toBe('STALE');
+    expect(receipt.driftedPaths).toEqual(['dream.config.json']);
+    expect(r.err).toContain('Re-evaluate before promoting');
+  });
+
+  it('verify is indeterminate (exit 2) when a declared dependency vanished', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    delete io.files['src.ts'];
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(2);
+    expect(JSON.parse(r.out).status).toBe('INDETERMINATE');
+    expect(r.err).toContain('no longer present');
+  });
+
+  it('verify rejects a policy whose read set was rewritten after stamping', async () => {
+    const { io } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 });
+    const doc = JSON.parse(io.files['p.json']);
+    doc.policy.dependencies = doc.policy.dependencies.filter(
+      (d: { path: string }) => d.path !== 'dream.config.json',
+    );
+    io.files['p.json'] = JSON.stringify(doc);
+    io.files['dream.config.json'] = cfgV2;
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    // Rejected at parse time, before any dependency is read -- so there is no
+    // receipt on stdout at all, which is strictly stronger than emitting an
+    // INVALID one after having already touched the filesystem.
+    expect(r.code).toBe(2);
+    expect(r.out).toBe('');
+    expect(r.err).toMatch(/digest mismatch/);
+  });
+
+  it('stamp fails clearly when a declared dependency cannot be read', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    const r = await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts,missing.ts'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('cannot read declared dependency missing.ts');
+  });
+
+  it('stamp rejects an absolute or traversing dependency path', async () => {
+    const io = mockIO({ '/etc/shadow': 'root' });
+    const r = await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', '/etc/shadow'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toMatch(/repository-relative/);
+  });
+
+  it('never reads a path outside the repo, even before rejecting the policy', async () => {
+    // Regression: the CLI used to digest every declared path first and only
+    // then let the library reject traversal, which made an attacker-supplied
+    // policy file a read/existence oracle for paths outside the repository.
+    const reads: string[] = [];
+    const io = mockIO({ 'p.json': JSON.stringify({
+      policy: {
+        policyId: 'evil',
+        baseCommit: 'abc1234',
+        evaluatedAt: '2026-09-01T00:00:00.000Z',
+        dependencies: [{ path: '../../../etc/hosts', digest: '0'.repeat(64) }],
+        requireDeclaredDependencies: true,
+      },
+      policyDigest: '0'.repeat(64),
+    }) });
+    const inner = io.readFile.bind(io);
+    io.readFile = async (p: string) => { reads.push(p); return inner(p); };
+
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'abc1234'], io);
+    expect(r.code).toBe(2);
+    expect(reads).toEqual(['p.json']); // the policy itself, and nothing else
+    expect(r.err).toMatch(/malformed policy|traverse/);
+  });
+
+  it('rejects a policy whose digest does not anchor its read set', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    await run(['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts', '--out', 'p.json'], io);
+    const doc = JSON.parse(io.files['p.json']);
+    doc.policyDigest = 'f'.repeat(64); // anchor no longer matches the policy
+    io.files['p.json'] = JSON.stringify(doc);
+    const r = await run(['freshness', 'verify', '--policy', 'p.json', '--head', 'def5678'], io);
+    expect(r.code).toBe(2);
+    expect(r.err).toMatch(/digest mismatch/);
+  });
+
+  it('errors with usage on a missing subcommand or flags', async () => {
+    const io = mockIO({});
+    expect((await run(['freshness'], io)).code).toBe(2);
+    expect((await run(['freshness', 'stamp'], io)).code).toBe(2);
+    expect((await run(['freshness', 'verify'], io)).code).toBe(2);
   });
 });
 
@@ -220,6 +451,61 @@ describe('verify-entrypoint', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('no exec()');
   });
+
+  it('reports stale-state (exit 3), distinct from blocked, for a leftover-state collision', async () => {
+    const io = mockIOWithExec(async () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'Error: darwin: autonomous or generated child id already exists: g1_v0',
+    }));
+    const r = await run(['verify-entrypoint', 'darwin', '--cmd', 'npx @metaharness/darwin evolve . --sandbox mock'], io);
+    expect(r.code).toBe(3);
+    expect(r.out).toContain('darwin: stale-state');
+  });
+});
+
+describe('self-hosted dream.config.json — darwin entrypoint contract', () => {
+  it('is idempotently re-runnable: required <repo> positional present, state reset before each invocation', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const raw = await readFile(new URL('../../../dream.config.json', import.meta.url), 'utf8');
+    const config = JSON.parse(raw);
+    const darwin: string = config.evaluatorEntrypoints.darwin;
+    // Regression guard for the 2026-09-02 finding: `npx @metaharness/darwin evolve` requires
+    // a `<repo>` positional (bare `--sandbox mock` silently consumes `--sandbox` as it), and
+    // persists generation/child ids under `.metaharness/` in the target directory — a second
+    // invocation in the same checkout without clearing that directory first always fails.
+    expect(darwin).toMatch(/\bevolve\s+\.\s/);
+    expect(darwin).toMatch(/rm\s+-rf\s+\.metaharness\s+&&/);
+  });
+});
+
+describe('audit-gate', () => {
+  it('exits 0 (clear) for a production-scoped report with 0 findings', async () => {
+    const report = JSON.stringify({ metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 } } });
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': report }));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('audit-gate: clear');
+  });
+
+  it('exits 1 (blocked) for a report with a critical finding', async () => {
+    const report = JSON.stringify({ metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 1, total: 1 } } });
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': report }));
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('audit-gate: blocked');
+    expect(r.out).toContain('critical=1');
+  });
+
+  it('exits 2 (malformed) for unparseable JSON, never silently passing', async () => {
+    const r = await run(['audit-gate', '--path', 'audit.json'], mockIO({ 'audit.json': 'not json' }));
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('could not read/parse');
+  });
+
+  it('errors without --path', async () => {
+    const r = await run(['audit-gate'], mockIO());
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('usage:');
+  });
 });
 
 describe('tui', () => {
@@ -240,5 +526,90 @@ describe('tui', () => {
     for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
+  });
+  it('shows a ledger-stale warning when `today` is far past the last row', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const frame = renderDashboard(md, { noColor: true, today: '2026-08-20' });
+    expect(frame).toContain('ledger stale');
+    expect(frame).toContain('19d since last row');
+  });
+  it('omits the ledger-stale warning when `today` is not supplied', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toContain('ledger stale');
+  });
+  it('tui command wires io.now() into the staleness check', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
+    const io = mockIO({ 'L.md': md });
+    io.now = () => '2026-08-20';
+    const r = await run(['tui', '--path', 'L.md', '--no-color'], io);
+    expect(r.out).toContain('ledger stale');
+  });
+  it('renderDashboard clears the zero-merge warning when mergedPrNumbers confirms the ledger PR merged', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const frame = renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']) });
+    expect(frame).not.toContain('zero merges');
+    expect(frame).toContain('signals nominal');
+  });
+  it('tui --merged clears the zero-merge warning end-to-end', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const r = await run(['tui', '--path', 'L.md', '--no-color', '--merged', '181'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(0);
+    expect(r.out).not.toContain('zero merges');
+  });
+  it('tui rejects a value-less --merged with a clear usage error, not a crash', async () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const r = await run(['tui', '--path', 'L.md', '--merged'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--merged expects a comma-separated PR number list');
+  });
+
+  it('displayWidth matches .length for plain ASCII (no regression)', () => {
+    expect(displayWidth('hello world')).toBe('hello world'.length);
+    expect(displayWidth('')).toBe(0);
+  });
+
+  it('displayWidth counts CJK/fullwidth code points as 2 columns', () => {
+    expect(displayWidth('性能改善')).toBe(8); // 4 CJK ideographs
+    expect(displayWidth('a性b')).toBe(4); // 1 + 2 + 1
+  });
+
+  it('displayWidth counts a surrogate-pair emoji as 2 columns, not 2x UTF-16 length', () => {
+    const rocket = '🚀'; // U+1F680, 2 UTF-16 code units, 1 code point
+    expect(rocket.length).toBe(2);
+    expect(displayWidth(rocket)).toBe(2);
+  });
+
+  it('displayWidth ignores embedded ANSI SGR codes', () => {
+    expect(displayWidth('\x1b[31mred\x1b[0m')).toBe(3);
+  });
+
+  it('pad does not silently drop a literal newline when truncating (regression: tokenizer must not exclude line terminators)', () => {
+    // Newline sits well inside the n-1 visible-width budget, so it must survive truncation.
+    const s = 'aaa' + '\n' + 'b'.repeat(20);
+    const out = pad(s, 10);
+    expect(out).toContain('\n');
+    expect(out).toContain('…');
+  });
+
+  it('keeps every box line at identical display width when Finding contains CJK text (regression for issue #8)', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ finding: '性能改善：レイテンシを削減する提案について' }));
+    const frame = renderDashboard(md, { noColor: true });
+    const lines = frame.split('\n');
+    const widths = new Set(lines.map((l) => displayWidth(l)));
+    expect(widths.size).toBe(1); // every line — including the CJK row — is the same real column width
+  });
+
+  it('truncates a long wide-character Finding to exactly the target width with a single ellipsis', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ finding: '性'.repeat(40) }));
+    const frame = renderDashboard(md, { noColor: true });
+    const lines = frame.split('\n');
+    const widths = new Set(lines.map((l) => displayWidth(l)));
+    expect(widths.size).toBe(1);
+    const findingLine = lines.find((l) => l.includes('…'));
+    expect(findingLine).toBeDefined();
+    expect(findingLine!.split('…').length - 1).toBe(1); // exactly one ellipsis
   });
 });

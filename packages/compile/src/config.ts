@@ -101,8 +101,20 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     });
   }
   if (config.bonusModuli) {
-    for (const k of Object.keys(config.bonusModuli)) {
+    for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
+      if (typeof v !== 'string' || v.trim().length === 0) {
+        errors.push(`bonusModuli["${k}"] must be a non-empty string`);
+      }
+    }
+  }
+  if (config.adrConvention && typeof config.adrConvention === 'object') {
+    const { pad, dir } = config.adrConvention;
+    if (!Number.isInteger(pad) || pad < 1) {
+      errors.push('adrConvention.pad must be a positive integer');
+    }
+    if (typeof dir !== 'string' || dir.trim().length === 0) {
+      errors.push('adrConvention.dir must be a non-empty string');
     }
   }
   return { ok: errors.length === 0, errors, warnings };

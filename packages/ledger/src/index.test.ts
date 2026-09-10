@@ -147,6 +147,78 @@ describe('learning signals', () => {
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).blockedEvalStreak).toBe(true);
   });
+
+  it('is not stale by default (no `today` supplied)', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row({ date: '2026-08-01' })));
+    const s = learningSignals(rows);
+    expect(s.lastRowDate).toBe('2026-08-01');
+    expect(s.daysSinceLastRow).toBeNull();
+    expect(s.ledgerStale).toBe(false);
+  });
+
+  it('flags a ledger stale once real nights have passed since the last row', () => {
+    // The observed real-world shape: main's ledger stopped at 2026-08-26 while
+    // the nightly cron kept opening (unmerged) PRs for six more days.
+    const { rows } = parseLedger(appendRow(emptyLedger(), row({ date: '2026-08-26' })));
+    const s = learningSignals(rows, { today: '2026-09-01' });
+    expect(s.daysSinceLastRow).toBe(6);
+    expect(s.ledgerStale).toBe(true);
+  });
+
+  it('is not stale the same day, or one day later, by default threshold', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row({ date: '2026-08-26' })));
+    expect(learningSignals(rows, { today: '2026-08-26' }).ledgerStale).toBe(false);
+    expect(learningSignals(rows, { today: '2026-08-27' }).ledgerStale).toBe(false);
+    expect(learningSignals(rows, { today: '2026-08-28' }).ledgerStale).toBe(true);
+  });
+
+  it('takes the newest valid date across rows, ignoring an unparseable one', () => {
+    let l = appendRow(emptyLedger(), row({ date: '2026-08-20' }));
+    l = appendRow(l, row({ date: 'yesterday' }));
+    l = appendRow(l, row({ date: '2026-08-25' }));
+    const { rows } = parseLedger(l);
+    const s = learningSignals(rows, { today: '2026-08-25' });
+    expect(s.lastRowDate).toBe('2026-08-25');
+    expect(s.ledgerStale).toBe(false);
+  });
+
+  it('has no staleness signal on an empty ledger', () => {
+    const s = learningSignals([], { today: '2026-08-25' });
+    expect(s.lastRowDate).toBeNull();
+    expect(s.daysSinceLastRow).toBeNull();
+    expect(s.ledgerStale).toBe(false);
+  });
+
+  it('counts pending (still-open PR) findings toward duplicateDirections', () => {
+    // Only 1 merged row + 2 pending (open, unmerged) PR findings sharing the
+    // same opening words — none alone would cross the >= 3 threshold from
+    // rows or pendingFindings in isolation, but together they should.
+    const { rows } = parseLedger(
+      appendRow(emptyLedger(), row({ finding: 'zero merge streak reported false when pr merged' })),
+    );
+    const s = learningSignals(rows, {
+      pendingFindings: [
+        'zero merge streak reported false when cli lacks ground truth',
+        'zero merge streak reported false when tui lacks a flag',
+      ],
+    });
+    expect(s.duplicateDirections.some((d) => d.includes('zero merge streak'))).toBe(true);
+  });
+
+  it('does not flag duplicates from pendingFindings alone below threshold', () => {
+    const { rows } = parseLedger(emptyLedger());
+    const s = learningSignals(rows, {
+      pendingFindings: ['zero merge streak reported false when pr merged'],
+    });
+    expect(s.duplicateDirections).toEqual([]);
+  });
+
+  it('omitting pendingFindings leaves duplicateDirections unchanged (default behavior)', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
+  });
 });
 
 describe('verdictStats', () => {

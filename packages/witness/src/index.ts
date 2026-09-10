@@ -13,6 +13,9 @@
  */
 import { createHash } from 'node:crypto';
 
+export * from './claim-receipt.js';
+export * from './discovery-evidence.js';
+
 /** A 40-char lowercase hex git commit sha (short shas of >=7 also accepted). */
 export type CommitSha = string;
 
@@ -116,3 +119,23 @@ export function verifySteps(gistRawUrl = '<RAW_GIST_URL>'): string {
     '# ^ this value MUST equal the published WITNESS',
   ].join('\n');
 }
+
+export * from './security-patch.js';
+export * from './reconstruction.js';
+export * from './termination.js';
+export * from './evidence-freshness.js';
+// `trace-replay` and `termination` were developed on separate branches and each
+// grew its own `canonicalJson`, so `export *` from both is ambiguous (TS2308).
+// They are NOT interchangeable -- trace-replay's carries WeakSet cycle detection
+// and accepts `unknown`, termination's is typed to `JsonValue` -- so neither is
+// silently promoted to the barrel's `canonicalJson`. Each module keeps using its
+// own internally; import it directly from './trace-replay.js' if you need that one.
+export {
+  type TraceEvent,
+  type AnchoredTraceReplay,
+  type ReplayReceipt,
+  traceDigest,
+  createAnchoredReplay,
+  verifyReplayPrefix,
+  finalizeAnchoredReplay,
+} from './trace-replay.js';

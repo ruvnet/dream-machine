@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { compile, validateConfig, defaultConfig, withDefaults, type DreamConfig } from './index.js';
 
 const metaharness: DreamConfig = {
@@ -66,6 +68,52 @@ describe('validateConfig', () => {
   it('does not flag a well-formed scan array', () => {
     expect(validateConfig(metaharness).warnings).toHaveLength(0);
   });
+  it('accepts a well-formed bonus modulus value', () => {
+    expect(validateConfig({ ...metaharness, bonusModuli: { '25': 'vertical-packs' } }).ok).toBe(true);
+  });
+  it('rejects an empty bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
+  it('rejects a whitespace-only bonus modulus value', () => {
+    const r = validateConfig({ ...metaharness, bonusModuli: { '25': '   ' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/bonusModuli\["25"\]/);
+  });
+  it('accepts a well-formed object-form adrConvention', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 5, dir: 'decisions' } });
+    expect(r.ok).toBe(true);
+  });
+  it('rejects a non-positive-integer adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: -1, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects a zero adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 0, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects a non-integer adrConvention.pad', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 2.5, dir: 'docs/adrs' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.pad/);
+  });
+  it('rejects an empty adrConvention.dir', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 4, dir: '' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.dir/);
+  });
+  it('rejects a whitespace-only adrConvention.dir', () => {
+    const r = validateConfig({ ...metaharness, adrConvention: { pad: 4, dir: '   ' } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/adrConvention\.dir/);
+  });
+  it('leaves the string-literal adrConvention forms unvalidated by this check', () => {
+    expect(validateConfig({ ...metaharness, adrConvention: '3-digit' }).ok).toBe(true);
+    expect(validateConfig({ ...metaharness, adrConvention: '4-digit' }).ok).toBe(true);
+  });
 });
 
 describe('compile', () => {
@@ -73,6 +121,16 @@ describe('compile', () => {
 
   it('throws on an invalid config', () => {
     expect(() => compile({ ...metaharness, repo: '' })).toThrow(/invalid dream.config/);
+  });
+
+  it('throws instead of silently compiling a dangling "add " bonus-dive line from an empty bonusModuli value', () => {
+    expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
+  });
+
+  it('throws instead of silently compiling a corrupted ADR path from a malformed adrConvention', () => {
+    expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
+      /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
+    );
   });
 
   it('is deterministic (same input → identical output)', () => {
@@ -123,6 +181,12 @@ describe('compile', () => {
     }
   });
 
+  it('treats missing gist tooling as best-effort, not a stop condition', () => {
+    expect(prompt).toContain('GIST=LOCAL');
+    expect(prompt).toContain('not FALLBACK');
+    expect(prompt).not.toMatch(/Otherwise `gh gist create --public` the report/);
+  });
+
   it('describes human-review-only merge policy by default', () => {
     expect(prompt).toContain('Human review required');
     expect(prompt).not.toContain('guarded auto-merge ENABLED');
@@ -145,6 +209,37 @@ describe('compile', () => {
   it('golden-snapshot: metaharness prompt is stable', () => {
     expect(prompt).toMatchSnapshot();
   });
+
+  it('does not warn about unpinned npx when no entrypoint uses npx', () => {
+    expect(prompt).not.toContain('Supply-chain warning');
+  });
+
+  it('warns about an unpinned npx evaluator entrypoint (reproduces this repo\'s own dream.config.json)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('evaluatorEntrypoints.darwin');
+    expect(p).toContain('npx @metaharness/darwin');
+  });
+
+  it('warns when the npx invocation is only pinned to a floating major.minor (reviewer regression)', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@1.6 evolve --sandbox mock' },
+    });
+    expect(p).toContain('Supply-chain warning');
+    expect(p).toContain('npx @metaharness/darwin@1.6');
+  });
+
+  it('does not warn when the npx invocation is version-pinned', () => {
+    const p = compile({
+      ...metaharness,
+      evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin@0.9.2 evolve --sandbox mock' },
+    });
+    expect(p).not.toContain('Supply-chain warning');
+  });
 });
 
 describe('defaults', () => {
@@ -153,5 +248,32 @@ describe('defaults', () => {
     expect(c.ledgerPath).toBe('docs/dream-cycle/LEDGER.md');
     expect(c.branchPrefix).toBe('dream/');
     expect(c.labels).toContain('dream-cycle');
+  });
+});
+
+// This repo self-hosts: its own dream.config.json is what STEP B of every
+// nightly run actually compiles. Every other test above exercises a
+// synthetic fixture — none of them would catch a regression that broke this
+// repo's real, committed config. Read it the same way `dream-machine compile
+// dream.config.json` does, and golden-snapshot it.
+describe('self-hosted config (ruvnet/dream-machine)', () => {
+  const selfConfig: DreamConfig = JSON.parse(
+    readFileSync(join(process.cwd(), 'dream.config.json'), 'utf8'),
+  );
+
+  it('validates', () => {
+    expect(validateConfig(selfConfig).ok).toBe(true);
+  });
+
+  it('resolves autoMerge: false (this repo deliberately never auto-merges)', () => {
+    expect(withDefaults(selfConfig).autoMerge).toBe(false);
+  });
+
+  it('compiles deterministically', () => {
+    expect(compile(selfConfig)).toBe(compile(selfConfig));
+  });
+
+  it('golden-snapshot: ruvnet/dream-machine prompt is stable', () => {
+    expect(compile(selfConfig)).toMatchSnapshot();
   });
 });
