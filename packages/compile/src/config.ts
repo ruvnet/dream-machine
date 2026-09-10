@@ -90,8 +90,14 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     errors.push('at least one rotation slot is required');
   } else {
     config.slots.forEach((s, i) => {
-      if (!s.deep) errors.push(`slot ${i}: missing "deep" surface`);
-      if (!s.scan || s.scan.length < 1) warnings.push(`slot ${i}: no scan surfaces`);
+      if (!s.deep || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (!s.scan || s.scan.length < 1) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else {
+        s.scan.forEach((sc, j) => {
+          if (!sc || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+        });
+      }
     });
   }
   if (config.bonusModuli) {
