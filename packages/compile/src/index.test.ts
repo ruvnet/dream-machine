@@ -47,6 +47,25 @@ describe('validateConfig', () => {
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
   });
+  it('rejects a blank or whitespace-only deep surface', () => {
+    for (const deep of ['', '   ']) {
+      const slots = [{ ...metaharness.slots[0], deep }, ...metaharness.slots.slice(1)];
+      const r = validateConfig({ ...metaharness, slots });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(/missing "deep" surface/);
+    }
+  });
+  it('rejects a blank or whitespace-only scan entry', () => {
+    for (const scan of [['', 'turn-credit'], ['router', '   ']]) {
+      const slots = [{ ...metaharness.slots[0], scan }, ...metaharness.slots.slice(1)];
+      const r = validateConfig({ ...metaharness, slots });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(/scan\[\d+\] must be a non-empty surface name/);
+    }
+  });
+  it('does not flag a well-formed scan array', () => {
+    expect(validateConfig(metaharness).warnings).toHaveLength(0);
+  });
 });
 
 describe('compile', () => {
