@@ -150,3 +150,13 @@ Verdict: **INCONCLUSIVE**
 Blockers: required authorizations, absent runnable checkouts and hardware, unavailable Ruflo/Autogenous/MetaHarness/RuVector local runtimes, unresolved security-dependency signals, and no governed signed-federation endpoint.
 
 Next cohort: Ruflo explicit execution/session containment and CI recovery; MetaHarness dependency remediation; RuVector deterministic HNSW plus Workspace/native-WASM evidence; RuView split submodule provenance; rudevolution independent accuracy evaluation; LatentMesh calibration; APx and QuDAG rotation; neglected high-risk repositories.
+
+
+## Evidence validation
+
+The report and single ledger row were present at evidence head `95a7de97e722e03aa7007574374809baa3f636a5`.
+
+- [Dream Machine CI run 34449097534](https://github.com/ruvnet/dream-machine/actions/runs/34449097534): passed.
+- [Dream Machine CodeQL run 34449097567](https://github.com/ruvnet/dream-machine/actions/runs/34449097567): passed.
+- [Core Memory aggregate checkpoint](https://github.com/ruvnet/core-memory/issues/20#issuecomment-5614699151): written and retrieval-verified.
+- Draft PR [#101](https://github.com/ruvnet/dream-machine/pull/101) remained mergeable, unmerged, and without automerge.
