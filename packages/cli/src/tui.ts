@@ -127,6 +127,12 @@ export interface DashboardOptions {
    * option — this dashboard stays network-free and never fetches it itself.
    */
   mergedPrNumbers?: Set<string>;
+  /**
+   * Live count of currently-open, unmerged dream-cycle candidate PRs (e.g.
+   * via a GitHub check the caller already ran). Surfaces `reviewBacklogSize`
+   * on the signals footer. Omit to skip that line (default: no signal).
+   */
+  openCandidateCount?: number;
 }
 
 /** Render the dashboard framebuffer from a ledger markdown string. */
@@ -134,7 +140,11 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const c = opts.noColor ? new Proxy({}, { get: () => '' }) as typeof C : C;
   const { rows } = parseLedger(ledgerMd);
   const stats = verdictStats(rows);
-  const signals = learningSignals(rows, { today: opts.today, mergedPrNumbers: opts.mergedPrNumbers });
+  const signals = learningSignals(rows, {
+    today: opts.today,
+    mergedPrNumbers: opts.mergedPrNumbers,
+    openCandidateCount: opts.openCandidateCount,
+  });
   const limit = opts.limit ?? 10;
   const recent = rows.slice(-limit).reverse();
   const total = rows.length;
@@ -175,6 +185,9 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const sig: string[] = [];
   if (signals.ledgerStale) sig.push(`${c.red}⚠ ledger stale (${signals.daysSinceLastRow}d since last row) — signals below may be blind${c.reset}`);
   if (signals.zeroMergeStreak) sig.push(`${c.yellow}⚠ zero merges in ${signals.nightsConsidered} nights${c.reset}`);
+  if (signals.reviewBacklogSize !== null && signals.reviewBacklogSize > 0) {
+    sig.push(`${c.yellow}⚠ ${signals.reviewBacklogSize} candidate PR(s) open, unreviewed${c.reset}`);
+  }
   if (signals.blockedEvalStreak) sig.push(`${c.yellow}⚠ eval blocked streak${c.reset}`);
   if (signals.lowScoreStreak) sig.push(`${c.yellow}⚠ low-score streak${c.reset}`);
   if (signals.duplicateDirections.length) sig.push(`${c.yellow}⚠ ${signals.duplicateDirections.length} duplicate direction(s)${c.reset}`);
