@@ -219,6 +219,28 @@ describe('learning signals', () => {
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
   });
+
+  it('reviewBacklogSize is null when openCandidateCount is omitted (default behavior)', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row()));
+    expect(learningSignals(rows).reviewBacklogSize).toBeNull();
+    expect(learningSignals(rows, {}).reviewBacklogSize).toBeNull();
+  });
+
+  it('reviewBacklogSize echoes the caller-supplied open-PR count', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row()));
+    expect(learningSignals(rows, { openCandidateCount: 5 }).reviewBacklogSize).toBe(5);
+    expect(learningSignals(rows, { openCandidateCount: 0 }).reviewBacklogSize).toBe(0);
+  });
+
+  it('reviewBacklogSize does not affect zeroMergeStreak or any other signal', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 14; i++) l = appendRow(l, row({ pr: `#${100 + i}` }));
+    const { rows } = parseLedger(l);
+    const without = learningSignals(rows, { mergedPrNumbers: new Set(['105']) });
+    const withBacklog = learningSignals(rows, { mergedPrNumbers: new Set(['105']), openCandidateCount: 8 });
+    expect(withBacklog.reviewBacklogSize).toBe(8);
+    expect({ ...withBacklog, reviewBacklogSize: null }).toEqual(without);
+  });
 });
 
 describe('verdictStats', () => {

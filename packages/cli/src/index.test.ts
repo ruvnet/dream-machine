@@ -217,6 +217,24 @@ describe('ledger', () => {
       true,
     );
   });
+  it('signals reviewBacklogSize defaults to null without --open-count', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).reviewBacklogSize).toBeNull();
+  });
+  it('signals --open-count echoes the live open-PR count into reviewBacklogSize', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count', '5'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).reviewBacklogSize).toBe(5);
+  });
+  it('signals rejects a non-numeric --open-count with a clear usage error, not NaN', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
+  });
+  it('signals rejects a value-less --open-count with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
+  });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
     const r = await run(
@@ -562,6 +580,33 @@ describe('tui', () => {
     const r = await run(['tui', '--path', 'L.md', '--merged'], mockIO({ 'L.md': md }));
     expect(r.code).toBe(1);
     expect(r.err).toContain('--merged expects a comma-separated PR number list');
+  });
+  it('renderDashboard shows a review-backlog warning when openCandidateCount is positive', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const frame = renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']), openCandidateCount: 5 });
+    expect(frame).toContain('5 candidate PR(s) open, unreviewed');
+  });
+  it('renderDashboard omits the review-backlog line when openCandidateCount is 0 or omitted', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    expect(renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']) })).not.toContain('unreviewed');
+    expect(
+      renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']), openCandidateCount: 0 }),
+    ).not.toContain('unreviewed');
+  });
+  it('tui --open-count surfaces the review-backlog warning end-to-end', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const r = await run(
+      ['tui', '--path', 'L.md', '--no-color', '--merged', '181', '--open-count', '5'],
+      mockIO({ 'L.md': md }),
+    );
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('5 candidate PR(s) open, unreviewed');
+  });
+  it('tui rejects a non-numeric --open-count with a clear usage error, not a crash', async () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const r = await run(['tui', '--path', 'L.md', '--open-count', 'abc'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
   });
 
   it('displayWidth matches .length for plain ASCII (no regression)', () => {

@@ -120,17 +120,19 @@ Commands:
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
   ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
+  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"] [--open-count N]
                                                        Print STEP 1.1 learning signals
                                                          (--merged: known-merged PR numbers;
                                                          omitted → zeroMergeStreak defaults
-                                                         to a worst-case, unverified true)
+                                                         to a worst-case, unverified true;
+                                                         --open-count: live count of open,
+                                                         unmerged candidate PRs → reviewBacklogSize)
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
-  tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
+  tui             [--path LEDGER.md] [--no-color] [--merged "7,12"] [--open-count N]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
   freshness stamp --base <sha> --paths "a,b" [--out F]  Freeze the evidence read set at evaluation time
   freshness verify --policy <file> --head <sha>         Re-verify that read set against the promotion target
@@ -159,6 +161,22 @@ function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> |
     .map((s) => s.trim().replace(/^#/, ''))
     .filter(Boolean);
   return new Set(nums);
+}
+
+/**
+ * Parse `--open-count N` into `learningSignals`' `openCandidateCount` option
+ * (a live count of currently-open, unmerged dream-cycle candidate PRs). Same
+ * fail-closed shape as `--merged`: a value-less flag or a non-numeric value
+ * throws a clear usage error instead of silently becoming `NaN`. Omitted
+ * entirely → `undefined`, preserving today's `reviewBacklogSize: null` default.
+ */
+function parseOpenCandidateCount(flag: string | boolean | undefined): number | undefined {
+  if (flag === undefined) return undefined;
+  const n = typeof flag === 'string' ? Number(flag) : NaN;
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error('--open-count expects a non-negative integer, e.g. --open-count 5');
+  }
+  return n;
 }
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
@@ -256,9 +274,10 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           const { rows } = parseLedger(md);
           const mergedPrNumbers = parseMergedPrNumbers(flags.merged);
           const pendingFindings = parsePendingFindings(flags.pending as string | undefined);
+          const openCandidateCount = parseOpenCandidateCount(flags['open-count']);
           sink.log(
             JSON.stringify(
-              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings }),
+              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings, openCandidateCount }),
               null,
               2,
             ),
@@ -540,6 +559,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             repo: flags.repo as string | undefined,
             today: io.now(),
             mergedPrNumbers: parseMergedPrNumbers(flags.merged),
+            openCandidateCount: parseOpenCandidateCount(flags['open-count']),
           }),
         );
         return { code: 0, out: sink.out, err: sink.err };
