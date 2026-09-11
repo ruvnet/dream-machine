@@ -118,7 +118,7 @@ A runnable checkout was unavailable, so pinned Ruflo `3.25.6` dependency/secret/
 
 ## Constellation integration and actions
 
-Dream Machine supplied the governance contract and durable receipt. Ruflo supplied the reviewed learning/consensus surface and the manual research-loop structure. MetaHarness and Autogenous workflow evidence was consumed where exact-head runs existed, without claiming local runtime execution. RuVector/RuVector WASM retrieval was not claimed because a validated backend was unavailable. Core Memory supplied the prior aggregate lesson set and will receive a redacted aggregate checkpoint.
+Dream Machine supplied the governance contract and durable receipt. Ruflo supplied the reviewed learning/consensus surface and the manual research-loop structure. MetaHarness and Autogenous workflow evidence was consumed where exact-head runs existed, without claiming local runtime execution. RuVector/RuVector WASM retrieval was not claimed because a validated backend was unavailable. Core Memory supplied the prior aggregate lesson set and received a [retrieval-verified redacted aggregate checkpoint](https://github.com/ruvnet/core-memory/issues/20#issuecomment-5630760703).
 
 Actions this cycle: **one new issue, five exact-head COMMENT reviews, one evidence draft update, zero implementation PRs, zero direct pushes, zero merges, zero releases, zero deployments, and zero automerge changes**.
 
