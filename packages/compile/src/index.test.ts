@@ -68,6 +68,22 @@ describe('validateConfig', () => {
   it('does not flag a well-formed scan array', () => {
     expect(validateConfig(metaharness).warnings).toHaveLength(0);
   });
+  it('rejects a bare-string scan instead of an array, without throwing', () => {
+    const slots = [{ ...metaharness.slots[0], scan: 'config-schema' }, ...metaharness.slots.slice(1)] as typeof metaharness.slots;
+    let r;
+    expect(() => {
+      r = validateConfig({ ...metaharness, slots });
+    }).not.toThrow();
+    expect(r!.ok).toBe(false);
+    expect(r!.errors.join()).toMatch(/slot 0: "scan" must be an array of surface names/);
+  });
+  it('still warns (not errors) when scan is entirely absent', () => {
+    const { scan: _scan, ...slot0 } = metaharness.slots[0];
+    const slots = [slot0, ...metaharness.slots.slice(1)] as typeof metaharness.slots;
+    const r = validateConfig({ ...metaharness, slots });
+    expect(r.ok).toBe(true);
+    expect(r.warnings.join()).toMatch(/no scan surfaces/);
+  });
   it('accepts a well-formed bonus modulus value', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { '25': 'vertical-packs' } }).ok).toBe(true);
   });

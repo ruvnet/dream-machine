@@ -91,7 +91,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   } else {
     config.slots.forEach((s, i) => {
       if (!s.deep || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
-      if (!s.scan || s.scan.length < 1) {
+      if (!s.scan) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else if (!Array.isArray(s.scan)) {
+        errors.push(`slot ${i}: "scan" must be an array of surface names`);
+      } else if (s.scan.length < 1) {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else {
         s.scan.forEach((sc, j) => {
