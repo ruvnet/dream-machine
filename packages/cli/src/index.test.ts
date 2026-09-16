@@ -149,6 +149,30 @@ describe('ledger', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('verdict');
   });
+  it('verify --since-row grandfathers earlier rows, still enforces later ones', async () => {
+    const bad = appendRow(
+      appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })),
+      sampleRow({ date: '2026-08-14', verdict: 'ALSO-BAD' }),
+    );
+    const grandfatheredAll = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': bad }));
+    expect(grandfatheredAll.code).toBe(0);
+    expect(grandfatheredAll.out).toContain('ledger OK');
+
+    const enforceRow2 = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '2'], mockIO({ 'L.md': bad }));
+    expect(enforceRow2.code).toBe(1);
+    expect(enforceRow2.err).toContain('row 2');
+    expect(enforceRow2.err).not.toContain('row 1');
+  });
+  it('verify rejects a non-numeric --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
+  it('verify rejects a value-less --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
   it('stats', async () => {
     const r = await run(['ledger', 'stats', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out).ACCEPT).toBe(1);

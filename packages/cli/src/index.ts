@@ -119,7 +119,9 @@ Commands:
   init [--repo owner/name] [--out dream.config.json]   Scaffold a dream.config
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
-  ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
+  ledger verify   [--path LEDGER.md] [--since-row N]    Structurally verify a ledger
+                                                         (--since-row: only enforce rows >= N;
+                                                         omitted → every row, today's default)
   ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
                                                        Print STEP 1.1 learning signals
                                                          (--merged: known-merged PR numbers;
@@ -159,6 +161,22 @@ function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> |
     .map((s) => s.trim().replace(/^#/, ''))
     .filter(Boolean);
   return new Set(nums);
+}
+
+/**
+ * Parse `--since-row N` into `verifyLedger`'s `sinceRow` option: a 1-indexed
+ * row number to start enforcement from. Same fail-closed shape as `--merged`
+ * — a value-less flag or a non-integer value is a usage error, not `NaN` or
+ * silent full-ledger enforcement. Omitted entirely → `undefined` (verify
+ * every row, today's default behavior, unchanged).
+ */
+function parseSinceRow(flag: string | boolean | undefined): number | undefined {
+  if (flag === undefined) return undefined;
+  const n = typeof flag === 'string' ? Number(flag) : NaN;
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error('--since-row expects a positive integer row number, e.g. --since-row 38');
+  }
+  return n;
 }
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
@@ -242,7 +260,8 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           md = emptyLedger();
         }
         if (sub === 'verify') {
-          const r = verifyLedger(md);
+          const sinceRow = parseSinceRow(flags['since-row']);
+          const r = verifyLedger(md, { sinceRow });
           if (r.ok) {
             sink.log(`✓ ledger OK — ${r.rowCount} rows`);
             r.warnings.forEach((w) => sink.log(`  ⚠ ${w}`));

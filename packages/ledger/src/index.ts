@@ -155,22 +155,38 @@ export interface VerifyResult {
   rowCount: number;
 }
 
+export interface VerifyOptions {
+  /**
+   * 1-indexed row number to start enforcement from (default 1 = every row,
+   * byte-identical prior behavior). Rows before `sinceRow` are parsed and
+   * counted in `rowCount` but never contribute errors — lets CI gate future
+   * drift without first repairing already-accepted historical debt (see
+   * issues #48/#58: 37 legacy rows, 40 known/accepted schema violations from
+   * pre-single-repo-schema "portfolio" nights, closed as accepted debt
+   * 2026-09-07). Out-of-range values (< 1) are clamped to 1.
+   */
+  sinceRow?: number;
+}
+
 /** Structurally verify a ledger: header present, verdicts/evaluated in range. */
-export function verifyLedger(markdown: string): VerifyResult {
+export function verifyLedger(markdown: string, opts: VerifyOptions = {}): VerifyResult {
   const errors: string[] = [];
   const { rows, warnings } = parseLedger(markdown);
+  const sinceRow = Math.max(1, opts.sinceRow ?? 1);
   if (!markdown.includes(HEADER.replace(/\s/g, '')) && !/\|\s*Date\s*\|/.test(markdown)) {
     errors.push('ledger is missing the Date header row');
   }
   rows.forEach((r, i) => {
+    const rowNum = i + 1;
+    if (rowNum < sinceRow) return;
     if (r.verdict && !VERDICTS.includes(r.verdict)) {
-      errors.push(`row ${i + 1}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
+      errors.push(`row ${rowNum}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
     }
     if (r.evaluated && !EVALS.includes(r.evaluated)) {
-      errors.push(`row ${i + 1}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
+      errors.push(`row ${rowNum}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
     }
     if (r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
-      errors.push(`row ${i + 1}: date "${r.date}" is not YYYY-MM-DD`);
+      errors.push(`row ${rowNum}: date "${r.date}" is not YYYY-MM-DD`);
     }
   });
   return { ok: errors.length === 0, errors, warnings, rowCount: rows.length };

@@ -42,6 +42,17 @@ jobs:
         run: npx vitest run --coverage
       - name: Governance and contract regression tests
         run: npm run test:governance
+      - name: Ledger structural integrity gate (rows appended from now on)
+        # docs/dream-cycle/LEDGER.md carries 37 legacy rows with 40 known,
+        # already-triaged structural violations (out-of-enum Verdict/Evaluated
+        # values from pre-single-repo-schema "portfolio" nights; see issues
+        # #48/#58, closed as accepted debt 2026-09-07). Full-file `ledger
+        # verify` would fail CI on every push against that grandfathered
+        # history. `--since-row 38` enforces only rows appended after this
+        # gate was added, so a future df9ff40-shaped bad append (issue #48's
+        # root cause: a direct hand-edit to LEDGER.md bypassing `ledger
+        # append`'s own validation) is caught without requiring history repair.
+        run: node packages/cli/dist/bin.js ledger verify --path docs/dream-cycle/LEDGER.md --since-row 38
       - name: Validate Edge v1 contracts and mission plan
         run: npm run check:edge-contracts
       - name: Prohibit exposed development test services

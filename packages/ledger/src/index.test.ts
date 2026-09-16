@@ -107,6 +107,36 @@ describe('verifyLedger', () => {
     expect(r.ok).toBe(false);
     expect(r.errors.join()).toMatch(/header/);
   });
+
+  it('sinceRow grandfathers earlier rows but still enforces rows at/after it', () => {
+    let l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' })); // row 1: bad
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: good
+    l = appendRow(l, row({ date: '2026-08-15', evaluated: 'partial' })); // row 3: bad
+    const full = verifyLedger(l);
+    expect(full.ok).toBe(false);
+    expect(full.errors).toHaveLength(2);
+
+    const since2 = verifyLedger(l, { sinceRow: 2 });
+    expect(since2.ok).toBe(false);
+    expect(since2.errors).toHaveLength(1);
+    expect(since2.errors[0]).toMatch(/row 3/);
+    expect(since2.rowCount).toBe(3); // still counts every row, only errors are scoped
+
+    const since4 = verifyLedger(l, { sinceRow: 4 });
+    expect(since4.ok).toBe(true);
+    expect(since4.errors).toEqual([]);
+  });
+
+  it('sinceRow < 1 clamps to 1 (byte-identical to the default)', () => {
+    const l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' }));
+    expect(verifyLedger(l, { sinceRow: 0 })).toEqual(verifyLedger(l));
+    expect(verifyLedger(l, { sinceRow: -5 })).toEqual(verifyLedger(l));
+  });
+
+  it('omitting sinceRow verifies every row (unchanged default behavior)', () => {
+    const l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' }));
+    expect(verifyLedger(l, {})).toEqual(verifyLedger(l));
+  });
 });
 
 describe('learning signals', () => {
