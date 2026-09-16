@@ -1,5 +1,20 @@
 # Compiler-Parity SOTA Report — 2026
 
+**Correction note (post-review, see issue #112):** the review left on PR #111
+correctly found that this report's originally published `report_sha256`/
+`witness` were computed over a pre-insertion draft, not the final committed
+bytes — an evidence-integrity defect, not a claim that `validateConfig`'s
+fix was wrong. Fixed by adding a canonical exclusion transform
+(`@dream-machine/witness`'s new `report-witness` module: hash everything
+above this file's trailing `## Witness` heading, so inserting that section
+afterward never changes the hash) plus a new `witness verify-report`
+CLI command that self-verifies a committed report with no external inputs.
+This file's Witness section below is the corrected, reproducible one. Also
+corrected in this pass: the diff-size claim (was "29/39 lines", the real
+`git diff --numstat` count is 23 source / 29 test lines) and the competitor
+table (added source identities, with an explicit caveat that none are
+pinned to an exact version).
+
 ## TL;DR
 `validateConfig` in `@dream-machine/compile` checks presence but never checks
 *type* for four `string[]`-typed `dream.config` fields: `labels`,
@@ -37,12 +52,21 @@ mid-session:
   flagging the residual `scan`-type gap for whoever picks that PR up next.
 
 ## Competitors (evidence grade)
-| Project | Config validation approach | Grade |
-|---|---|---|
-| LangGraph (config-driven graphs) | Pydantic schema validation, type-checked at load | A (official docs) |
-| DSPy/GEPA (declarative pipeline config) | Python type hints + runtime `isinstance` checks | A (official repo) |
-| SWE-agent (YAML config) | JSON Schema validation via `pydantic` | A (official repo) |
-| CrewAI (agent config) | Pydantic models, rejects wrong-typed fields at construction | B (official docs, not independently reproduced) |
+| Project | Source identity / version checked | Config validation approach | Grade |
+|---|---|---|---|
+| LangGraph | `langgraph` docs, "Low Level Concepts" / schema section, as published at langchain-ai.github.io/langgraph (checked 2026-09-15; no pinned release tag recorded — flagged below) | Pydantic schema validation, type-checked at load | A (official docs) |
+| DSPy/GEPA | `dspy` GitHub repo (`stanfordnlp/dspy`), `Signature`/`Module` type-hint machinery in the public source tree (checked 2026-09-15; no pinned commit/tag recorded — flagged below) | Python type hints + runtime `isinstance` checks | A (official repo) |
+| SWE-agent | `SWE-agent` GitHub repo (`SWE-agent/SWE-agent`), `config/` YAML schema loader in the public source tree (checked 2026-09-15; no pinned commit/tag recorded — flagged below) | JSON Schema validation via `pydantic` | A (official repo) |
+| CrewAI | `crewai` public docs (docs.crewai.com), Pydantic-based `Agent`/`Task` config models (checked 2026-09-15; no pinned release recorded — flagged below) | Pydantic models, rejects wrong-typed fields at construction | B (official docs, not independently reproduced) |
+
+**Source-identity caveat (added after review #112's "add source identities/
+versions" request):** none of the four rows above were pinned to an exact
+release tag or commit sha at authoring time — each is "the public
+docs/repo as it read on 2026-09-15," not a reproducible artifact the way
+this report's own compiler-parity finding is. Treat the identity column as
+"where to look," not as a citation precise enough to re-derive the grade
+independently; a future pass that re-grades these should pin an exact
+tag/commit for each.
 
 Common pattern across all four: a config field declared as a list type is
 validated as a list *before* use, never trusted from raw JSON/YAML. This
@@ -99,12 +123,24 @@ included for completeness).
 ## Reward-Hack Check
 Self-critiqued against the same checklist #105 used: no gold data touched
 (this package ships no benchmark corpus), no threshold changed, no test
-`.only`/`.skip`, no existing assertion weakened — diff is purely additive
-(4 new validation lines + 1 helper + 10 new tests). Both new tests-fail-
-before/pass-after checked live (see repro above). No undocumented cache.
-Scope was actively *narrowed* mid-session specifically to avoid touching
-code #105 already owns — the opposite of reward-hacking toward a bigger
-diff.
+`.only`/`.skip`, no existing assertion weakened — diff is purely additive:
+`git diff 3edd426..HEAD --numstat` on the `validateConfig` candidate itself
+shows `packages/compile/src/config.ts` +23/-0 and
+`packages/compile/src/index.test.ts` +29/-0 (corrected from this report's
+first draft, which mis-stated 29/39 — see the correction note at the top).
+Both new tests-fail-before/pass-after checked live (see repro above). No
+undocumented cache. Scope was actively *narrowed* mid-session specifically
+to avoid touching code #105 already owns — the opposite of reward-hacking
+toward a bigger diff.
+
+Independently re-verified by a fresh subagent critic with no shared
+authoring context (own worktree, own reproduction from the parent commit):
+confirmed the crash is real for all four fields, confirmed the fix resolves
+it, reran the full suite (626 vitest + 81 governance, matching this
+report), reverted only `config.ts` and confirmed 9 of the 10 new tests fail
+without it (the 10th documents unrelated pre-existing behavior), and
+checked edge cases (`null`, non-string elements, whitespace-only elements,
+empty array) behave as intended. Verdict: reward-hack check CLEAR.
 
 ## Security Review
 Pure input-validation tightening inside an existing validator — no new I/O,
@@ -113,18 +149,13 @@ exposure, no filesystem/network-scope change. Strictly narrows what
 previously validated `ok:true`; cannot newly accept anything previously
 rejected.
 
-## Witness
-
-```
-report_sha256 : 4635b8f23775cf346f74c7965964511f8583892ad6575b83a2cfc5ce787c98ae
-session_commit: 3edd426f6c9c4b1e80235f7447dc863e749345cc
-witness       : f8682d5cc537e04d51330cbed265c26bdf9ef9a074cddc3fc349da7806942821
-```
-
-Computed over this file's frozen bytes *before* this Witness section's
-values were filled in (STEP 16's hash-then-rewrite order — same convention
-as PRs #7, #11, #55, #79, #105). Report is committed at
-`docs/dream-cycle/2026-09-15-compiler-parity-report.md`.
+The post-review witness fix (`report-witness` module) is also low-risk:
+pure string parsing/hashing on already-local files, no new I/O or network
+surface, no change to `@dream-machine/witness`'s existing `stamp`/`verify`
+primitives (additive module only). It intentionally does not change what
+counts as a *valid* witness cryptographically — it only fixes which bytes
+get hashed, so a report stamped under the old convention that happens to
+already be self-consistent still verifies.
 
 ## Next steps
 1. `slots[i].scan` type-confusion (bare string instead of array) still
@@ -146,3 +177,30 @@ as PRs #7, #11, #55, #79, #105). Report is committed at
    ADR-0004 each used twice) — a docs-housekeeping defect independent of
    tonight's candidate, flagged for a future developer-experience or
    compiler-parity night.
+5. Issue #112's acceptance criteria also ask for migration guidance for
+   pre-existing reports stamped under the old (unreproducible) convention:
+   those reports' published triples cannot be verified against their
+   committed bytes and should be treated as unverifiable legacy evidence,
+   not silently upgraded to "valid" — a follow-up documentation pass, not
+   done in this PR (which is scoped to compiler-parity, not the witness
+   package's docs).
+
+## Witness
+
+```
+report_sha256 : 77e60d893bf35b8b4618414fbc40b1263c9638b000a84715ddd52de3088b7cca
+session_commit: 3edd426f6c9c4b1e80235f7447dc863e749345cc
+witness       : 0b2feb632125eafaf94b442df6d52db160bd849b33f4a3e95d8b7a725a08f2c0
+```
+
+Computed over this file's canonical bytes — everything above this heading,
+trailing whitespace collapsed to one newline — using the new
+`@dream-machine/witness` `report-witness` module (issue #112's fix, this
+same PR). Unlike the report's first draft, this triple is reproducible
+directly from the committed file with no unavailable intermediate bytes:
+inserting this section after computing the hash cannot change it, because
+the canonicalization excludes everything from this heading onward. Verify:
+
+```bash
+dream-machine witness verify-report docs/dream-cycle/2026-09-15-compiler-parity-report.md --commit 3edd426f6c9c4b1e80235f7447dc863e749345cc
+```
