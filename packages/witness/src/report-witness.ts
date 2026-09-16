@@ -35,7 +35,9 @@ export interface Split {
  * must not change the canonical hash.
  */
 function canonicalizeTrailer(s: string): string {
-  return s.replace(/\s+$/u, '') + '\n';
+  // trimEnd() is a linear-time native string op — no regex, so no ReDoS
+  // surface on adversarial input (this hashes untrusted report content).
+  return s.trimEnd() + '\n';
 }
 
 /**
