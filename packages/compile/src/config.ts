@@ -70,6 +70,25 @@ export interface ValidationResult {
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
 
+/** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
+function isNonEmptyStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.trim().length > 0);
+}
+
+/**
+ * Validate one of the config's `string[]`-typed fields, if present. Without
+ * this, a bare-string authoring mistake (e.g. `"labels": "x"` instead of
+ * `"labels": ["x"]`) passes validation silently and later crashes `compile()`
+ * with an opaque `TypeError` (`.map`/`.join` is not a function) deep inside a
+ * section builder, instead of a clean, actionable validation error.
+ */
+function checkStringArrayField(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (v !== undefined && !isNonEmptyStringArray(v)) {
+    errors.push(`${field} must be an array of non-empty strings`);
+  }
+}
+
 /** Validate a dream.config, returning structured errors (never throws). */
 export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   const errors: string[] = [];
@@ -94,6 +113,10 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       if (!s.scan || s.scan.length < 1) warnings.push(`slot ${i}: no scan surfaces`);
     });
   }
+  checkStringArrayField(config, 'labels', errors);
+  checkStringArrayField(config, 'competitors', errors);
+  checkStringArrayField(config, 'extraDisciplines', errors);
+  checkStringArrayField(config, 'controlPlaneProbes', errors);
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
