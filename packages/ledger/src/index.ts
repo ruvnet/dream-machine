@@ -12,6 +12,8 @@
  * next night — instead of the model re-deriving them from prose every time.
  */
 
+import { createHash } from 'node:crypto';
+
 export const LEDGER_COLUMNS = [
   'Date',
   'Deep',
@@ -102,12 +104,22 @@ export interface ParseResult {
   rows: LedgerRow[];
   /** Non-fatal issues (malformed rows skipped, wrong column count, etc.). */
   warnings: string[];
+  /**
+   * Parallel to `rows`: true when that row's raw line had exactly
+   * `LEDGER_COLUMNS.length` cells. A `false` entry means the row was
+   * defensively padded/truncated by `cellsToRow` and its field values may be
+   * shifted or missing — `verifyLedger` treats this as fatal for enforced
+   * rows (see `VerifyOptions.sinceRow`), since a column-count mismatch is
+   * exactly the kind of corruption a structural gate exists to catch.
+   */
+  wellFormed: boolean[];
 }
 
 /** Parse a LEDGER.md string into typed rows (skips header/divider/blank lines). */
 export function parseLedger(markdown: string): ParseResult {
   const rows: LedgerRow[] = [];
   const warnings: string[] = [];
+  const wellFormed: boolean[] = [];
   const lines = markdown.split(/\r?\n/);
   let seenHeader = false;
   for (const line of lines) {
@@ -125,10 +137,13 @@ export function parseLedger(markdown: string): ParseResult {
     if (cells.length !== LEDGER_COLUMNS.length) {
       warnings.push(`row has ${cells.length} columns, expected ${LEDGER_COLUMNS.length}: ${line.trim()}`);
       // Pad/truncate defensively so a malformed row is still readable.
+      wellFormed.push(false);
+    } else {
+      wellFormed.push(true);
     }
     rows.push(cellsToRow(cells));
   }
-  return { rows, warnings };
+  return { rows, warnings, wellFormed };
 }
 
 /** Render a single row as a markdown table line. */
@@ -155,22 +170,81 @@ export interface VerifyResult {
   rowCount: number;
 }
 
+export interface VerifyOptions {
+  /**
+   * 1-indexed row number to start enforcement from (default 1 = every row,
+   * byte-identical prior behavior). Rows before `sinceRow` are parsed and
+   * counted in `rowCount` but never contribute errors — lets CI gate future
+   * drift without first repairing already-accepted historical debt (see
+   * issues #48/#58: 37 legacy rows, 40 known/accepted schema violations from
+   * pre-single-repo-schema "portfolio" nights, closed as accepted debt
+   * 2026-09-07). Out-of-range values (< 1) are clamped to 1.
+   */
+  sinceRow?: number;
+  /**
+   * sha256 hex digest of the canonical legacy prefix (rows `1..sinceRow-1`),
+   * from `legacyPrefixDigest()`. `sinceRow` alone anchors the grandfathered
+   * boundary to an ORDINAL POSITION, not to specific content: inserting or
+   * deleting a row anywhere before the boundary shifts every row after it,
+   * so a newly inserted bad row can land below `sinceRow` (grandfathered)
+   * while a previously-enforced row shifts to a position that's never
+   * actually been checked. When `legacyPrefixDigest` is supplied and doesn't
+   * match the actual prefix, verification fails closed: it reports the
+   * mismatch as an error and enforces every row (as if `sinceRow` were 1),
+   * rather than silently trusting a boundary that may no longer point at the
+   * content it was frozen against. Omit to keep today's ordinal-only trust
+   * (unchanged default behavior).
+   */
+  legacyPrefixDigest?: string;
+}
+
+/**
+ * Canonical sha256 hex digest of `rows[0..sinceRow-2]` (the rows grandfathered
+ * by `sinceRow`), computed by re-rendering each row through `renderRow` (so
+ * incidental whitespace in the source file can't produce a false mismatch)
+ * and hashing the joined result. Recompute this whenever `sinceRow` moves
+ * forward, and pass it to `verifyLedger` as `legacyPrefixDigest` to anchor
+ * the grandfathered boundary to content, not just position.
+ */
+export function legacyPrefixDigest(rows: LedgerRow[], sinceRow: number): string {
+  const prefix = rows.slice(0, Math.max(0, sinceRow - 1));
+  const canonical = prefix.map(renderRow).join('\n');
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
 /** Structurally verify a ledger: header present, verdicts/evaluated in range. */
-export function verifyLedger(markdown: string): VerifyResult {
+export function verifyLedger(markdown: string, opts: VerifyOptions = {}): VerifyResult {
   const errors: string[] = [];
-  const { rows, warnings } = parseLedger(markdown);
+  const { rows, warnings, wellFormed } = parseLedger(markdown);
+  let sinceRow = Math.max(1, opts.sinceRow ?? 1);
   if (!markdown.includes(HEADER.replace(/\s/g, '')) && !/\|\s*Date\s*\|/.test(markdown)) {
     errors.push('ledger is missing the Date header row');
   }
+  if (opts.legacyPrefixDigest !== undefined) {
+    const actual = legacyPrefixDigest(rows, sinceRow);
+    if (actual !== opts.legacyPrefixDigest) {
+      errors.push(
+        `legacy prefix digest mismatch (expected ${opts.legacyPrefixDigest}, got ${actual}) — ` +
+          `rows 1..${sinceRow - 1} no longer match the frozen grandfathered content; refusing to ` +
+          `trust the sinceRow boundary and verifying every row instead`,
+      );
+      sinceRow = 1;
+    }
+  }
   rows.forEach((r, i) => {
-    if (r.verdict && !VERDICTS.includes(r.verdict)) {
-      errors.push(`row ${i + 1}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
+    const rowNum = i + 1;
+    if (rowNum < sinceRow) return;
+    if (!wellFormed[i]) {
+      errors.push(`row ${rowNum}: malformed — wrong column count (expected ${LEDGER_COLUMNS.length})`);
     }
-    if (r.evaluated && !EVALS.includes(r.evaluated)) {
-      errors.push(`row ${i + 1}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
+    if (!VERDICTS.includes(r.verdict)) {
+      errors.push(`row ${rowNum}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
     }
-    if (r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
-      errors.push(`row ${i + 1}: date "${r.date}" is not YYYY-MM-DD`);
+    if (!EVALS.includes(r.evaluated)) {
+      errors.push(`row ${rowNum}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+      errors.push(`row ${rowNum}: date "${r.date}" is not YYYY-MM-DD`);
     }
   });
   return { ok: errors.length === 0, errors, warnings, rowCount: rows.length };
