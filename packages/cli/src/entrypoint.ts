@@ -40,6 +40,40 @@ export interface EntrypointCheck {
 // keeps that distinction visible instead of forcing the pipeline to guess.
 const STALE_STATE_RE = /already exists/i;
 
+/**
+ * Tokenize a command string into argv for `execFile` (no shell). Reproduced
+ * 2026-08-17 (evaluation-adapters night, SCAN=flywheel,darwin): the only
+ * existing way to run an `evaluatorEntrypoints` value is `verify-entrypoint
+ * <label> --cmd "<command>"`, hand-retyped per entrypoint. Auto-feeding a
+ * config-sourced command string into `child_process.exec` (a shell) would
+ * let shell metacharacters in that string (`&&`, `;`, `|`, backticks) run as
+ * shell operators, not literal argv text — safe only as long as a human
+ * retypes each command by hand. This tokenizer is the safe alternative:
+ * split on whitespace, honoring double-quoted segments as one token (minimal
+ * quoting — sufficient for this repo's own `evaluatorEntrypoints` values;
+ * single-quote/escaped-quote handling is a documented non-goal, not silently
+ * mishandled). This is a *correctness* boundary, not a security one: because
+ * `execFile` never involves a shell, a mis-split token can only make a
+ * command fail or run a different-than-intended argv — it can never let a
+ * shell metacharacter act as an operator. Known gaps, adversarially
+ * reviewed 2026-09-17, not fixed (would need a real shell-lexer for input
+ * this repo's own two configured entrypoints never produce): a
+ * backslash-escaped quote (`echo "a\"b"`) does not unescape; a quote
+ * embedded mid-token (`a"b c"d`) is not special, only a token that *starts*
+ * with `"` is; a leading empty-quoted token (`'"" build'` → `['', 'build']`)
+ * makes `verify-entrypoints` report "empty command" and silently drop the
+ * real argument that followed it, instead of running `build`.
+ */
+export function tokenizeCommand(cmd: string): string[] {
+  const tokens: string[] = [];
+  const re = /"([^"]*)"|(\S+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cmd)) !== null) {
+    tokens.push(m[1] !== undefined ? m[1] : m[2]);
+  }
+  return tokens;
+}
+
 /** Classify a completed entrypoint invocation. Pure — no I/O. */
 export function classifyEntrypointResult(r: ExecResult): EntrypointCheck {
   if (r.code !== 0) {

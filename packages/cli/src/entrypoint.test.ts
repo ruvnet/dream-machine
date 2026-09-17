@@ -1,5 +1,39 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand } from './entrypoint.js';
+
+describe('tokenizeCommand', () => {
+  it('splits a plain command on whitespace', () => {
+    expect(tokenizeCommand('npm test')).toEqual(['npm', 'test']);
+  });
+
+  it('keeps a double-quoted segment as one token', () => {
+    expect(tokenizeCommand('npx @metaharness/darwin evolve . --sandbox mock')).toEqual([
+      'npx',
+      '@metaharness/darwin',
+      'evolve',
+      '.',
+      '--sandbox',
+      'mock',
+    ]);
+    expect(tokenizeCommand('echo "hello world" --flag')).toEqual(['echo', 'hello world', '--flag']);
+  });
+
+  it('does not treat shell metacharacters specially — they stay literal argv text', () => {
+    // The whole point: `&&` here must reach the child process as one inert token,
+    // never as a shell operator chaining a second command (reproduces #17's
+    // 2026-08-17 injection probe: `echo hi && touch PWNED`).
+    expect(tokenizeCommand('echo hi && touch PWNED')).toEqual(['echo', 'hi', '&&', 'touch', 'PWNED']);
+  });
+
+  it('collapses repeated whitespace and trims', () => {
+    expect(tokenizeCommand('  npm   test  ')).toEqual(['npm', 'test']);
+  });
+
+  it('returns an empty array for a blank command', () => {
+    expect(tokenizeCommand('')).toEqual([]);
+    expect(tokenizeCommand('   ')).toEqual([]);
+  });
+});
 
 describe('classifyEntrypointResult', () => {
   it('flags a nonzero exit as blocked (reproduces npx @metaharness/flywheel: no bin field)', () => {
