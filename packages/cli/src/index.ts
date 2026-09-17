@@ -13,6 +13,7 @@ import {
   emptyLedger,
   learningSignals,
   verdictStats,
+  legacyPrefixDigest,
   VERDICTS,
   EVALS,
   type LedgerRow,
@@ -119,9 +120,19 @@ Commands:
   init [--repo owner/name] [--out dream.config.json]   Scaffold a dream.config
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
-  ledger verify   [--path LEDGER.md] [--since-row N]    Structurally verify a ledger
+  ledger verify   [--path LEDGER.md] [--since-row N] [--legacy-digest HEX]
+                                                       Structurally verify a ledger
                                                          (--since-row: only enforce rows >= N;
-                                                         omitted → every row, today's default)
+                                                         omitted → every row, today's default.
+                                                         --legacy-digest: anchor the grandfathered
+                                                         rows 1..N-1 to their exact content (see
+                                                         ledger legacy-digest) — a mismatch fails
+                                                         closed and enforces every row, since
+                                                         --since-row alone trusts a row NUMBER, not
+                                                         content, and can be defeated by inserting a
+                                                         row before the boundary)
+  ledger legacy-digest --path L --since-row N          Print the sha256 digest of rows 1..N-1, to
+                                                         pass as ledger verify's --legacy-digest
   ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
                                                        Print STEP 1.1 learning signals
                                                          (--merged: known-merged PR numbers;
@@ -177,6 +188,21 @@ function parseSinceRow(flag: string | boolean | undefined): number | undefined {
     throw new Error('--since-row expects a positive integer row number, e.g. --since-row 38');
   }
   return n;
+}
+
+/**
+ * Parse `--legacy-digest HEX` into `verifyLedger`'s `legacyPrefixDigest`
+ * option: a 64-char lowercase sha256 hex digest. Same fail-closed shape as
+ * `--since-row` — a value-less flag or a malformed hex value is a usage
+ * error. Omitted entirely → `undefined` (ordinal-only `sinceRow` trust,
+ * today's default behavior, unchanged).
+ */
+function parseLegacyDigest(flag: string | boolean | undefined): string | undefined {
+  if (flag === undefined) return undefined;
+  if (typeof flag !== 'string' || !/^[0-9a-f]{64}$/.test(flag)) {
+    throw new Error('--legacy-digest expects a 64-char lowercase sha256 hex digest');
+  }
+  return flag;
 }
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
@@ -259,9 +285,20 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         } catch {
           md = emptyLedger();
         }
+        if (sub === 'legacy-digest') {
+          const sinceRow = parseSinceRow(flags['since-row']);
+          if (sinceRow === undefined) {
+            sink.error('ledger legacy-digest: --since-row N is required');
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          const { rows } = parseLedger(md);
+          sink.log(legacyPrefixDigest(rows, sinceRow));
+          return { code: 0, out: sink.out, err: sink.err };
+        }
         if (sub === 'verify') {
           const sinceRow = parseSinceRow(flags['since-row']);
-          const r = verifyLedger(md, { sinceRow });
+          const legacyDigest = parseLegacyDigest(flags['legacy-digest']);
+          const r = verifyLedger(md, { sinceRow, legacyPrefixDigest: legacyDigest });
           if (r.ok) {
             sink.log(`✓ ledger OK — ${r.rowCount} rows`);
             r.warnings.forEach((w) => sink.log(`  ⚠ ${w}`));
@@ -315,7 +352,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);
           return { code: 0, out: sink.out, err: sink.err };
         }
-        sink.error('ledger: expected sub-command verify|signals|stats|append');
+        sink.error('ledger: expected sub-command verify|signals|stats|append|legacy-digest');
         return { code: 1, out: sink.out, err: sink.err };
       }
 

@@ -173,6 +173,47 @@ describe('ledger', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('--since-row expects a positive integer row number');
   });
+  it('legacy-digest prints the digest for rows before --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('legacy-digest requires --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row N is required');
+  });
+  it('verify --legacy-digest passes when the legacy prefix is unmodified', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(0);
+  });
+  it('verify --legacy-digest fails closed when the legacy prefix was tampered with (review: PR #114 insertion attack)', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    // Insert a bad row before the boundary — every row after it shifts down.
+    const tampered = appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })) + ledgerMd.split('\n').slice(2).join('\n');
+    const withoutDigest = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': tampered }));
+    expect(withoutDigest.code).toBe(0); // vulnerable without the digest anchor
+    const withDigest = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': tampered }),
+    );
+    expect(withDigest.code).toBe(1);
+    expect(withDigest.err).toContain('legacy prefix digest mismatch');
+  });
+  it('verify rejects a malformed --legacy-digest with a clear usage error', async () => {
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '2', '--legacy-digest', 'not-hex'],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--legacy-digest expects a 64-char lowercase sha256 hex digest');
+  });
   it('stats', async () => {
     const r = await run(['ledger', 'stats', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out).ACCEPT).toBe(1);

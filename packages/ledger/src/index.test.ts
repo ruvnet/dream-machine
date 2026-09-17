@@ -8,6 +8,7 @@ import {
   learningSignals,
   verdictStats,
   escapeCell,
+  legacyPrefixDigest,
   LEDGER_COLUMNS,
   type LedgerRow,
 } from './index.js';
@@ -136,6 +137,74 @@ describe('verifyLedger', () => {
   it('omitting sinceRow verifies every row (unchanged default behavior)', () => {
     const l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' }));
     expect(verifyLedger(l, {})).toEqual(verifyLedger(l));
+  });
+
+  it('a wrong-column-count row is fatal for an enforced row (review: PR #114)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: good, legacy
+    l += '| 2026-09-17 | ledger-signals | too few columns |\n'; // row 2: 3 cells, not 10
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/row 2: malformed — wrong column count/);
+  });
+
+  it('a wrong-column-count row before sinceRow is grandfathered, not fatal', () => {
+    let l = emptyLedger();
+    l += '| 2026-09-17 | ledger-signals | too few columns |\n'; // row 1: malformed
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: good
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(true);
+  });
+
+  it('blank required cells are fatal for an enforced row, not silently skipped (review: PR #114)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: legacy
+    l = appendRow(l, row({ date: '', verdict: '', evaluated: '' })); // row 2: blank required cells
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/row 2: verdict ""/);
+    expect(r.errors.join()).toMatch(/row 2: evaluated ""/);
+    expect(r.errors.join()).toMatch(/row 2: date ""/);
+  });
+
+  it('legacyPrefixDigest matches an unmodified legacy prefix and clears the gate', () => {
+    let l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' })); // row 1: legacy, bad (grandfathered)
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: enforced, good
+    const { rows } = parseLedger(l);
+    const digest = legacyPrefixDigest(rows, 2);
+    const r = verifyLedger(l, { sinceRow: 2, legacyPrefixDigest: digest });
+    expect(r.ok).toBe(true);
+  });
+
+  it('a stale legacyPrefixDigest fails closed and enforces every row (review: PR #114 insertion attack)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: legacy, good
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: enforced, good
+    const { rows: before } = parseLedger(l);
+    const digest = legacyPrefixDigest(before, 2);
+
+    // Attack: insert a malformed row BEFORE the sinceRow boundary. Every row
+    // after it shifts down by one, so with sinceRow alone (ordinal-only
+    // trust) the inserted bad row would land below the boundary and be
+    // silently grandfathered.
+    const lines = l.split('\n');
+    const firstDataRowIdx = lines.findIndex((line) => line.startsWith('| 20'));
+    lines.splice(firstDataRowIdx, 0, '| 2026-09-17 | ledger-signals | inserted | #1 | #2 | yes | MAYBE | e | w | p |');
+    const tampered = lines.join('\n');
+
+    const withoutDigest = verifyLedger(tampered, { sinceRow: 2 });
+    expect(withoutDigest.ok).toBe(true); // the vulnerability, still present without a digest
+
+    const withDigest = verifyLedger(tampered, { sinceRow: 2, legacyPrefixDigest: digest });
+    expect(withDigest.ok).toBe(false);
+    expect(withDigest.errors[0]).toMatch(/legacy prefix digest mismatch/);
+    // Fails closed: every row is enforced, so the inserted bad row is caught too.
+    expect(withDigest.errors.join()).toMatch(/verdict "MAYBE"/);
+  });
+
+  it('legacyPrefixDigest is stable across whitespace-only source differences (canonical re-render)', () => {
+    const l1 = appendRow(emptyLedger(), row());
+    const { rows: r1 } = parseLedger(l1);
+    const l2 = l1.replace('| 398c71a6 |', '|   398c71a6   |'); // extra spaces inside a cell
+    const { rows: r2 } = parseLedger(l2);
+    expect(legacyPrefixDigest(r1, 2)).toBe(legacyPrefixDigest(r2, 2));
   });
 });
 
