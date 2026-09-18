@@ -28,7 +28,7 @@ import {
 } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, tokenizeCommand, type ExecResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, type ExecResult } from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
 
 export const VERSION = '0.1.1';
@@ -407,19 +407,40 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.error(`verify-entrypoints: failed to load ${configPath}: ${(e as Error).message}`);
           return { code: 1, out: sink.out, err: sink.err };
         }
-        const entries = Object.entries(config.evaluatorEntrypoints ?? {}).filter(
-          (e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '',
-        );
+        const entries = Object.entries(config.evaluatorEntrypoints ?? {});
         if (entries.length === 0) {
-          sink.log('verify-entrypoints: no string-valued evaluatorEntrypoints configured');
+          sink.log('verify-entrypoints: no evaluatorEntrypoints configured');
           return { code: 0, out: sink.out, err: sink.err };
         }
         let worst = 0;
-        for (const [label, cmdStr] of entries) {
-          const argv = tokenizeCommand(cmdStr);
+        for (const [label, rawValue] of entries) {
+          // Every configured key gets a report line and counts toward the aggregate
+          // exit code — a non-string/blank value is reported blocked, never silently
+          // dropped from the pass (2026-09-18, PR #116 review).
+          if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+            sink.log(
+              `${label}: blocked (exit 1) — evaluatorEntrypoints.${label} is not a configured command string`,
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          const argv = tokenizeCommand(rawValue);
           const [file, ...args] = argv;
           if (!file) {
-            sink.log(`${label}: blocked (exit 1) — empty command after tokenizing ${JSON.stringify(cmdStr)}`);
+            sink.log(`${label}: blocked (exit 1) — empty command after tokenizing ${JSON.stringify(rawValue)}`);
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          if (looksLikeCompoundCommand(argv)) {
+            // Fail closed rather than dispatch argv[0] with the rest of a multi-command
+            // string as its arguments — see looksLikeCompoundCommand's own doc comment
+            // for the live repro (this repo's own darwin entry). Nothing is executed.
+            sink.log(
+              `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
+                `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
+                'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
+                'command, or verify its pieces individually via verify-entrypoint',
+            );
             worst = Math.max(worst, 1);
             continue;
           }

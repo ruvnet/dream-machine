@@ -498,10 +498,13 @@ describe('verify-entrypoints', () => {
     ]);
   });
 
-  it('never lets a shell-metacharacter config value reach a shell (execFile, not exec)', async () => {
-    // Reproduces #17's 2026-08-17 injection probe against the automated path: a config
-    // value containing `&&` must arrive as one inert argv token to execFile, never as a
-    // shell operator chaining a second command.
+  it('refuses a shell-metacharacter config value instead of executing it as garbled argv', async () => {
+    // Reproduces #17's 2026-08-17 injection probe against the automated path, hardened
+    // further 2026-09-18 (PR #116 review): a config value containing `&&` is not just
+    // kept as inert argv text, it is refused outright — execFile is never called for it
+    // at all. (Naively dispatching argv[0]='echo' with the rest as its args would not be
+    // a shell-injection risk, but it silently runs the wrong thing — see the
+    // compound-command test below for why that matters in practice.)
     const calls: Array<{ file: string; args: string[] }> = [];
     const io = mockIOWithExecFile(
       async (file, args) => {
@@ -518,8 +521,59 @@ describe('verify-entrypoints', () => {
       },
     );
     const r = await run(['verify-entrypoints', 'evil.config.json'], io);
-    expect(r.code).toBe(0);
-    expect(calls).toEqual([{ file: 'echo', args: ['hi', '&&', 'touch', 'PWNED'] }]);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    expect(calls).toEqual([]);
+  });
+
+  it('refuses this repo\'s own real darwin entry (a compound command) instead of running `rm` with garbage argv', async () => {
+    // Reproduces PR #116's review finding exactly: dream.config.json's actual darwin
+    // entrypoint is `rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
+    // mock`. Naively dispatching argv[0]='rm' with the remaining tokens (including a
+    // bare `.`) as its args never invokes npx/darwin at all, and would attempt an `rm`
+    // with the current directory among its arguments. This must be refused, not executed.
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
+      },
+      {
+        'dream.config.json': JSON.stringify({
+          repo: 'ruvnet/dream-machine',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'evaluation-adapters', scan: ['flywheel', 'darwin'] }],
+          evaluatorEntrypoints: {
+            bench: 'npm test',
+            darwin: 'rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock',
+          },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    // bench still runs; darwin's `rm` is never invoked, for any argv.
+    expect(calls).toEqual([{ file: 'npm', args: ['test'] }]);
+    expect(r.code).toBe(1);
+  });
+
+  it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {
+    const io = mockIOWithExecFile(async (file) => ({ code: 0, stdout: `${file} ok`, stderr: '' }), {
+      'dream.config.json': JSON.stringify({
+        repo: 'x/y',
+        cron: '0 9 * * *',
+        slots: [{ deep: 'd', scan: ['a', 'b'] }],
+        evaluatorEntrypoints: { bench: 'npm test', redblue: '', flywheel: 123 },
+      }),
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('redblue: blocked');
+    expect(r.out).toContain('flywheel: blocked');
+    expect(r.code).toBe(1);
   });
 
   it('reports the worst verdict across entries as the aggregate exit code', async () => {
@@ -544,7 +598,7 @@ describe('verify-entrypoints', () => {
     });
     const r = await run(['verify-entrypoints'], io);
     expect(r.code).toBe(0);
-    expect(r.out).toContain('no string-valued evaluatorEntrypoints configured');
+    expect(r.out).toContain('no evaluatorEntrypoints configured');
   });
 
   it('errors on a missing config file instead of throwing', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult, tokenizeCommand } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand } from './entrypoint.js';
 
 describe('tokenizeCommand', () => {
   it('splits a plain command on whitespace', () => {
@@ -32,6 +32,40 @@ describe('tokenizeCommand', () => {
   it('returns an empty array for a blank command', () => {
     expect(tokenizeCommand('')).toEqual([]);
     expect(tokenizeCommand('   ')).toEqual([]);
+  });
+});
+
+describe('looksLikeCompoundCommand', () => {
+  it('flags this repo\'s own real darwin entry as compound (reproduces PR #116 review)', () => {
+    const argv = tokenizeCommand('rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock');
+    expect(looksLikeCompoundCommand(argv)).toBe(true);
+  });
+
+  it('flags a leading control operator', () => {
+    expect(looksLikeCompoundCommand(tokenizeCommand('&& echo hi'))).toBe(true);
+  });
+
+  it('flags ;, |, ||, and & the same way as && (as a standalone, whitespace-separated token)', () => {
+    // tokenizeCommand splits on whitespace only, so this check only catches a control
+    // operator that appears as its own token (`cmd1 ; cmd2`) — the same known,
+    // whitespace-based scope tokenizeCommand's own doc comment already discloses.
+    // `cmd1;cmd2` (no surrounding spaces) is not caught; every real evaluatorEntrypoints
+    // value observed in this repo uses spaced operators (e.g. `rm ... && npx ...`).
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi ; echo bye'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi | cat'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi || echo bye'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi &'))).toBe(true);
+  });
+
+  it('does not flag a plain single command', () => {
+    expect(looksLikeCompoundCommand(tokenizeCommand('npm test'))).toBe(false);
+    expect(looksLikeCompoundCommand(tokenizeCommand('npx @metaharness/darwin evolve . --sandbox mock'))).toBe(false);
+  });
+
+  it('does not flag an operator character embedded inside a larger token', () => {
+    // Only a standalone `&&`/`;`/`|`/`||`/`&` token counts — a package name or
+    // flag that happens to contain one of these characters mid-string does not.
+    expect(looksLikeCompoundCommand(['echo', 'a&b'])).toBe(false);
   });
 });
 

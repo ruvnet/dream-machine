@@ -336,3 +336,34 @@ a future night:
 3. If this command is ever ported to a non-Linux runner, close the
    `execFile('npm'|'npx', …)` Windows `.cmd`-shim caveat disclosed in this
    report's Security Review before relying on its no-shell guarantee there.
+
+## Post-review update (2026-09-18)
+
+`ruvnet` (repo owner) reviewed PR #116 against exact head `a1aa942` and found
+a real, blocking correctness bug this report's own claim ("every configured
+entrypoint classifies identically to its hand-verified ground truth") did not
+hold for: `dream.config.json`'s actual `darwin` entry is a **compound**
+command — `rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
+mock` — and `verify-entrypoints` dispatched only its first token (`rm`) with
+every remaining token, including `&&`, `npx`, and a bare `.`, as `rm`'s own
+argv. `npx`/darwin was never invoked. The candidate's own test fixture used a
+simplified darwin string without the `rm -rf .metaharness &&` prefix, so it
+never exercised this path.
+
+Fixed same-day, same PR: `looksLikeCompoundCommand()` (`entrypoint.ts`)
+detects a standalone shell-control-operator token (`&&`, `||`, `;`, `|`,
+`&`) in a tokenized command; `verify-entrypoints` now refuses (reports
+`blocked`, executes nothing) any entry that contains one, rather than
+dispatching argv[0] with the remainder as its arguments. Also fixed per the
+same review: a non-string or blank `evaluatorEntrypoints` value is now
+reported `blocked` for its own key instead of being silently filtered out of
+the pass — every configured key gets a report line. New regression test uses
+the exact real `dream.config.json` darwin string verbatim and asserts
+`execFile` is never called for it (not even with `rm` and garbage args) —
+live-confirmed against the real config file directly (`darwin: blocked (exit
+1) — compound command...`, no destructive `rm` invocation attempted).
+
+`npm test`: 709/709 → 716/716 (+7, 0 regressions). This is a correction, not
+a new finding: the underlying verdict (ACCEPT, candidate ships) stands —
+the shipped code now actually does what the report claimed, rather than
+silently misfiring on this repo's own real config.

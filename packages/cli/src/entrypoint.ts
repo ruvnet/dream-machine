@@ -74,6 +74,34 @@ export function tokenizeCommand(cmd: string): string[] {
   return tokens;
 }
 
+const SHELL_CONTROL_OPERATORS = new Set(['&&', '||', ';', '|', '&']);
+
+/**
+ * True if a tokenized command's argv contains a shell control operator as a
+ * standalone token — i.e. the original string was actually multiple shell
+ * commands chained together, not one command with arguments. Confirmed as a
+ * real, live bug 2026-09-18 (PR #116 review, repo owner): this repo's own
+ * `dream.config.json` darwin entry is exactly this shape — `rm -rf
+ * .metaharness && npx @metaharness/darwin evolve . --sandbox mock`.
+ * `tokenizeCommand` correctly never shell-interprets `&&` (it's just another
+ * inert token, per `execFile`'s no-shell guarantee), but blindly dispatching
+ * argv[0] as the executable and the rest as its args — the naive reading of
+ * a tokenized command — silently misfires on a string like this: `rm`
+ * becomes the executable, and `-rf .metaharness && npx @metaharness/darwin
+ * evolve . --sandbox mock` (a bare `.` among them) becomes its argv. `npx`
+ * never runs; `rm` runs instead, with garbage arguments including the
+ * current directory. This check exists so `verify-entrypoints` can refuse
+ * the whole entry instead of executing anything for it. Deliberately a
+ * denylist of exact separator tokens (not a shell grammar) — matches this
+ * module's own established minimal-quoting scope. Inherits tokenizeCommand's
+ * whitespace-only splitting: an operator only counts if it is its own token
+ * (`cmd1 ; cmd2`), not glued to a neighbor (`cmd1;cmd2`) — every
+ * evaluatorEntrypoints value observed in this repo uses spaced operators.
+ */
+export function looksLikeCompoundCommand(argv: string[]): boolean {
+  return argv.some((t) => SHELL_CONTROL_OPERATORS.has(t));
+}
+
 /** Classify a completed entrypoint invocation. Pure — no I/O. */
 export function classifyEntrypointResult(r: ExecResult): EntrypointCheck {
   if (r.code !== 0) {
