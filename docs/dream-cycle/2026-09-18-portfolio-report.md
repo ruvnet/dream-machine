@@ -33,17 +33,18 @@ The five-repository cohort was selected from new or materially updated work usin
 ### 1. Dream Machine PR #116 — evaluator entrypoint automation
 
 - PR: [#116](https://github.com/ruvnet/dream-machine/pull/116); issue: [#115](https://github.com/ruvnet/dream-machine/issues/115)
-- Exact head: `a1aa94247e7fffbfe25ce3e755d7d2f6f1bf6e1c`; base: `3edd426f6c9c4b1e80235f7447dc863e749345cc`.
+- Exact head after review response: `d5d44eafc03c98c0cb3129c2956328cc131f4568`; base: `3edd426f6c9c4b1e80235f7447dc863e749345cc`.
 - Frozen hypothesis: every configured evaluator entrypoint must reach the intended executable via shell-free executable/argv calls, preserve the existing singular command, reject malformed entries, and match hand-verified behavior with zero regression.
 - Acceptance threshold: 2/2 real configured entrypoints reachable and faithfully classified; malformed configuration fails closed; exact-head checks green.
 
 Measured evidence:
 
-- Baseline 697/697 tests; candidate 709/709, a +12-test delta with no suite regression.
+- Baseline 697/697 tests; current candidate 716/716, a +19-test delta with no suite regression.
 - Exact-head CI and CodeQL passed.
-- A nonexecuting instrumented replay against the exact committed config reached the intended bench executable but only the setup command for the compound Darwin entry. The intended Darwin executable was never called: **1/2 reachable (50%)**.
-- Non-string and blank map entries were silently ignored; a partially invalid map and an empty effective map could exit successfully.
-- The new test substitutes a simplified command that omits the failing compound syntax, so the broad reward-integrity claim is not established.
+- The initial reviewed head misdispatched the compound Darwin entry to its setup command. The review response now blocks shell-control operators and invalid/blank values fail closed, preventing that unsafe execution.
+- An instrumented exact-config replay now executes bench and blocks Darwin without invoking `npx`: intended evaluator reachability remains **1/2 (50%)**, below the unchanged 2/2 threshold.
+- The new test copies the real Darwin string inline and asserts refusal rather than loading the committed config and reaching the intended evaluator, so drift and functionality remain unresolved.
+- The response appended evidence without recomputing its report witness. Exact-head witness verification is invalid. The source/report Windows `.cmd` claim also remains inconsistent with the current Node contract.
 
 Node's current documentation confirms that `execFile` does not spawn a shell by default and therefore does not implement redirection or globbing; it also states that Windows `.cmd` and `.bat` files cannot be launched directly by `execFile`. The safe direction is structured executable/argv steps or explicit rejection of compound strings, tested against the committed configuration. [Node 24.21.0, 2026-09-08](https://nodejs.org/en/blog/release/v24.21.0) · [child-process contract](https://nodejs.org/api/child_process.html)
 
@@ -75,17 +76,17 @@ Verdict: **REJECT**
 ### 3. Ruflo PR #3352 — same-key memory upsert
 
 - PR: [#3352](https://github.com/ruvnet/ruflo/pull/3352); existing issue: [#3351](https://github.com/ruvnet/ruflo/issues/3351)
-- Exact head: `eb499928cda67c9dec6d664b235992e7d97b3fc6`; base: `e558f0c0fc29c1a658085f6e6f80ad27d4fe811f`.
+- Exact head after review response: `c9d0e4f2b327db9cd8236a406bd9a704f379c9ef`; base: `e558f0c0fc29c1a658085f6e6f80ad27d4fe811f`.
 - Frozen hypothesis: same-key replacement leaves exactly one authoritative record and keeps entries, key/tag/namespace indices, HNSW, cache, persistence, restart, scalar, and bulk paths synchronized with atomic failure semantics.
 - Acceptance threshold: focused scalar, batch, invalid-replacement, restart, and concurrency oracles; required exact-head CI green.
 
 Measured evidence:
 
-- The sequential scalar `store()` path now removes the old ID and its indexes before inserting the replacement. Focused tests moved 2/4 to 4/4; the full package gained four passes with the same one environmental failure.
-- Public `bulkInsert()` duplicates raw writes and bypasses the invariant, leaving older records and secondary state reachable while the key index points at the latest value.
-- Scalar replacement deletes the old occupant before validating all new-vector preconditions, so a rejected replacement can lose the prior value and leave partial state.
-- Concurrent same-key writers remain a disclosed time-of-check/time-of-use gap; restart and tag-cleanup tests are absent.
-- Five workflow groups passed, including CVE, integration, CodeQL, verification, and V3 CI. Required root CI/CD failed on an apparently unrelated monorepo build-order test, so the exact head is not fully green.
+- The review response introduced a shared eviction primitive, scalar prevalidation, deterministic last-entry-wins batch semantics, and focused scalar restart coverage. The memory package now reports 526 passing tests, five more than the prior reviewed head, with the same one environmental failure.
+- Bulk failure atomicity remains broken: batch records and secondary maps are published before parallel HNSW insertion. One invalid/full insertion can reject without rollback, leave partial graph state, retain the prior occupant, and later persist the mixed state. No failing-batch oracle exists.
+- Concurrent same-key scalar writers remain a demonstrated invariant violation. The new deterministic test intentionally proves that both IDs survive; green status documents rather than fixes the race.
+- Capacity-limited scalar replacement indexes before removing the old point, so a logically size-neutral replacement can be rejected even while preserving existing data.
+- CVE, CodeQL, integration, and verification workflows passed. V3 and root CI/CD were still running at the final delta review; complete exact-head required-CI evidence was not yet established.
 
 Current primary evidence consistently binds upsert to stable or unique identity and atomic conflict handling: [SQLite UPSERT](https://sqlite.org/lang_upsert.html), [Qdrant points](https://qdrant.tech/documentation/concepts/points/), [Weaviate deterministic IDs](https://docs.weaviate.io/weaviate/manage-objects/create), and [Milvus upsert](https://milvus.io/docs/upsert-entities.md). A July 23, 2026 [Mem0 concurrency report](https://github.com/mem0ai/mem0/issues/6531) independently documents the same duplicate-write race class.
 
