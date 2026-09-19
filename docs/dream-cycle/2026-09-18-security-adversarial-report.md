@@ -180,18 +180,22 @@ No `gh` CLI, no Gist-creation MCP tool available this session.
 
 ## Witness
 
-```
-report_sha256 : 83ae958958b35fbfe2b013f484dbdb1864fd3e64e67db149fd72335c08858611
-session_commit: 3edd426f6c9c4b1e80235f7447dc863e749345cc
-witness       : 49c4dbe278be6a0bc90a358af0d9235d4d2ac3ad7243fdad71d686e4e9b8c970
-```
-
-(computed via `node packages/cli/dist/bin.js witness stamp <report>
-<commit>`, on pre-Witness-section content, same convention as prior
-nights, e.g. issue #99/PR #100.) Reproduce:
+`dream-machine witness stamp` hashes this exact file's raw bytes, so the
+stamp cannot be written *inside* the file it stamps — editing the file
+after hashing (e.g. to record the stamp) would invalidate the hash against
+the committed bytes, a self-reference bug. (Caught during this review round
+by a human reviewer re-running `witness verify` against the committed file
+and getting `INVALID`; the same self-reference bug this report itself was
+about to ship. Corrected 2026-09-19 — an earlier draft embedded the triple
+here, breaking self-verification.) The stamp is therefore computed over
+this file frozen exactly as it reads at this point, and published instead
+in the PR description and the `LEDGER.md` row, both of which point back at
+this file (committed at
+`docs/dream-cycle/2026-09-18-security-adversarial-report.md`) by path and
+session commit. Anyone can independently reproduce it:
 
 ```bash
-REPORT_HASH=$(sha256sum <report-file> | awk '{print $1}')
-printf '%s%s' "$REPORT_HASH" 3edd426f6c9c4b1e80235f7447dc863e749345cc | sha256sum | awk '{print $1}'
-# must equal 49c4dbe278be6a0bc90a358af0d9235d4d2ac3ad7243fdad71d686e4e9b8c970
+sha256sum docs/dream-cycle/2026-09-18-security-adversarial-report.md   # REPORT_HASH
+printf '%s%s' "$REPORT_HASH" "3edd426f6c9c4b1e80235f7447dc863e749345cc" | sha256sum
+# must equal the WITNESS value published in the PR body and LEDGER.md
 ```

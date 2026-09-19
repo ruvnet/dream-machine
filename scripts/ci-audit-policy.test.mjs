@@ -24,7 +24,20 @@ const WORKFLOWS_DIR = join(ROOT, '.github/workflows');
  * invocation that sets a gating `--audit-level=` threshold without
  * either scoping to `--omit=dev` (production-only, this repo's actual
  * policy) or explicitly opting out of gating (`|| true`, report-only).
+ *
+ * Regression guard, round 2 (2026-09-19 review): a shell line
+ * continuation (`npm audit \` on one line, `--audit-level=high` on the
+ * next) split the offending flags across lines and evaded the original
+ * line-by-line scan — a synthetic adversarial workflow using that form
+ * passed all three tests below pre-fix. `collapseContinuations` joins a
+ * trailing backslash-newline (and its leading indentation) into the
+ * preceding line before any scan runs, so a multiline shell command is
+ * classified exactly like its single-line equivalent.
  */
+function collapseContinuations(text) {
+  return text.replace(/\\[ \t]*\r?\n[ \t]*/g, ' ');
+}
+
 function workflowFiles() {
   return readdirSync(WORKFLOWS_DIR)
     .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
@@ -32,7 +45,7 @@ function workflowFiles() {
 }
 
 function auditInvocations(text) {
-  return text
+  return collapseContinuations(text)
     .split(/\r?\n/)
     .filter((line) => !line.trim().startsWith('#'))
     .filter((line) => /npm audit\b/.test(line));
@@ -66,6 +79,24 @@ test('production-scoped audit output is always classified through `audit-gate`, 
       }
     }
   }
+});
+
+test('a shell line-continuation cannot split `npm audit` from a gating `--audit-level` past the scanner', () => {
+  // The adversarial form a real reviewer found bypassing the round-1 scanner:
+  // the flags are on the physical line after `npm audit \`, so a per-line
+  // regex never sees them on the same line as the command.
+  const adversarial = [
+    'jobs:',
+    '  x:',
+    '    steps:',
+    '      - run: |',
+    '          npm audit \\',
+    '            --audit-level=high',
+  ].join('\n');
+  const lines = auditInvocations(adversarial);
+  assert.equal(lines.length, 1, `expected the continuation to collapse into one invocation, got: ${JSON.stringify(lines)}`);
+  assert.ok(/--audit-level=/.test(lines[0]), 'collapsed line must carry the gating flag');
+  assert.ok(!/--omit[= ]dev/.test(lines[0]) && !/\|\|\s*true\s*$/.test(lines[0].trim()), 'fixture must be a genuine offender (unscoped, non-report-only)');
 });
 
 test('sanity: this test actually finds the two known npm audit invocations in ci.yml', () => {
