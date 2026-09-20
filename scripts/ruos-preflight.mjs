@@ -1,5 +1,6 @@
 /** Read-only ruOS transport readiness. This is never a promotion receipt. */
 import { createHash } from 'node:crypto';
+import { validateImageBytes } from '../packages/cli/src/ruos-evaluation.mjs';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const MACHINE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
@@ -32,14 +33,7 @@ export function inspectRuosPreflight(execResult, screenshotResult) {
       reasons.push('PIXELS_INVALID');
     } else {
       const bytes = Buffer.from(data, 'base64');
-      const png = mimeType === 'image/png' && bytes.length >= 45 &&
-        bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')) &&
-        bytes.toString('ascii', 12, 16) === 'IHDR' &&
-        bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0 &&
-        bytes.subarray(-12).equals(Buffer.from('0000000049454e44ae426082', 'hex'));
-      const jpeg = mimeType === 'image/jpeg' && bytes.length >= 32 &&
-        bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217;
-      if (png || jpeg) screenshotSha256 = sha256(bytes);
+      if (validateImageBytes(bytes, mimeType)) screenshotSha256 = sha256(bytes);
       else reasons.push('PIXELS_INVALID');
     }
   }
