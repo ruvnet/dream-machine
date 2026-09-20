@@ -30,6 +30,15 @@ export interface EvaluatorEntrypoints {
 
 export type AdrConvention = '3-digit' | '4-digit' | { pad: number; dir: string };
 
+export interface RuosEvaluation {
+  enabled: true;
+  /** Dedicated isolated desktop identifier; never a command or URL. */
+  machine: string;
+  requireScreenshot: true;
+  /** Evidence freshness limit, 60 seconds through 24 hours. */
+  maxReceiptAgeSeconds: number;
+}
+
 export interface DreamConfig {
   /** Target repo, "owner/name". */
   repo: string;
@@ -59,6 +68,8 @@ export interface DreamConfig {
   labels?: string[];
   /** If true, the guarded auto-merge policy is described in the PR step. */
   autoMerge?: boolean;
+  /** Optional independent desktop evaluation; never grants promotion authority. */
+  ruosEvaluation?: RuosEvaluation;
 }
 
 export interface ValidationResult {
@@ -111,12 +122,29 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       errors.push('adrConvention.dir must be a non-empty string');
     }
   }
+  if (config.ruosEvaluation !== undefined) {
+    const r = config.ruosEvaluation;
+    if (r === null || typeof r !== 'object' || Array.isArray(r)) {
+      errors.push('ruosEvaluation must be an object');
+    } else {
+      const allowed = ['enabled', 'machine', 'requireScreenshot', 'maxReceiptAgeSeconds'];
+      if (Object.keys(r).some(k => !allowed.includes(k))) errors.push('ruosEvaluation contains unknown fields');
+      if (r.enabled !== true) errors.push('ruosEvaluation.enabled must be true; omit the option to disable');
+      if (typeof r.machine !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(r.machine)) {
+        errors.push('ruosEvaluation.machine must be an opaque safe identifier of 1 to 128 characters');
+      }
+      if (r.requireScreenshot !== true) errors.push('ruosEvaluation.requireScreenshot must be true');
+      if (!Number.isInteger(r.maxReceiptAgeSeconds) || r.maxReceiptAgeSeconds < 60 || r.maxReceiptAgeSeconds > 86400) {
+        errors.push('ruosEvaluation.maxReceiptAgeSeconds must be an integer from 60 to 86400');
+      }
+    }
+  }
   return { ok: errors.length === 0, errors, warnings };
 }
 
 /** Fill defaults over a partial config after validation passes. */
-export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli'>> &
-  Pick<DreamConfig, 'buildStep' | 'bonusModuli'> {
+export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'>> &
+  Pick<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'> {
   return {
     repo: config.repo,
     cron: config.cron.trim(),
@@ -132,6 +160,7 @@ export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'b
     branchPrefix: config.branchPrefix ?? 'dream/',
     labels: config.labels ?? ['dream-cycle', 'research'],
     autoMerge: config.autoMerge ?? false,
+    ...(config.ruosEvaluation === undefined ? {} : { ruosEvaluation: { ...config.ruosEvaluation } }),
   };
 }
 
