@@ -192,6 +192,17 @@ export interface LearningSignals {
   /** Count of nights considered. */
   nightsConsidered: number;
   /**
+   * Distinct calendar dates among the windowed rows (`nightsConsidered` rows).
+   * The window is a raw row-count slice, not a calendar-night slice: a night
+   * whose row was re-appended later (e.g. once its real PR/issue number
+   * became known) consumes two window slots for one real night. Observed on
+   * the real committed ledger: the last 14 rows cover only 11 distinct
+   * dates. Compare against `nightsConsidered` to tell whether "N nights" in
+   * `zeroMergeStreak`/`blockedEvalStreak` is trustworthy or inflated by
+   * duplicate/re-appended rows.
+   */
+  distinctDatesInWindow: number;
+  /**
    * Most recent valid row date (YYYY-MM-DD), or null if the ledger has no
    * dated rows. The nightly cron runs daily, but every candidate PR ships its
    * ledger row on its own branch — a row lands on `main` only once that PR
@@ -282,6 +293,9 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const blockedEvalStreak =
     recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
 
+  // Distinct calendar dates within the windowed rows (see field doc above).
+  const distinctDatesInWindow = new Set(recent.map((r) => r.date).filter((d) => DATE_RE.test(d))).size;
+
   // Staleness: the newest valid row date, regardless of row order.
   const validDates = rows.map((r) => r.date).filter((d) => DATE_RE.test(d));
   const lastRowDate = validDates.length ? validDates.reduce((max, d) => (d > max ? d : max)) : null;
@@ -296,6 +310,7 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
     lowScoreStreak,
     blockedEvalStreak,
     nightsConsidered: recent.length,
+    distinctDatesInWindow,
     lastRowDate,
     daysSinceLastRow,
     ledgerStale,

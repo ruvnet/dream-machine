@@ -174,7 +174,13 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
   const sig: string[] = [];
   if (signals.ledgerStale) sig.push(`${c.red}⚠ ledger stale (${signals.daysSinceLastRow}d since last row) — signals below may be blind${c.reset}`);
-  if (signals.zeroMergeStreak) sig.push(`${c.yellow}⚠ zero merges in ${signals.nightsConsidered} nights${c.reset}`);
+  if (signals.zeroMergeStreak) {
+    const nightsLabel =
+      signals.distinctDatesInWindow < signals.nightsConsidered
+        ? `${signals.distinctDatesInWindow} nights, ${signals.nightsConsidered} rows`
+        : `${signals.nightsConsidered} nights`;
+    sig.push(`${c.yellow}⚠ zero merges in ${nightsLabel}${c.reset}`);
+  }
   if (signals.blockedEvalStreak) sig.push(`${c.yellow}⚠ eval blocked streak${c.reset}`);
   if (signals.lowScoreStreak) sig.push(`${c.yellow}⚠ low-score streak${c.reset}`);
   if (signals.duplicateDirections.length) sig.push(`${c.yellow}⚠ ${signals.duplicateDirections.length} duplicate direction(s)${c.reset}`);
