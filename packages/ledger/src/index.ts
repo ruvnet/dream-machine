@@ -155,6 +155,22 @@ export interface VerifyResult {
   rowCount: number;
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * True when `s` matches YYYY-MM-DD *and* is a real calendar date. The regex
+ * shape alone accepts impossible dates like `2026-99-99` or `2026-02-30`,
+ * which then silently counted as valid "nights" in every signal derived
+ * from row dates (caught in review: they inflated distinctDatesInWindow /
+ * lastRowDate / daysSinceLastRow / ledgerStale, and passed verifyLedger).
+ */
+function isValidCalendarDate(s: string): boolean {
+  if (!DATE_RE.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
 /** Structurally verify a ledger: header present, verdicts/evaluated in range. */
 export function verifyLedger(markdown: string): VerifyResult {
   const errors: string[] = [];
@@ -169,8 +185,8 @@ export function verifyLedger(markdown: string): VerifyResult {
     if (r.evaluated && !EVALS.includes(r.evaluated)) {
       errors.push(`row ${i + 1}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
     }
-    if (r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
-      errors.push(`row ${i + 1}: date "${r.date}" is not YYYY-MM-DD`);
+    if (r.date && !isValidCalendarDate(r.date)) {
+      errors.push(`row ${i + 1}: date "${r.date}" is not a valid calendar date (YYYY-MM-DD)`);
     }
   });
   return { ok: errors.length === 0, errors, warnings, rowCount: rows.length };
@@ -241,8 +257,6 @@ export interface SignalOptions {
   pendingFindings?: string[];
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 /** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
 function daysBetween(from: string, to: string): number {
   const a = Date.parse(`${from}T00:00:00Z`);
@@ -294,10 +308,10 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
     recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
 
   // Distinct calendar dates within the windowed rows (see field doc above).
-  const distinctDatesInWindow = new Set(recent.map((r) => r.date).filter((d) => DATE_RE.test(d))).size;
+  const distinctDatesInWindow = new Set(recent.map((r) => r.date).filter(isValidCalendarDate)).size;
 
   // Staleness: the newest valid row date, regardless of row order.
-  const validDates = rows.map((r) => r.date).filter((d) => DATE_RE.test(d));
+  const validDates = rows.map((r) => r.date).filter(isValidCalendarDate);
   const lastRowDate = validDates.length ? validDates.reduce((max, d) => (d > max ? d : max)) : null;
   const today = opts.today;
   const staleAfterDays = opts.staleAfterDays ?? 1;

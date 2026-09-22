@@ -527,6 +527,19 @@ describe('tui', () => {
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
   });
+  it('singularizes "1 night" instead of "1 nights" when the window is a single distinct date (caught in review)', () => {
+    // All 14 rows share sampleRow's default date, so distinctDatesInWindow=1.
+    let md = emptyLedger();
+    for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('zero merges in 1 night, 14 rows');
+    expect(frame).not.toContain('1 nights');
+  });
+  it('labels the header stat "rows", not "nights" (total is an all-time row count, not a per-night count)', () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('rows 1');
+  });
   it('shows a ledger-stale warning when `today` is far past the last row', () => {
     const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
     const frame = renderDashboard(md, { noColor: true, today: '2026-08-20' });
