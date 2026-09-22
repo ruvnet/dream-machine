@@ -54,4 +54,29 @@ describe('classifyEntrypointResult', () => {
     const r = classifyEntrypointResult({ code: 1, stdout: '', stderr: 'npm error could not determine executable to run' });
     expect(r.verdict).toBe('blocked');
   });
+
+  it('does not flag an unrelated "already exists" failure from a non-darwin entrypoint as stale-state', () => {
+    // classifyEntrypointResult is shared across every configured evaluatorEntrypoints
+    // value (bench, flywheel, redblue, darwin, ...) — a real bench-test failure whose
+    // message happens to contain the generic phrase "already exists" for an unrelated
+    // reason must still classify as a genuine failure (blocked), not benign leftover
+    // darwin state to "clear and re-run".
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: '',
+      stderr: "AssertionError: expected createUser to succeed, but user 'alice' already exists",
+    });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toContain('already exists');
+  });
+
+  it('still flags the exact darwin child-id collision as stale-state after the regex narrowing', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: '',
+      stderr: 'Error: darwin: autonomous or generated child id already exists: g2_v5',
+    });
+    expect(r.verdict).toBe('stale-state');
+    expect(r.reason).toContain('Clear that state and re-run');
+  });
 });
