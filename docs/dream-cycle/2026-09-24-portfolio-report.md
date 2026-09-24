@@ -36,11 +36,11 @@ Issue #3411 confirmed that published `@claude-flow/mcp@3.0.0-alpha.9` contains a
 
 Draft [PR #3412](https://github.com/ruvnet/ruflo/pull/3412) at exact head `abf6da6bebbfc94a89598b3984098af0b3ad31ea` aligns the MCP package helper, covers all three copies, and adds a benign whitespace-bearing argv case that distinguishes direct argv delivery from historical shell splitting. Local exact-head validation passed 18/18 behavioral cases and syntax checks. The alpha.10 candidate pack contains 65 files; tarball SHA-256 is `e666573728a1e45ba5fb5c2fdf1ffed634a4348c689df0f5c988383290adca99`, packed-helper SHA-256 is `23ad4cbd23f79d1f9bcc919ce62a52e0aef2cd998d6f0f1929e1d4fd088e99aa`, and the packed execution path uses `execFileSync` without an `execSync(...)` call. Node documents that `exec` runs through a shell while `execFile` spawns directly by default. [Node child-process documentation](https://nodejs.org/api/child_process.html#child_processexecfilefile-args-options)
 
-The change is draft, unmerged, and unreleased. The published alpha.9 remains affected and should be handled through a private security advisory and an authorized release. CVE Audit, no-MetaHarness smoke, Cross-Agent, CodeQL, Verification, and V3 CI/CD passed at the exact head; main [CI/CD 35964519578](https://github.com/ruvnet/ruflo/actions/runs/35964519578) was still executing at the evidence freeze. Therefore the safe implementation is not yet integration-ready or delivered.
+The change is draft, unmerged, and unreleased. The published alpha.9 remains affected and should be handled through a private security advisory and an authorized release. All seven exact-head workflow groups passed: CVE Audit, no-MetaHarness smoke, Cross-Agent, CodeQL, Verification, V3 CI/CD, and [main CI/CD 35964519578](https://github.com/ruvnet/ruflo/actions/runs/35964519578). Acceptance is narrowly scoped to the baseline-sensitive regression and packed alpha.10 candidate; it is not a claim that the published vulnerability has been remediated or delivered.
 
 Action: materially updated [issue #3411](https://github.com/ruvnet/ruflo/issues/3411#issuecomment-5808901155) and created draft [PR #3412](https://github.com/ruvnet/ruflo/pull/3412).
 
-Verdict: **INCONCLUSIVE**
+Verdict: **ACCEPT**
 
 ### 3. RVM PR #78 — acquired-resource quarantine
 
@@ -119,11 +119,11 @@ ruOS verdict: **INCONCLUSIVE**
 - Ruflo issue #3411 was materially updated and draft implementation PR #3412 was created; it remains mergeable, draft, unmerged, unreleased, and without automerge.
 - One reusable lesson was written to Ruflo memory and retrieval-verified.
 - [Core Memory checkpoint 5809015715](https://github.com/ruvnet/core-memory/issues/20#issuecomment-5809015715) was written and retrieval-verified.
-- Federation Result `57cc8e7050891c78f950fcfd1731d8cc4e7c692f0c8be79f3fbaeaf095d85cea` was retrieved from the relay and content-verified as untrusted coordination data.
+- Federation Result `86c38fe1967e8aa899ddfff97983c2689f827c43f0235f1eb35be1d49d4f31f9` supersedes the earlier pending-CI receipt and was retrieved from the relay and content-verified as untrusted coordination data.
 - The Dream evidence branch passed 616/616 Vitest tests, 81/81 governance tests, lint, and typecheck locally before publication.
 - Zero direct default-branch pushes, merges, releases, deployments, automerge changes, or research-strategy promotions occurred.
 
-Blockers are Dream evaluator-identity binding; an authorized Ruflo advisory/release and terminal exact-head CI; RVM restart/cancellation/identity-bound enforcement and green toolchains; RuVector calibrated outcomes, untouched holdout, real multi-target inference, blocking quality gates, and Workspace CI; RuView atomic owner-only creation, read-only/failure cleanup, platform replay, and CI coverage; and authoritative ruOS completion with screenshot bytes.
+Blockers are Dream evaluator-identity binding; an authorized Ruflo advisory/release; RVM restart/cancellation/identity-bound enforcement and green toolchains; RuVector calibrated outcomes, untouched holdout, real multi-target inference, blocking quality gates, and Workspace CI; RuView atomic owner-only creation, read-only/failure cleanup, platform replay, and CI coverage; and authoritative ruOS completion with screenshot bytes.
 
 Next cohort: authorized Ruflo published-artifact remediation and exact release verification; Dream structured evaluator errors; RVM durable activation transactions; calibrated RuVector/OOD and real native/WASM target qualification; RuView cross-platform owner-only state; QuDAG release recovery; Open Claude Code private trust-boundary remediation; ruPet initial security/functionality baseline; and neglected high-risk repositories.
 
