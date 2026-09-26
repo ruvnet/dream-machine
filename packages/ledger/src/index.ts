@@ -306,6 +306,16 @@ export interface LearningSignals {
   daysSinceLastRow: number | null;
   /** true when daysSinceLastRow exceeds `staleAfterDays` — treat every signal above as unreliable. */
   ledgerStale: boolean;
+  /**
+   * Currently-open, unmerged dream-cycle candidate PR count, echoed straight
+   * from `openCandidateCount` (null when the caller didn't supply one).
+   * `zeroMergeStreak` says whether ANY of the last `window` nights' PRs
+   * merged; it cannot tell "nothing has been proposed lately" apart from
+   * "N proposals are sitting open and unreviewed" — both read as the same
+   * boolean. A live GitHub check knows which one it is; this field lets that
+   * count reach the same dashboard `zeroMergeStreak` already reaches.
+   */
+  reviewBacklogSize: number | null;
 }
 
 export interface SignalOptions {
@@ -329,6 +339,13 @@ export interface SignalOptions {
    * alongside merged-row findings. Omit for byte-identical prior behavior.
    */
   pendingFindings?: string[];
+  /**
+   * Count of currently-open, unmerged dream-cycle candidate PRs (e.g. open
+   * PRs whose head branch matches `branchPrefix`), from a live GitHub check
+   * the caller already ran. Omit for `reviewBacklogSize: null` (byte-identical
+   * prior behavior — this option adds a field, it changes no existing one).
+   */
+  openCandidateCount?: number;
 }
 
 /** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
@@ -392,6 +409,8 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const daysSinceLastRow = lastRowDate && today ? daysBetween(lastRowDate, today) : null;
   const ledgerStale = daysSinceLastRow !== null && daysSinceLastRow > staleAfterDays;
 
+  const reviewBacklogSize = opts.openCandidateCount ?? null;
+
   return {
     zeroMergeStreak,
     duplicateDirections,
@@ -402,6 +421,7 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
     lastRowDate,
     daysSinceLastRow,
     ledgerStale,
+    reviewBacklogSize,
   };
 }
 
