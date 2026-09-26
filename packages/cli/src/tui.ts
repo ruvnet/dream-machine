@@ -161,11 +161,16 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   // a night whose row was re-appended later (once its real PR number was
   // known) inflates it, same conflation the zero-merge signal below guards
   // against — so label it "rows", not "nights" (caught in review).
+  // `stats.other` covers any verdict outside the ACCEPT/REJECT/INCONCLUSIVE
+  // enum (e.g. this repo's own compound "portfolio" rows) — shown only when
+  // nonzero so the four counts always sum to `total`, instead of silently
+  // undercounting real rows.
   const statLine =
     `${c.gray}rows${c.reset} ${c.bold}${total}${c.reset}   ` +
     `${c.green}● ${stats.ACCEPT} accept${c.reset}   ` +
     `${c.red}● ${stats.REJECT} reject${c.reset}   ` +
-    `${c.yellow}● ${stats.INCONCLUSIVE} inconclusive${c.reset}`;
+    `${c.yellow}● ${stats.INCONCLUSIVE} inconclusive${c.reset}` +
+    (stats.other > 0 ? `   ${c.gray}○ ${stats.other} other${c.reset}` : '');
   lines.push(`${c.violet}│${c.reset} ${pad(statLine, W - 2)} ${c.violet}│${c.reset}`);
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { run, parseArgs, parsePendingFindings, VERSION, type IO } from './index.js';
 import { renderDashboard, displayWidth, pad } from './tui.js';
-import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
+import { appendRow, emptyLedger, parseLedger, verdictStats, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
 
 function mockIO(files: Record<string, string> = {}): IO & { files: Record<string, string> } {
@@ -804,6 +804,33 @@ describe('tui', () => {
     const frame = renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']) });
     expect(frame).not.toContain('zero merges');
     expect(frame).toContain('signals nominal');
+  });
+  it('renderDashboard omits the "other" stat segment when every verdict is in the enum (no regression)', () => {
+    let md = emptyLedger();
+    for (const verdict of ['ACCEPT', 'REJECT', 'INCONCLUSIVE'] as const) {
+      md = appendRow(md, sampleRow({ pr: `#${verdict}`, verdict }));
+    }
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toContain('other');
+  });
+  it('renderDashboard surfaces stats.other for a non-enum verdict instead of silently dropping it (regression: compound "portfolio" verdicts like "ACCEPT / REJECT / INCONCLUSIVE" vanished from the stats line)', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ pr: '#a', verdict: 'ACCEPT' }));
+    md = appendRow(md, sampleRow({ pr: '#b', verdict: 'ACCEPT / REJECT / INCONCLUSIVE' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('1 other');
+    // The four displayed counts must sum to the total row count, not undercount it.
+    expect(frame).toContain('rows 2');
+    expect(frame).toContain('1 accept');
+  });
+  it('renderDashboard: displayed verdict counts sum to total nights on the real committed ledger', async () => {
+    const fs = await import('node:fs');
+    const md = fs.readFileSync(new URL('../../../docs/dream-cycle/LEDGER.md', import.meta.url), 'utf8');
+    const { rows } = parseLedger(md);
+    const stats = verdictStats(rows);
+    expect(stats.ACCEPT + stats.REJECT + stats.INCONCLUSIVE + stats.other).toBe(rows.length);
+    const frame = renderDashboard(md, { noColor: true });
+    if (stats.other > 0) expect(frame).toContain(`${stats.other} other`);
   });
   it('tui --merged clears the zero-merge warning end-to-end', async () => {
     const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
