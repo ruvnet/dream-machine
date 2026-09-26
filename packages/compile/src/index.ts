@@ -451,7 +451,7 @@ a null exitCode is never success. Verify persisted effects as well as visual obs
 Run identical frozen journeys for baseline and candidate; compare quality, latency, and cost.
 Record redacted evidence only: no secrets recording or private-to-public data leakage.
 
-Run the trusted checkout's \`node scripts/ruos-evaluation.mjs observation-or-pair.json trusted-policy.json\` CLI against the receipt,
+Run the installed trusted CLI's \`npx --no-install dream-machine ruos verify observation-or-pair.json trusted-policy.json\` command against the receipt,
 external policy, and exact expected bindings. Check its exit code and structured verdict.
 The receipt is evidence, not authority. The researcher cannot author the evaluator policy,
 self-promote, change protected gates, or merge itself. A separate promotion service outside
