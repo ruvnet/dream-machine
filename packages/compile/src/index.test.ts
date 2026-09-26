@@ -169,6 +169,22 @@ describe('validateConfig', () => {
     expect(validateConfig({ ...metaharness, adrConvention: '3-digit' }).ok).toBe(true);
     expect(validateConfig({ ...metaharness, adrConvention: '4-digit' }).ok).toBe(true);
   });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('rejects an empty %s', (field) => {
+    const r = validateConfig({ ...metaharness, [field]: '' });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(new RegExp(`${field} must be a non-empty string`));
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('rejects a whitespace-only %s', (field) => {
+    const r = validateConfig({ ...metaharness, [field]: '   ' });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(new RegExp(`${field} must be a non-empty string`));
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('leaves %s optional (absent is still valid)', (field) => {
+    expect(validateConfig({ ...metaharness, [field]: undefined }).ok).toBe(true);
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('accepts a well-formed %s', (field) => {
+    expect(validateConfig({ ...metaharness, [field]: 'docs/custom-path' }).ok).toBe(true);
+  });
 });
 
 describe('compile', () => {
@@ -192,6 +208,14 @@ describe('compile', () => {
     expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
       /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
     );
+  });
+
+  it('throws instead of silently compiling a broken ledger reference from an empty ledgerPath', () => {
+    expect(() => compile({ ...metaharness, ledgerPath: '' })).toThrow(/ledgerPath must be a non-empty string/);
+  });
+
+  it('throws instead of silently compiling a stripped branch name from an empty branchPrefix', () => {
+    expect(() => compile({ ...metaharness, branchPrefix: '' })).toThrow(/branchPrefix must be a non-empty string/);
   });
 
   it('is deterministic (same input → identical output)', () => {

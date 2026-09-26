@@ -161,6 +161,12 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       errors.push('adrConvention.dir must be a non-empty string');
     }
   }
+  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
+    errors.push('ledgerPath must be a non-empty string');
+  }
+  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
+    errors.push('branchPrefix must be a non-empty string');
+  }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;
     if (r === null || typeof r !== 'object' || Array.isArray(r)) {
