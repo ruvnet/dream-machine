@@ -147,9 +147,12 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   lines.push(`${c.violet}│${c.reset} ${c.bold}${c.cyan}${pad(title, W - 2)}${c.reset} ${c.violet}│${c.reset}`);
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
 
-  // Stats row.
+  // Stats row. `total` is every row ever appended, not a per-night count —
+  // a night whose row was re-appended later (once its real PR number was
+  // known) inflates it, same conflation the zero-merge signal below guards
+  // against — so label it "rows", not "nights" (caught in review).
   const statLine =
-    `${c.gray}nights${c.reset} ${c.bold}${total}${c.reset}   ` +
+    `${c.gray}rows${c.reset} ${c.bold}${total}${c.reset}   ` +
     `${c.green}● ${stats.ACCEPT} accept${c.reset}   ` +
     `${c.red}● ${stats.REJECT} reject${c.reset}   ` +
     `${c.yellow}● ${stats.INCONCLUSIVE} inconclusive${c.reset}`;
@@ -174,7 +177,14 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
   const sig: string[] = [];
   if (signals.ledgerStale) sig.push(`${c.red}⚠ ledger stale (${signals.daysSinceLastRow}d since last row) — signals below may be blind${c.reset}`);
-  if (signals.zeroMergeStreak) sig.push(`${c.yellow}⚠ zero merges in ${signals.nightsConsidered} nights${c.reset}`);
+  if (signals.zeroMergeStreak) {
+    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    const nightsLabel =
+      signals.distinctDatesInWindow < signals.nightsConsidered
+        ? `${plural(signals.distinctDatesInWindow, 'night')}, ${plural(signals.nightsConsidered, 'row')}`
+        : plural(signals.nightsConsidered, 'night');
+    sig.push(`${c.yellow}⚠ zero merges in ${nightsLabel}${c.reset}`);
+  }
   if (signals.blockedEvalStreak) sig.push(`${c.yellow}⚠ eval blocked streak${c.reset}`);
   if (signals.lowScoreStreak) sig.push(`${c.yellow}⚠ low-score streak${c.reset}`);
   if (signals.duplicateDirections.length) sig.push(`${c.yellow}⚠ ${signals.duplicateDirections.length} duplicate direction(s)${c.reset}`);

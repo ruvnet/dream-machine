@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   emptyLedger,
   parseLedger,
@@ -101,6 +103,21 @@ describe('verifyLedger', () => {
     const r = verifyLedger(l);
     expect(r.errors.join()).toMatch(/date/);
     expect(r.errors.join()).toMatch(/evaluated/);
+  });
+
+  it('flags an impossible calendar date that matches the YYYY-MM-DD shape (caught in review)', () => {
+    // 2026-99-99 and 2026-02-30 both pass a bare /^\d{4}-\d{2}-\d{2}$/ regex —
+    // verifyLedger must reject them as real calendar dates, not just shapes.
+    for (const bad of ['2026-99-99', '2026-02-30', '2026-04-31', '2026-13-01']) {
+      const r = verifyLedger(appendRow(emptyLedger(), row({ date: bad })));
+      expect(r.ok, `expected ${bad} to be rejected`).toBe(false);
+      expect(r.errors.join()).toMatch(/date/);
+    }
+  });
+
+  it('accepts real calendar dates, including a leap-day', () => {
+    const r = verifyLedger(appendRow(emptyLedger(), row({ date: '2028-02-29' })));
+    expect(r.ok).toBe(true);
   });
 
   it('flags a missing header', () => {
@@ -317,6 +334,85 @@ describe('learning signals', () => {
     for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
+  });
+
+  describe('distinctDatesInWindow', () => {
+    it('equals nightsConsidered when every windowed row has a distinct date', () => {
+      let l = emptyLedger();
+      for (let i = 0; i < 5; i++) l = appendRow(l, row({ date: `2026-08-${String(i + 1).padStart(2, '0')}` }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 5 });
+      expect(s.nightsConsidered).toBe(5);
+      expect(s.distinctDatesInWindow).toBe(5);
+    });
+
+    it('is smaller than nightsConsidered when a date is re-appended (the observed real-ledger shape)', () => {
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-27', pr: 'portfolio draft' }));
+      l = appendRow(l, row({ date: '2026-08-27', pr: '#37' })); // re-appended once the real PR number was known
+      l = appendRow(l, row({ date: '2026-08-28' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 3 });
+      expect(s.nightsConsidered).toBe(3);
+      expect(s.distinctDatesInWindow).toBe(2);
+    });
+
+    it('ignores unparseable dates, same as lastRowDate', () => {
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-20' }));
+      l = appendRow(l, row({ date: 'yesterday' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 2 });
+      expect(s.nightsConsidered).toBe(2);
+      expect(s.distinctDatesInWindow).toBe(1);
+    });
+
+    it('is 0 on an empty ledger', () => {
+      const s = learningSignals([]);
+      expect(s.distinctDatesInWindow).toBe(0);
+    });
+
+    it('does not count a calendar-impossible date as a night (caught in review)', () => {
+      // 2026-99-99 matches the YYYY-MM-DD shape but isn't a real date; it must
+      // not inflate distinctDatesInWindow, lastRowDate, or daysSinceLastRow.
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-20' }));
+      l = appendRow(l, row({ date: '2026-99-99' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 2, today: '2026-08-25' });
+      expect(s.nightsConsidered).toBe(2);
+      expect(s.distinctDatesInWindow).toBe(1);
+      expect(s.lastRowDate).toBe('2026-08-20');
+      expect(s.daysSinceLastRow).toBe(5);
+    });
+
+    it('matches a frozen snapshot of the real ledger: last 14 rows cover fewer than 14 distinct dates', () => {
+      // Fixture: docs/dream-cycle/LEDGER.md as it stood on 2026-09-21, frozen
+      // into __fixtures__ rather than read from the live path — that file
+      // gains a new row every night this pipeline runs, which would silently
+      // shift this window and break an exact-value assertion. The frozen
+      // snapshot re-appends several nights (2026-08-27, -28, -29, -30) once
+      // their real PR number became known, so nightsConsidered=14 has always
+      // overstated real calendar-night coverage — this is the bug this field
+      // surfaces, pinned against real (not synthetic) production data.
+      const md = readFileSync(join(import.meta.dirname, '__fixtures__/2026-09-21-ledger-snapshot.md'), 'utf8');
+      const { rows } = parseLedger(md);
+      const s = learningSignals(rows);
+      expect(s.nightsConsidered).toBe(14);
+      expect(s.distinctDatesInWindow).toBeLessThan(s.nightsConsidered);
+      expect(s.distinctDatesInWindow).toBe(11);
+    });
+
+    it('never exceeds nightsConsidered, against the live ledger path (invariant, not a pinned value)', () => {
+      // Companion to the frozen-snapshot test above: this one reads the live,
+      // nightly-growing docs/dream-cycle/LEDGER.md and asserts only the
+      // invariant that holds for any content, so it stays green as the real
+      // ledger keeps changing.
+      const md = readFileSync(join(import.meta.dirname, '../../../docs/dream-cycle/LEDGER.md'), 'utf8');
+      const { rows } = parseLedger(md);
+      const s = learningSignals(rows);
+      expect(s.distinctDatesInWindow).toBeLessThanOrEqual(s.nightsConsidered);
+    });
   });
 });
 
