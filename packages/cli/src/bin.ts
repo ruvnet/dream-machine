@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** The real executable: wires `run` to the process + node fs. */
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, open } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { exec as execCb, execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { run, type IO } from './index.js';
@@ -8,8 +9,22 @@ import { run, type IO } from './index.js';
 const exec = promisify(execCb);
 const execFile = promisify(execFileCb);
 
+async function readEvidenceFile(path: string): Promise<string> {
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size > 24 * 1024 * 1024) throw new Error('INVALID_INPUT');
+    const bytes = await handle.readFile();
+    if (bytes.length > 24 * 1024 * 1024) throw new Error('INVALID_INPUT');
+    return bytes.toString('utf8');
+  } finally {
+    await handle.close();
+  }
+}
+
 const io: IO = {
   readFile: (p) => readFile(p, 'utf8'),
+  readEvidenceFile,
   writeFile: (p, c) => writeFile(p, c, 'utf8'),
   now: () => new Date().toISOString().slice(0, 10),
   env: process.env,
