@@ -149,6 +149,71 @@ describe('ledger', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('verdict');
   });
+  it('verify --since-row grandfathers earlier rows, still enforces later ones', async () => {
+    const bad = appendRow(
+      appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })),
+      sampleRow({ date: '2026-08-14', verdict: 'ALSO-BAD' }),
+    );
+    const grandfatheredAll = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': bad }));
+    expect(grandfatheredAll.code).toBe(0);
+    expect(grandfatheredAll.out).toContain('ledger OK');
+
+    const enforceRow2 = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '2'], mockIO({ 'L.md': bad }));
+    expect(enforceRow2.code).toBe(1);
+    expect(enforceRow2.err).toContain('row 2');
+    expect(enforceRow2.err).not.toContain('row 1');
+  });
+  it('verify rejects a non-numeric --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
+  it('verify rejects a value-less --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
+  it('legacy-digest prints the digest for rows before --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('legacy-digest requires --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row N is required');
+  });
+  it('verify --legacy-digest passes when the legacy prefix is unmodified', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(0);
+  });
+  it('verify --legacy-digest fails closed when the legacy prefix was tampered with (review: PR #114 insertion attack)', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    // Insert a bad row before the boundary — every row after it shifts down.
+    const tampered = appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })) + ledgerMd.split('\n').slice(2).join('\n');
+    const withoutDigest = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': tampered }));
+    expect(withoutDigest.code).toBe(0); // vulnerable without the digest anchor
+    const withDigest = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': tampered }),
+    );
+    expect(withDigest.code).toBe(1);
+    expect(withDigest.err).toContain('legacy prefix digest mismatch');
+  });
+  it('verify rejects a malformed --legacy-digest with a clear usage error', async () => {
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '2', '--legacy-digest', 'not-hex'],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--legacy-digest expects a 64-char lowercase sha256 hex digest');
+  });
   it('stats', async () => {
     const r = await run(['ledger', 'stats', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out).ACCEPT).toBe(1);
