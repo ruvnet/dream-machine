@@ -28,7 +28,7 @@ import {
 } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, type ExecResult } from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
 import {
   evaluateDocuments,
@@ -47,6 +47,12 @@ export interface IO {
   env: Record<string, string | undefined>;
   /** Run a shell command and capture its result. Optional: not every IO needs it. */
   exec?(cmd: string): Promise<ExecResult>;
+  /**
+   * Run a file with argv, no shell involved. Optional: not every IO needs it.
+   * Used by `verify-entrypoints` so a config-sourced command string never
+   * reaches a shell — see `tokenizeCommand` in entrypoint.ts.
+   */
+  execFile?(file: string, args: string[]): Promise<ExecResult>;
 }
 
 export interface RunResult {
@@ -137,6 +143,8 @@ Commands:
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
+  verify-entrypoints [config]                           Classify every evaluatorEntrypoints entry
+                                                         (execFile, never a shell — no manual retyping)
   tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
   ruos verify <observation-or-pair.json> <policy.json>  Verify a governed ruOS receipt
@@ -382,6 +390,82 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
                 ? 2
                 : 3; // stale-state
         return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'verify-entrypoints': {
+        // Trust boundary (unlike audit-gate's policy file below, deliberately not
+        // hardened against a hostile config): dream.config.json is repo-committed,
+        // PR-reviewed config, never runtime-attacker-controlled — same boundary PR
+        // #17/#40 already established for this exact entrypoint automation. execFile
+        // (never a shell) still applies regardless, so a config value containing shell
+        // metacharacters can't act as a shell operator even if that boundary were ever
+        // wrong. Not proven shell-safe on Windows: `execFile('npm'|'npx', …)` resolves
+        // through the platform's `.cmd`/`.bat` shim, which Node internally re-spawns via
+        // `cmd.exe` (see nodejs/node CVE-2024-27980) — this repo's nightly runner is
+        // Linux-only, so out of scope tonight, flagged for anyone porting this command.
+        const configPath = _[1] ?? 'dream.config.json';
+        if (!io.execFile) {
+          sink.error('verify-entrypoints: this IO has no execFile() — cannot run commands');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let config: DreamConfig;
+        try {
+          config = await loadConfig(io, configPath);
+        } catch (e) {
+          sink.error(`verify-entrypoints: failed to load ${configPath}: ${(e as Error).message}`);
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        const entries = Object.entries(config.evaluatorEntrypoints ?? {});
+        if (entries.length === 0) {
+          sink.log('verify-entrypoints: no evaluatorEntrypoints configured');
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+        let worst = 0;
+        for (const [label, rawValue] of entries) {
+          // Every configured key gets a report line and counts toward the aggregate
+          // exit code — a non-string/blank value is reported blocked, never silently
+          // dropped from the pass (2026-09-18, PR #116 review).
+          if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+            sink.log(
+              `${label}: blocked (exit 1) — evaluatorEntrypoints.${label} is not a configured command string`,
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          const argv = tokenizeCommand(rawValue);
+          const [file, ...args] = argv;
+          if (!file) {
+            sink.log(`${label}: blocked (exit 1) — empty command after tokenizing ${JSON.stringify(rawValue)}`);
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          if (looksLikeCompoundCommand(argv)) {
+            // Fail closed rather than dispatch argv[0] with the rest of a multi-command
+            // string as its arguments — see looksLikeCompoundCommand's own doc comment
+            // for the live repro (this repo's own darwin entry). Nothing is executed.
+            sink.log(
+              `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
+                `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
+                'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
+                'command, or verify its pieces individually via verify-entrypoint',
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          const result = await io.execFile(file, args);
+          const check = classifyEntrypointResult(result);
+          sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
+          const code =
+            check.verdict === 'live'
+              ? 0
+              : check.verdict === 'blocked'
+                ? 1
+                : check.verdict === 'suspicious-silent'
+                  ? 2
+                  : 3; // stale-state
+          worst = Math.max(worst, code);
+        }
+        return { code: worst, out: sink.out, err: sink.err };
       }
 
       case 'audit-gate': {
