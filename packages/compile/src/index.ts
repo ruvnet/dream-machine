@@ -45,6 +45,7 @@ export function compile(config: DreamConfig): string {
   sections.push(step10to14Gates());
   sections.push(step15Security());
   sections.push(step16Witness());
+  if (c.ruosEvaluation) sections.push(ruosEvaluationBoundary(c.ruosEvaluation));
   sections.push(step17to18Publish(c.labels));
   sections.push(step19Adr(adrDir(c.adrConvention), adrPad(c.adrConvention)));
   sections.push(step20to25PublishFlow(c.branchPrefix, c.ledgerPath, c.autoMerge));
@@ -431,4 +432,30 @@ search space smaller and the accumulated evidence stronger. If a candidate wins,
 retain why it won; if it loses, why it lost; if inconclusive, exactly what must
 be measured next. Never optimize for producing a PR. Optimize for reducing
 uncertainty about what this repository should become.`;
+}
+
+function ruosEvaluationBoundary(r: NonNullable<DreamConfig['ruosEvaluation']>): string {
+  return `## ruOS independent evaluation boundary
+
+Use dedicated isolated desktop identifier: \`${r.machine}\`.
+Require an actual screenshot artifact and receipt age at most ${r.maxReceiptAgeSeconds} seconds.
+Freeze the baseline SHA, candidate SHA, target SHA, corpus digest, and external evaluator
+policy before execution. Bind all receipts to those exact commits and policy digest.
+Any candidate or target change invalidates evidence; evaluate the actual merge candidate again.
+
+Provision a disposable isolated environment. Never reuse production sessions or blindly
+execute PR scripts with production secrets. Keep researcher and evaluator identities separate.
+If isolation, ownership, screenshots, required capabilities, or trustworthy observations are
+missing, record INCONCLUSIVE and block promotion. Never infer success from prose:
+a null exitCode is never success. Verify persisted effects as well as visual observations.
+Run identical frozen journeys for baseline and candidate; compare quality, latency, and cost.
+Record redacted evidence only: no secrets recording or private-to-public data leakage.
+
+Run the trusted checkout's \`node scripts/ruos-evaluation.mjs observation-or-pair.json trusted-policy.json\` CLI against the receipt,
+external policy, and exact expected bindings. Check its exit code and structured verdict.
+The receipt is evidence, not authority. The researcher cannot author the evaluator policy,
+self-promote, change protected gates, or merge itself. A separate promotion service outside
+the researcher enforces branch protection, independent checks, rollout and rollback policy.
+Existing autoMerge configuration does not override this boundary. Do not claim deployment,
+production success, or an implemented promotion service from a passing local receipt.`;
 }

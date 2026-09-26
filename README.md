@@ -180,6 +180,14 @@ backends** — a night without any of them is a *degraded* night, not a failed o
 
 ## Packages
 
+### Optional ruOS evaluation
+
+The [ruOS evaluation runbook](docs/runbooks/ruos-improvement-loop.md) adds desktop
+observations and frozen baseline/candidate regression evidence to a routine.
+The verifier rejects missing or unverified observations and never grants merge
+authority. See the [integration evidence](docs/dream-cycle/2026-09-20-ruos-integration.md)
+for tested scope and live readiness limitations.
+
 | Package | What it does |
 |---|---|
 | [`dream-machine`](packages/cli) | the CLI (`init/compile/schedule/ledger/witness/tui`) + TUI |
