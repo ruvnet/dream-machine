@@ -32,7 +32,8 @@ selects a dedicated environment; a label alone is not proof of isolation.
    Never blindly execute candidate scripts with production secrets or reuse production sessions.
 4. Capture actual screenshots, persisted-state assertions, process exit codes and redacted logs.
    Null exit codes and positive prose cannot establish success. Keep private evidence private.
-5. Use the trusted `node scripts/ruos-evaluation.mjs observation-or-pair.json trusted-policy.json` command to validate the receipt with
+5. Use the trusted packaged `dream-machine ruos verify observation-or-pair.json trusted-policy.json`
+   command (or the source-tree compatibility wrapper `node scripts/ruos-evaluation.mjs ...`) to validate the receipt with
    an externally supplied policy and expected commit bindings. Consult its CLI usage for arguments.
    The researcher must not substitute its own verifier or policy. Locally passing artifacts alone
    do not establish independent provenance; the evaluator controller must protect their creation.
@@ -69,7 +70,12 @@ fields from command stdout or other prose. `exitCode`, `completionVersion: 1` an
 completion collector. Legacy null exit status remains INCONCLUSIVE even when text says SUCCESS.
 JSON text fallback is only serialization of a trusted tool response, never a candidate-authored result.
 
-Preflight checks transport readiness and an image envelope only. It does not prove tenant
+Preflight fully decodes bounded, non-interlaced PNG evidence, including chunk CRC and zlib payload
+validation. JPEG evidence fails closed until a maintained decoder is available; marker bytes are not
+pixel evidence. The same validator is used by preflight and receipt evaluation. This still does not
+establish image authenticity or visual correctness.
+
+Preflight checks transport readiness and a decoded image only. It does not prove tenant
 isolation, visual correctness, human takeover behavior, task success or promotion eligibility.
 The observation evaluator adds structural image and frozen comparison checks; these still
 cannot authenticate the collector. A digest binds evidence but is not a signature.
