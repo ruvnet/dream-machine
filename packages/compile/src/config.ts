@@ -90,7 +90,13 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     errors.push('at least one rotation slot is required');
   } else {
     config.slots.forEach((s, i) => {
-      if (!s.deep || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      // typeof guards keep validateConfig's never-throws contract for
+      // hand-authored JSON (e.g. `"deep": 42`, `"scan": [1]`, a null slot).
+      if (s === null || typeof s !== 'object') {
+        errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
+        return;
+      }
+      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
       if (!s.scan) {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else if (!Array.isArray(s.scan)) {
@@ -99,7 +105,7 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else {
         s.scan.forEach((sc, j) => {
-          if (!sc || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
         });
       }
     });

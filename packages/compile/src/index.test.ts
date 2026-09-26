@@ -77,6 +77,22 @@ describe('validateConfig', () => {
     expect(r!.ok).toBe(false);
     expect(r!.errors.join()).toMatch(/slot 0: "scan" must be an array of surface names/);
   });
+  it('rejects non-string deep/scan values and null slots without throwing', () => {
+    const cases = [
+      [{ ...metaharness.slots[0], deep: 42 }, /slot 0: missing "deep" surface/],
+      [{ ...metaharness.slots[0], scan: [1, 'ok'] }, /slot 0: scan\[0\] must be a non-empty surface name/],
+      [null, /slot 0: must be an object/],
+    ] as const;
+    for (const [slot0, msg] of cases) {
+      const slots = [slot0, ...metaharness.slots.slice(1)] as unknown as typeof metaharness.slots;
+      let r: ReturnType<typeof validateConfig> | undefined;
+      expect(() => {
+        r = validateConfig({ ...metaharness, slots });
+      }).not.toThrow();
+      expect(r!.ok).toBe(false);
+      expect(r!.errors.join()).toMatch(msg);
+    }
+  });
   it('still warns (not errors) when scan is entirely absent', () => {
     const { scan: _scan, ...slot0 } = metaharness.slots[0];
     const slots = [slot0, ...metaharness.slots.slice(1)] as typeof metaharness.slots;
