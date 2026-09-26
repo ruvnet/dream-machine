@@ -13,6 +13,7 @@ import {
   emptyLedger,
   learningSignals,
   verdictStats,
+  legacyPrefixDigest,
   VERDICTS,
   EVALS,
   type LedgerRow,
@@ -21,6 +22,9 @@ import {
   stamp,
   verify,
   verifySteps,
+  stampReport,
+  verifyReportBytes,
+  verifyReportSelfContained,
   evaluateEvidenceFreshness,
   evidenceFreshnessPolicyDigest,
   type EvidenceDependency,
@@ -28,18 +32,31 @@ import {
 } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, type ExecResult } from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
+import {
+  evaluateDocuments,
+  invalidInputReceipt,
+  receiptExitCode,
+} from './ruos-evaluation.mjs';
 
 export const VERSION = '0.1.1';
 
 export interface IO {
   readFile(path: string): Promise<string>;
+  /** Read a bounded, non-symlink evidence file when the host supports it. */
+  readEvidenceFile?(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   now(): string; // YYYY-MM-DD
   env: Record<string, string | undefined>;
   /** Run a shell command and capture its result. Optional: not every IO needs it. */
   exec?(cmd: string): Promise<ExecResult>;
+  /**
+   * Run a file with argv, no shell involved. Optional: not every IO needs it.
+   * Used by `verify-entrypoints` so a config-sourced command string never
+   * reaches a shell — see `tokenizeCommand` in entrypoint.ts.
+   */
+  execFile?(file: string, args: string[]): Promise<ExecResult>;
 }
 
 export interface RunResult {
@@ -119,19 +136,38 @@ Commands:
   init [--repo owner/name] [--out dream.config.json]   Scaffold a dream.config
   compile [config] [--out FILE]                        Compile config → routine prompt
   schedule [config] [--out FILE] [--env ID]            Emit the /schedule routine body
-  ledger verify   [--path LEDGER.md]                   Structurally verify a ledger
-  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"]
+  ledger verify   [--path LEDGER.md] [--since-row N] [--legacy-digest HEX]
+                                                       Structurally verify a ledger
+                                                         (--since-row: only enforce rows >= N;
+                                                         omitted → every row, today's default.
+                                                         --legacy-digest: anchor the grandfathered
+                                                         rows 1..N-1 to their exact content (see
+                                                         ledger legacy-digest) — a mismatch fails
+                                                         closed and enforces every row, since
+                                                         --since-row alone trusts a row NUMBER, not
+                                                         content, and can be defeated by inserting a
+                                                         row before the boundary)
+  ledger legacy-digest --path L --since-row N          Print the sha256 digest of rows 1..N-1, to
+                                                         pass as ledger verify's --legacy-digest
+  ledger signals  [--path L] [--merged "7,12"] [--pending "f1|f2"] [--open-count N]
                                                        Print STEP 1.1 learning signals
                                                          (--merged: known-merged PR numbers;
                                                          omitted → zeroMergeStreak defaults
-                                                         to a worst-case, unverified true)
+                                                         to a worst-case, unverified true;
+                                                         --open-count: live count of open,
+                                                         unmerged candidate PRs → reviewBacklogSize)
   ledger stats    [--path LEDGER.md]                   Verdict distribution
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
+  witness verify-report <report-file> [--commit sha]   Self-contained: verify a report against
+                                                         its own embedded "## Witness" section
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
-  tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
+  verify-entrypoints [config]                           Classify every evaluatorEntrypoints entry
+                                                         (execFile, never a shell — no manual retyping)
+  tui             [--path LEDGER.md] [--no-color] [--merged "7,12"] [--open-count N]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
+  ruos verify <observation-or-pair.json> <policy.json>  Verify a governed ruOS receipt
   freshness stamp --base <sha> --paths "a,b" [--out F]  Freeze the evidence read set at evaluation time
   freshness verify --policy <file> --head <sha>         Re-verify that read set against the promotion target
                                                          (exit 0 FRESH, 1 STALE, 2 indeterminate/invalid)
@@ -159,6 +195,53 @@ function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> |
     .map((s) => s.trim().replace(/^#/, ''))
     .filter(Boolean);
   return new Set(nums);
+}
+
+/**
+ * Parse `--open-count N` into `learningSignals`' `openCandidateCount` option
+ * (a live count of currently-open, unmerged dream-cycle candidate PRs). Same
+ * fail-closed shape as `--merged`: a value-less flag or a non-numeric value
+ * throws a clear usage error instead of silently becoming `NaN`. Omitted
+ * entirely → `undefined`, preserving today's `reviewBacklogSize: null` default.
+ */
+function parseOpenCandidateCount(flag: string | boolean | undefined): number | undefined {
+  if (flag === undefined) return undefined;
+  const n = typeof flag === 'string' ? Number(flag) : NaN;
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error('--open-count expects a non-negative integer, e.g. --open-count 5');
+  }
+  return n;
+}
+
+/**
+ * Parse `--since-row N` into `verifyLedger`'s `sinceRow` option: a 1-indexed
+ * row number to start enforcement from. Same fail-closed shape as `--merged`
+ * — a value-less flag or a non-integer value is a usage error, not `NaN` or
+ * silent full-ledger enforcement. Omitted entirely → `undefined` (verify
+ * every row, today's default behavior, unchanged).
+ */
+function parseSinceRow(flag: string | boolean | undefined): number | undefined {
+  if (flag === undefined) return undefined;
+  const n = typeof flag === 'string' ? Number(flag) : NaN;
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error('--since-row expects a positive integer row number, e.g. --since-row 38');
+  }
+  return n;
+}
+
+/**
+ * Parse `--legacy-digest HEX` into `verifyLedger`'s `legacyPrefixDigest`
+ * option: a 64-char lowercase sha256 hex digest. Same fail-closed shape as
+ * `--since-row` — a value-less flag or a malformed hex value is a usage
+ * error. Omitted entirely → `undefined` (ordinal-only `sinceRow` trust,
+ * today's default behavior, unchanged).
+ */
+function parseLegacyDigest(flag: string | boolean | undefined): string | undefined {
+  if (flag === undefined) return undefined;
+  if (typeof flag !== 'string' || !/^[0-9a-f]{64}$/.test(flag)) {
+    throw new Error('--legacy-digest expects a 64-char lowercase sha256 hex digest');
+  }
+  return flag;
 }
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
@@ -241,8 +324,20 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         } catch {
           md = emptyLedger();
         }
+        if (sub === 'legacy-digest') {
+          const sinceRow = parseSinceRow(flags['since-row']);
+          if (sinceRow === undefined) {
+            sink.error('ledger legacy-digest: --since-row N is required');
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          const { rows } = parseLedger(md);
+          sink.log(legacyPrefixDigest(rows, sinceRow));
+          return { code: 0, out: sink.out, err: sink.err };
+        }
         if (sub === 'verify') {
-          const r = verifyLedger(md);
+          const sinceRow = parseSinceRow(flags['since-row']);
+          const legacyDigest = parseLegacyDigest(flags['legacy-digest']);
+          const r = verifyLedger(md, { sinceRow, legacyPrefixDigest: legacyDigest });
           if (r.ok) {
             sink.log(`✓ ledger OK — ${r.rowCount} rows`);
             r.warnings.forEach((w) => sink.log(`  ⚠ ${w}`));
@@ -256,9 +351,10 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           const { rows } = parseLedger(md);
           const mergedPrNumbers = parseMergedPrNumbers(flags.merged);
           const pendingFindings = parsePendingFindings(flags.pending as string | undefined);
+          const openCandidateCount = parseOpenCandidateCount(flags['open-count']);
           sink.log(
             JSON.stringify(
-              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings }),
+              learningSignals(rows, { today: io.now(), mergedPrNumbers, pendingFindings, openCandidateCount }),
               null,
               2,
             ),
@@ -296,7 +392,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);
           return { code: 0, out: sink.out, err: sink.err };
         }
-        sink.error('ledger: expected sub-command verify|signals|stats|append');
+        sink.error('ledger: expected sub-command verify|signals|stats|append|legacy-digest');
         return { code: 1, out: sink.out, err: sink.err };
       }
 
@@ -306,26 +402,34 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           const file = _[2];
           const commit = _[3];
           if (!file || !commit) {
-            sink.error('usage: dream-machine witness stamp <report-file> <commit>');
+            sink.error('usage: dream-machine witness stamp <report-file> <commit> [--report]');
             return { code: 1, out: sink.out, err: sink.err };
           }
           const report = await io.readFile(file);
-          const w = stamp(report, commit);
+          // --report: hash canonical (pre-"## Witness"-section) bytes, so the
+          // triple is reproducible after the section is pasted into the file —
+          // see @dream-machine/witness's report-witness module (issue #112).
+          const w = flags.report ? stampReport(report, commit) : stamp(report, commit);
           sink.log(`report_sha256 : ${w.reportHash}`);
           sink.log(`session_commit: ${w.sessionCommit}`);
           sink.log(`witness       : ${w.witness}`);
           sink.log('');
-          sink.log(verifySteps());
+          if (flags.report) {
+            sink.log(`# Paste this section (heading through end) at the end of ${file}, then verify with:`);
+            sink.log(`dream-machine witness verify-report ${file} --commit ${w.sessionCommit}`);
+          } else {
+            sink.log(verifySteps());
+          }
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'verify') {
           const [, , file, commit, claimed] = _;
           if (!file || !commit || !claimed) {
-            sink.error('usage: dream-machine witness verify <report-file> <commit> <witness>');
+            sink.error('usage: dream-machine witness verify <report-file> <commit> <witness> [--report]');
             return { code: 1, out: sink.out, err: sink.err };
           }
           const report = await io.readFile(file);
-          const r = verify(report, commit, claimed);
+          const r = flags.report ? verifyReportBytes(report, commit, claimed) : verify(report, commit, claimed);
           if (r.ok) {
             sink.log('✓ witness VALID — report is bound to this commit');
             return { code: 0, out: sink.out, err: sink.err };
@@ -334,7 +438,24 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.error(`  expected: ${r.expected.witness}`);
           return { code: 1, out: sink.out, err: sink.err };
         }
-        sink.error('witness: expected sub-command stamp|verify');
+        if (sub === 'verify-report') {
+          const file = _[2];
+          const expectedCommit = flags.commit as string | undefined;
+          if (!file) {
+            sink.error('usage: dream-machine witness verify-report <report-file> [--commit <sha>]');
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          const report = await io.readFile(file);
+          const r = verifyReportSelfContained(report, expectedCommit);
+          if (r.ok) {
+            sink.log('✓ witness VALID — report is self-contained and bound to its declared commit');
+            sink.log(`  session_commit: ${r.published?.sessionCommit}`);
+            return { code: 0, out: sink.out, err: sink.err };
+          }
+          sink.error(`✗ witness INVALID — ${r.reason}`);
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        sink.error('witness: expected sub-command stamp|verify|verify-report');
         return { code: 1, out: sink.out, err: sink.err };
       }
 
@@ -376,6 +497,82 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         return { code, out: sink.out, err: sink.err };
       }
 
+      case 'verify-entrypoints': {
+        // Trust boundary (unlike audit-gate's policy file below, deliberately not
+        // hardened against a hostile config): dream.config.json is repo-committed,
+        // PR-reviewed config, never runtime-attacker-controlled — same boundary PR
+        // #17/#40 already established for this exact entrypoint automation. execFile
+        // (never a shell) still applies regardless, so a config value containing shell
+        // metacharacters can't act as a shell operator even if that boundary were ever
+        // wrong. Not proven shell-safe on Windows: `execFile('npm'|'npx', …)` resolves
+        // through the platform's `.cmd`/`.bat` shim, which Node internally re-spawns via
+        // `cmd.exe` (see nodejs/node CVE-2024-27980) — this repo's nightly runner is
+        // Linux-only, so out of scope tonight, flagged for anyone porting this command.
+        const configPath = _[1] ?? 'dream.config.json';
+        if (!io.execFile) {
+          sink.error('verify-entrypoints: this IO has no execFile() — cannot run commands');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let config: DreamConfig;
+        try {
+          config = await loadConfig(io, configPath);
+        } catch (e) {
+          sink.error(`verify-entrypoints: failed to load ${configPath}: ${(e as Error).message}`);
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        const entries = Object.entries(config.evaluatorEntrypoints ?? {});
+        if (entries.length === 0) {
+          sink.log('verify-entrypoints: no evaluatorEntrypoints configured');
+          return { code: 0, out: sink.out, err: sink.err };
+        }
+        let worst = 0;
+        for (const [label, rawValue] of entries) {
+          // Every configured key gets a report line and counts toward the aggregate
+          // exit code — a non-string/blank value is reported blocked, never silently
+          // dropped from the pass (2026-09-18, PR #116 review).
+          if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+            sink.log(
+              `${label}: blocked (exit 1) — evaluatorEntrypoints.${label} is not a configured command string`,
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          const argv = tokenizeCommand(rawValue);
+          const [file, ...args] = argv;
+          if (!file) {
+            sink.log(`${label}: blocked (exit 1) — empty command after tokenizing ${JSON.stringify(rawValue)}`);
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          if (looksLikeCompoundCommand(argv)) {
+            // Fail closed rather than dispatch argv[0] with the rest of a multi-command
+            // string as its arguments — see looksLikeCompoundCommand's own doc comment
+            // for the live repro (this repo's own darwin entry). Nothing is executed.
+            sink.log(
+              `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
+                `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
+                'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
+                'command, or verify its pieces individually via verify-entrypoint',
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          const result = await io.execFile(file, args);
+          const check = classifyEntrypointResult(result);
+          sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
+          const code =
+            check.verdict === 'live'
+              ? 0
+              : check.verdict === 'blocked'
+                ? 1
+                : check.verdict === 'suspicious-silent'
+                  ? 2
+                  : 3; // stale-state
+          worst = Math.max(worst, code);
+        }
+        return { code: worst, out: sink.out, err: sink.err };
+      }
+
       case 'audit-gate': {
         const path = flags.path as string | undefined;
         if (!path) {
@@ -396,6 +593,24 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         );
         const code = r.verdict === 'clear' ? 0 : r.verdict === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'ruos': {
+        if (_[1] !== 'verify' || !_[2] || !_[3] || _.length !== 4) {
+          sink.error('usage: dream-machine ruos verify <observation-or-pair.json> <trusted-policy.json>');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let receipt;
+        try {
+          const read = io.readEvidenceFile ?? io.readFile;
+          const input = JSON.parse(await read(_[2]));
+          const policy = JSON.parse(await read(_[3]));
+          receipt = evaluateDocuments(input, policy);
+        } catch {
+          receipt = invalidInputReceipt();
+        }
+        sink.log(JSON.stringify(receipt));
+        return { code: receiptExitCode(receipt), out: sink.out, err: sink.err };
       }
 
       /**
@@ -540,6 +755,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             repo: flags.repo as string | undefined,
             today: io.now(),
             mergedPrNumbers: parseMergedPrNumbers(flags.merged),
+            openCandidateCount: parseOpenCandidateCount(flags['open-count']),
           }),
         );
         return { code: 0, out: sink.out, err: sink.err };

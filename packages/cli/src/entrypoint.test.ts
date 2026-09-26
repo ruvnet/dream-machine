@@ -1,5 +1,73 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand } from './entrypoint.js';
+
+describe('tokenizeCommand', () => {
+  it('splits a plain command on whitespace', () => {
+    expect(tokenizeCommand('npm test')).toEqual(['npm', 'test']);
+  });
+
+  it('keeps a double-quoted segment as one token', () => {
+    expect(tokenizeCommand('npx @metaharness/darwin evolve . --sandbox mock')).toEqual([
+      'npx',
+      '@metaharness/darwin',
+      'evolve',
+      '.',
+      '--sandbox',
+      'mock',
+    ]);
+    expect(tokenizeCommand('echo "hello world" --flag')).toEqual(['echo', 'hello world', '--flag']);
+  });
+
+  it('does not treat shell metacharacters specially — they stay literal argv text', () => {
+    // The whole point: `&&` here must reach the child process as one inert token,
+    // never as a shell operator chaining a second command (reproduces #17's
+    // 2026-08-17 injection probe: `echo hi && touch PWNED`).
+    expect(tokenizeCommand('echo hi && touch PWNED')).toEqual(['echo', 'hi', '&&', 'touch', 'PWNED']);
+  });
+
+  it('collapses repeated whitespace and trims', () => {
+    expect(tokenizeCommand('  npm   test  ')).toEqual(['npm', 'test']);
+  });
+
+  it('returns an empty array for a blank command', () => {
+    expect(tokenizeCommand('')).toEqual([]);
+    expect(tokenizeCommand('   ')).toEqual([]);
+  });
+});
+
+describe('looksLikeCompoundCommand', () => {
+  it('flags this repo\'s own real darwin entry as compound (reproduces PR #116 review)', () => {
+    const argv = tokenizeCommand('rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock');
+    expect(looksLikeCompoundCommand(argv)).toBe(true);
+  });
+
+  it('flags a leading control operator', () => {
+    expect(looksLikeCompoundCommand(tokenizeCommand('&& echo hi'))).toBe(true);
+  });
+
+  it('flags ;, |, ||, and & the same way as && (as a standalone, whitespace-separated token)', () => {
+    // tokenizeCommand splits on whitespace only, so this check only catches a control
+    // operator that appears as its own token (`cmd1 ; cmd2`) — the same known,
+    // whitespace-based scope tokenizeCommand's own doc comment already discloses.
+    // `cmd1;cmd2` (no surrounding spaces) is not caught; every real evaluatorEntrypoints
+    // value observed in this repo uses spaced operators (e.g. `rm ... && npx ...`).
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi ; echo bye'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi | cat'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi || echo bye'))).toBe(true);
+    expect(looksLikeCompoundCommand(tokenizeCommand('echo hi &'))).toBe(true);
+  });
+
+  it('does not flag a plain single command', () => {
+    expect(looksLikeCompoundCommand(tokenizeCommand('npm test'))).toBe(false);
+    expect(looksLikeCompoundCommand(tokenizeCommand('npx @metaharness/darwin evolve . --sandbox mock'))).toBe(false);
+  });
+
+  it('does not flag an operator character embedded inside a larger token', () => {
+    // Only a standalone `&&`/`;`/`|`/`||`/`&` token counts — a package name or
+    // flag that happens to contain one of these characters mid-string does not.
+    expect(looksLikeCompoundCommand(['echo', 'a&b'])).toBe(false);
+  });
+});
 
 describe('classifyEntrypointResult', () => {
   it('flags a nonzero exit as blocked (reproduces npx @metaharness/flywheel: no bin field)', () => {
@@ -53,5 +121,30 @@ describe('classifyEntrypointResult', () => {
   it('does not flag an unrelated nonzero-exit failure as stale-state', () => {
     const r = classifyEntrypointResult({ code: 1, stdout: '', stderr: 'npm error could not determine executable to run' });
     expect(r.verdict).toBe('blocked');
+  });
+
+  it('does not flag an unrelated "already exists" failure from a non-darwin entrypoint as stale-state', () => {
+    // classifyEntrypointResult is shared across every configured evaluatorEntrypoints
+    // value (bench, flywheel, redblue, darwin, ...) — a real bench-test failure whose
+    // message happens to contain the generic phrase "already exists" for an unrelated
+    // reason must still classify as a genuine failure (blocked), not benign leftover
+    // darwin state to "clear and re-run".
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: '',
+      stderr: "AssertionError: expected createUser to succeed, but user 'alice' already exists",
+    });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toContain('already exists');
+  });
+
+  it('still flags the exact darwin child-id collision as stale-state after the regex narrowing', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: '',
+      stderr: 'Error: darwin: autonomous or generated child id already exists: g2_v5',
+    });
+    expect(r.verdict).toBe('stale-state');
+    expect(r.reason).toContain('Clear that state and re-run');
   });
 });

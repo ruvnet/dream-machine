@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   emptyLedger,
   parseLedger,
@@ -8,6 +10,7 @@ import {
   learningSignals,
   verdictStats,
   escapeCell,
+  legacyPrefixDigest,
   LEDGER_COLUMNS,
   type LedgerRow,
 } from './index.js';
@@ -102,10 +105,123 @@ describe('verifyLedger', () => {
     expect(r.errors.join()).toMatch(/evaluated/);
   });
 
+  it('flags an impossible calendar date that matches the YYYY-MM-DD shape (caught in review)', () => {
+    // 2026-99-99 and 2026-02-30 both pass a bare /^\d{4}-\d{2}-\d{2}$/ regex —
+    // verifyLedger must reject them as real calendar dates, not just shapes.
+    for (const bad of ['2026-99-99', '2026-02-30', '2026-04-31', '2026-13-01']) {
+      const r = verifyLedger(appendRow(emptyLedger(), row({ date: bad })));
+      expect(r.ok, `expected ${bad} to be rejected`).toBe(false);
+      expect(r.errors.join()).toMatch(/date/);
+    }
+  });
+
+  it('accepts real calendar dates, including a leap-day', () => {
+    const r = verifyLedger(appendRow(emptyLedger(), row({ date: '2028-02-29' })));
+    expect(r.ok).toBe(true);
+  });
+
   it('flags a missing header', () => {
     const r = verifyLedger('just some text, no table');
     expect(r.ok).toBe(false);
     expect(r.errors.join()).toMatch(/header/);
+  });
+
+  it('sinceRow grandfathers earlier rows but still enforces rows at/after it', () => {
+    let l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' })); // row 1: bad
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: good
+    l = appendRow(l, row({ date: '2026-08-15', evaluated: 'partial' })); // row 3: bad
+    const full = verifyLedger(l);
+    expect(full.ok).toBe(false);
+    expect(full.errors).toHaveLength(2);
+
+    const since2 = verifyLedger(l, { sinceRow: 2 });
+    expect(since2.ok).toBe(false);
+    expect(since2.errors).toHaveLength(1);
+    expect(since2.errors[0]).toMatch(/row 3/);
+    expect(since2.rowCount).toBe(3); // still counts every row, only errors are scoped
+
+    const since4 = verifyLedger(l, { sinceRow: 4 });
+    expect(since4.ok).toBe(true);
+    expect(since4.errors).toEqual([]);
+  });
+
+  it('sinceRow < 1 clamps to 1 (byte-identical to the default)', () => {
+    const l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' }));
+    expect(verifyLedger(l, { sinceRow: 0 })).toEqual(verifyLedger(l));
+    expect(verifyLedger(l, { sinceRow: -5 })).toEqual(verifyLedger(l));
+  });
+
+  it('omitting sinceRow verifies every row (unchanged default behavior)', () => {
+    const l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' }));
+    expect(verifyLedger(l, {})).toEqual(verifyLedger(l));
+  });
+
+  it('a wrong-column-count row is fatal for an enforced row (review: PR #114)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: good, legacy
+    l += '| 2026-09-17 | ledger-signals | too few columns |\n'; // row 2: 3 cells, not 10
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/row 2: malformed — wrong column count/);
+  });
+
+  it('a wrong-column-count row before sinceRow is grandfathered, not fatal', () => {
+    let l = emptyLedger();
+    l += '| 2026-09-17 | ledger-signals | too few columns |\n'; // row 1: malformed
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: good
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(true);
+  });
+
+  it('blank required cells are fatal for an enforced row, not silently skipped (review: PR #114)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: legacy
+    l = appendRow(l, row({ date: '', verdict: '', evaluated: '' })); // row 2: blank required cells
+    const r = verifyLedger(l, { sinceRow: 2 });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/row 2: verdict ""/);
+    expect(r.errors.join()).toMatch(/row 2: evaluated ""/);
+    expect(r.errors.join()).toMatch(/row 2: date ""/);
+  });
+
+  it('legacyPrefixDigest matches an unmodified legacy prefix and clears the gate', () => {
+    let l = appendRow(emptyLedger(), row({ verdict: 'MAYBE' })); // row 1: legacy, bad (grandfathered)
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: enforced, good
+    const { rows } = parseLedger(l);
+    const digest = legacyPrefixDigest(rows, 2);
+    const r = verifyLedger(l, { sinceRow: 2, legacyPrefixDigest: digest });
+    expect(r.ok).toBe(true);
+  });
+
+  it('a stale legacyPrefixDigest fails closed and enforces every row (review: PR #114 insertion attack)', () => {
+    let l = appendRow(emptyLedger(), row()); // row 1: legacy, good
+    l = appendRow(l, row({ date: '2026-08-14' })); // row 2: enforced, good
+    const { rows: before } = parseLedger(l);
+    const digest = legacyPrefixDigest(before, 2);
+
+    // Attack: insert a malformed row BEFORE the sinceRow boundary. Every row
+    // after it shifts down by one, so with sinceRow alone (ordinal-only
+    // trust) the inserted bad row would land below the boundary and be
+    // silently grandfathered.
+    const lines = l.split('\n');
+    const firstDataRowIdx = lines.findIndex((line) => line.startsWith('| 20'));
+    lines.splice(firstDataRowIdx, 0, '| 2026-09-17 | ledger-signals | inserted | #1 | #2 | yes | MAYBE | e | w | p |');
+    const tampered = lines.join('\n');
+
+    const withoutDigest = verifyLedger(tampered, { sinceRow: 2 });
+    expect(withoutDigest.ok).toBe(true); // the vulnerability, still present without a digest
+
+    const withDigest = verifyLedger(tampered, { sinceRow: 2, legacyPrefixDigest: digest });
+    expect(withDigest.ok).toBe(false);
+    expect(withDigest.errors[0]).toMatch(/legacy prefix digest mismatch/);
+    // Fails closed: every row is enforced, so the inserted bad row is caught too.
+    expect(withDigest.errors.join()).toMatch(/verdict "MAYBE"/);
+  });
+
+  it('legacyPrefixDigest is stable across whitespace-only source differences (canonical re-render)', () => {
+    const l1 = appendRow(emptyLedger(), row());
+    const { rows: r1 } = parseLedger(l1);
+    const l2 = l1.replace('| 398c71a6 |', '|   398c71a6   |'); // extra spaces inside a cell
+    const { rows: r2 } = parseLedger(l2);
+    expect(legacyPrefixDigest(r1, 2)).toBe(legacyPrefixDigest(r2, 2));
   });
 });
 
@@ -218,6 +334,107 @@ describe('learning signals', () => {
     for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
+  });
+
+  it('reviewBacklogSize is null when openCandidateCount is omitted (default behavior)', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row()));
+    expect(learningSignals(rows).reviewBacklogSize).toBeNull();
+    expect(learningSignals(rows, {}).reviewBacklogSize).toBeNull();
+  });
+
+  it('reviewBacklogSize echoes the caller-supplied open-PR count', () => {
+    const { rows } = parseLedger(appendRow(emptyLedger(), row()));
+    expect(learningSignals(rows, { openCandidateCount: 5 }).reviewBacklogSize).toBe(5);
+    expect(learningSignals(rows, { openCandidateCount: 0 }).reviewBacklogSize).toBe(0);
+  });
+
+  it('reviewBacklogSize does not affect zeroMergeStreak or any other signal', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 14; i++) l = appendRow(l, row({ pr: `#${100 + i}` }));
+    const { rows } = parseLedger(l);
+    const without = learningSignals(rows, { mergedPrNumbers: new Set(['105']) });
+    const withBacklog = learningSignals(rows, { mergedPrNumbers: new Set(['105']), openCandidateCount: 8 });
+    expect(withBacklog.reviewBacklogSize).toBe(8);
+    expect({ ...withBacklog, reviewBacklogSize: null }).toEqual(without);
+  });
+
+  describe('distinctDatesInWindow', () => {
+    it('equals nightsConsidered when every windowed row has a distinct date', () => {
+      let l = emptyLedger();
+      for (let i = 0; i < 5; i++) l = appendRow(l, row({ date: `2026-08-${String(i + 1).padStart(2, '0')}` }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 5 });
+      expect(s.nightsConsidered).toBe(5);
+      expect(s.distinctDatesInWindow).toBe(5);
+    });
+
+    it('is smaller than nightsConsidered when a date is re-appended (the observed real-ledger shape)', () => {
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-27', pr: 'portfolio draft' }));
+      l = appendRow(l, row({ date: '2026-08-27', pr: '#37' })); // re-appended once the real PR number was known
+      l = appendRow(l, row({ date: '2026-08-28' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 3 });
+      expect(s.nightsConsidered).toBe(3);
+      expect(s.distinctDatesInWindow).toBe(2);
+    });
+
+    it('ignores unparseable dates, same as lastRowDate', () => {
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-20' }));
+      l = appendRow(l, row({ date: 'yesterday' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 2 });
+      expect(s.nightsConsidered).toBe(2);
+      expect(s.distinctDatesInWindow).toBe(1);
+    });
+
+    it('is 0 on an empty ledger', () => {
+      const s = learningSignals([]);
+      expect(s.distinctDatesInWindow).toBe(0);
+    });
+
+    it('does not count a calendar-impossible date as a night (caught in review)', () => {
+      // 2026-99-99 matches the YYYY-MM-DD shape but isn't a real date; it must
+      // not inflate distinctDatesInWindow, lastRowDate, or daysSinceLastRow.
+      let l = emptyLedger();
+      l = appendRow(l, row({ date: '2026-08-20' }));
+      l = appendRow(l, row({ date: '2026-99-99' }));
+      const { rows } = parseLedger(l);
+      const s = learningSignals(rows, { window: 2, today: '2026-08-25' });
+      expect(s.nightsConsidered).toBe(2);
+      expect(s.distinctDatesInWindow).toBe(1);
+      expect(s.lastRowDate).toBe('2026-08-20');
+      expect(s.daysSinceLastRow).toBe(5);
+    });
+
+    it('matches a frozen snapshot of the real ledger: last 14 rows cover fewer than 14 distinct dates', () => {
+      // Fixture: docs/dream-cycle/LEDGER.md as it stood on 2026-09-21, frozen
+      // into __fixtures__ rather than read from the live path — that file
+      // gains a new row every night this pipeline runs, which would silently
+      // shift this window and break an exact-value assertion. The frozen
+      // snapshot re-appends several nights (2026-08-27, -28, -29, -30) once
+      // their real PR number became known, so nightsConsidered=14 has always
+      // overstated real calendar-night coverage — this is the bug this field
+      // surfaces, pinned against real (not synthetic) production data.
+      const md = readFileSync(join(import.meta.dirname, '__fixtures__/2026-09-21-ledger-snapshot.md'), 'utf8');
+      const { rows } = parseLedger(md);
+      const s = learningSignals(rows);
+      expect(s.nightsConsidered).toBe(14);
+      expect(s.distinctDatesInWindow).toBeLessThan(s.nightsConsidered);
+      expect(s.distinctDatesInWindow).toBe(11);
+    });
+
+    it('never exceeds nightsConsidered, against the live ledger path (invariant, not a pinned value)', () => {
+      // Companion to the frozen-snapshot test above: this one reads the live,
+      // nightly-growing docs/dream-cycle/LEDGER.md and asserts only the
+      // invariant that holds for any content, so it stays green as the real
+      // ledger keeps changing.
+      const md = readFileSync(join(import.meta.dirname, '../../../docs/dream-cycle/LEDGER.md'), 'utf8');
+      const { rows } = parseLedger(md);
+      const s = learningSignals(rows);
+      expect(s.distinctDatesInWindow).toBeLessThanOrEqual(s.nightsConsidered);
+    });
   });
 });
 
