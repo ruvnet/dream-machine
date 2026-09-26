@@ -127,6 +127,12 @@ export interface DashboardOptions {
    * option — this dashboard stays network-free and never fetches it itself.
    */
   mergedPrNumbers?: Set<string>;
+  /**
+   * Live count of currently-open, unmerged dream-cycle candidate PRs (e.g.
+   * via a GitHub check the caller already ran). Surfaces `reviewBacklogSize`
+   * on the signals footer. Omit to skip that line (default: no signal).
+   */
+  openCandidateCount?: number;
 }
 
 /** Render the dashboard framebuffer from a ledger markdown string. */
@@ -134,7 +140,11 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   const c = opts.noColor ? new Proxy({}, { get: () => '' }) as typeof C : C;
   const { rows } = parseLedger(ledgerMd);
   const stats = verdictStats(rows);
-  const signals = learningSignals(rows, { today: opts.today, mergedPrNumbers: opts.mergedPrNumbers });
+  const signals = learningSignals(rows, {
+    today: opts.today,
+    mergedPrNumbers: opts.mergedPrNumbers,
+    openCandidateCount: opts.openCandidateCount,
+  });
   const limit = opts.limit ?? 10;
   const recent = rows.slice(-limit).reverse();
   const total = rows.length;
@@ -147,12 +157,16 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   lines.push(`${c.violet}│${c.reset} ${c.bold}${c.cyan}${pad(title, W - 2)}${c.reset} ${c.violet}│${c.reset}`);
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
 
-  // Stats row. `stats.other` covers any verdict outside the
-  // ACCEPT/REJECT/INCONCLUSIVE enum (e.g. this repo's own compound
-  // "portfolio" rows) — shown only when nonzero so the four counts always
-  // sum to `total`, instead of silently undercounting real nights.
+  // Stats row. `total` is every row ever appended, not a per-night count —
+  // a night whose row was re-appended later (once its real PR number was
+  // known) inflates it, same conflation the zero-merge signal below guards
+  // against — so label it "rows", not "nights" (caught in review).
+  // `stats.other` covers any verdict outside the ACCEPT/REJECT/INCONCLUSIVE
+  // enum (e.g. this repo's own compound "portfolio" rows) — shown only when
+  // nonzero so the four counts always sum to `total`, instead of silently
+  // undercounting real rows.
   const statLine =
-    `${c.gray}nights${c.reset} ${c.bold}${total}${c.reset}   ` +
+    `${c.gray}rows${c.reset} ${c.bold}${total}${c.reset}   ` +
     `${c.green}● ${stats.ACCEPT} accept${c.reset}   ` +
     `${c.red}● ${stats.REJECT} reject${c.reset}   ` +
     `${c.yellow}● ${stats.INCONCLUSIVE} inconclusive${c.reset}` +
@@ -178,7 +192,17 @@ export function renderDashboard(ledgerMd: string, opts: DashboardOptions = {}): 
   lines.push(`${c.violet}├${bar}┤${c.reset}`);
   const sig: string[] = [];
   if (signals.ledgerStale) sig.push(`${c.red}⚠ ledger stale (${signals.daysSinceLastRow}d since last row) — signals below may be blind${c.reset}`);
-  if (signals.zeroMergeStreak) sig.push(`${c.yellow}⚠ zero merges in ${signals.nightsConsidered} nights${c.reset}`);
+  if (signals.zeroMergeStreak) {
+    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    const nightsLabel =
+      signals.distinctDatesInWindow < signals.nightsConsidered
+        ? `${plural(signals.distinctDatesInWindow, 'night')}, ${plural(signals.nightsConsidered, 'row')}`
+        : plural(signals.nightsConsidered, 'night');
+    sig.push(`${c.yellow}⚠ zero merges in ${nightsLabel}${c.reset}`);
+  }
+  if (signals.reviewBacklogSize !== null && signals.reviewBacklogSize > 0) {
+    sig.push(`${c.yellow}⚠ ${signals.reviewBacklogSize} candidate PR(s) open, unreviewed${c.reset}`);
+  }
   if (signals.blockedEvalStreak) sig.push(`${c.yellow}⚠ eval blocked streak${c.reset}`);
   if (signals.lowScoreStreak) sig.push(`${c.yellow}⚠ low-score streak${c.reset}`);
   if (signals.duplicateDirections.length) sig.push(`${c.yellow}⚠ ${signals.duplicateDirections.length} duplicate direction(s)${c.reset}`);

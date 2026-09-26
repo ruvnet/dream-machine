@@ -25,6 +25,8 @@ Alternatives Considered → Test Contract → References.
 | [ADR-0003](./ADR-0003-anchored-trace-replay.md) | Anchored trace replay for causal failure experiments | Proposed |
 | [ADR-0003](./ADR-0003-trace-driven-harness-optimization.md) | Trace-driven harness optimization with held-out promotion gates | Proposed |
 
+| [ADR-0107](./ADR-0107-ruos-evaluation-boundary.md) | Independent ruOS evaluation boundary | Implemented for compiler and receipt contract; external controllers required |
+
 ## How to amend
 
 - Edits to a Proposed ADR happen in PRs that reference the ADR number.
