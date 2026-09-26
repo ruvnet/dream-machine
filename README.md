@@ -185,7 +185,10 @@ backends** — a night without any of them is a *degraded* night, not a failed o
 The [ruOS evaluation runbook](docs/runbooks/ruos-improvement-loop.md) adds desktop
 observations and frozen baseline/candidate regression evidence to a routine.
 The verifier rejects missing or unverified observations and never grants merge
-authority. See the [integration evidence](docs/dream-cycle/2026-09-20-ruos-integration.md)
+authority. Packaged consumers can run
+`dream-machine ruos verify observation-or-pair.json trusted-policy.json`. Screenshot
+evidence is bounded and fully decoded as PNG; unsupported or malformed images fail closed.
+See the [integration evidence](docs/dream-cycle/2026-09-20-ruos-integration.md)
 for tested scope and live readiness limitations.
 
 | Package | What it does |

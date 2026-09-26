@@ -15,7 +15,10 @@ independence, authorization or secure isolation.
 Add an optional strict `ruosEvaluation` configuration. Omitted configuration preserves existing
 compiled output. Enabled evaluation requires a safe dedicated machine identifier, actual screenshots,
 and bounded receipt freshness. The compiler specifies frozen baseline, candidate, target, corpus
-and external policy bindings with an independent verifier.
+and external policy bindings with an independent verifier. The published `dream-machine` package
+exposes that verifier at `dream-machine ruos verify`; its source-tree wrapper delegates to the same
+implementation. Screenshot evidence is bounded and fully decoded as a non-interlaced PNG with
+validated chunk CRCs and compressed payload. Unsupported formats fail closed.
 
 The researcher does not control evaluator policy or promotion. A separate controller provisions
 isolation and protects evidence creation; a separate promotion service enforces branch protection
@@ -38,7 +41,8 @@ Mandatory global enablement was rejected because unavailable desktop capabilitie
 ## Test contract
 
 Default snapshots remain unchanged. Invalid option types, unknown fields, unsafe machine identifiers,
-missing screenshot requirements and out-of-bound ages fail validation. Enabled prompts require
+missing screenshot requirements, malformed or over-limit image payloads and out-of-bound ages fail
+validation. An isolated `npm pack` consumer test verifies the published CLI path. Enabled prompts require
 independence, exact binding, private evidence handling and fail-closed observation. Live acceptance
 requires a separately executed desktop journey and deployment verification.
 

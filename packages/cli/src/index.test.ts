@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { run, parseArgs, parsePendingFindings, VERSION, type IO } from './index.js';
 import { renderDashboard, displayWidth, pad } from './tui.js';
-import { appendRow, emptyLedger, type LedgerRow } from '@dream-machine/ledger';
+import { appendRow, emptyLedger, parseLedger, verdictStats, type LedgerRow } from '@dream-machine/ledger';
 import { stamp } from '@dream-machine/witness';
 
 function mockIO(files: Record<string, string> = {}): IO & { files: Record<string, string> } {
@@ -149,6 +149,71 @@ describe('ledger', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('verdict');
   });
+  it('verify --since-row grandfathers earlier rows, still enforces later ones', async () => {
+    const bad = appendRow(
+      appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })),
+      sampleRow({ date: '2026-08-14', verdict: 'ALSO-BAD' }),
+    );
+    const grandfatheredAll = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': bad }));
+    expect(grandfatheredAll.code).toBe(0);
+    expect(grandfatheredAll.out).toContain('ledger OK');
+
+    const enforceRow2 = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '2'], mockIO({ 'L.md': bad }));
+    expect(enforceRow2.code).toBe(1);
+    expect(enforceRow2.err).toContain('row 2');
+    expect(enforceRow2.err).not.toContain('row 1');
+  });
+  it('verify rejects a non-numeric --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
+  it('verify rejects a value-less --since-row with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'verify', '--path', 'L.md', '--since-row'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row expects a positive integer row number');
+  });
+  it('legacy-digest prints the digest for rows before --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('legacy-digest requires --since-row', async () => {
+    const r = await run(['ledger', 'legacy-digest', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--since-row N is required');
+  });
+  it('verify --legacy-digest passes when the legacy prefix is unmodified', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(0);
+  });
+  it('verify --legacy-digest fails closed when the legacy prefix was tampered with (review: PR #114 insertion attack)', async () => {
+    const digestRun = await run(['ledger', 'legacy-digest', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': ledgerMd }));
+    const digest = digestRun.out.trim();
+    // Insert a bad row before the boundary — every row after it shifts down.
+    const tampered = appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' })) + ledgerMd.split('\n').slice(2).join('\n');
+    const withoutDigest = await run(['ledger', 'verify', '--path', 'L.md', '--since-row', '3'], mockIO({ 'L.md': tampered }));
+    expect(withoutDigest.code).toBe(0); // vulnerable without the digest anchor
+    const withDigest = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '3', '--legacy-digest', digest],
+      mockIO({ 'L.md': tampered }),
+    );
+    expect(withDigest.code).toBe(1);
+    expect(withDigest.err).toContain('legacy prefix digest mismatch');
+  });
+  it('verify rejects a malformed --legacy-digest with a clear usage error', async () => {
+    const r = await run(
+      ['ledger', 'verify', '--path', 'L.md', '--since-row', '2', '--legacy-digest', 'not-hex'],
+      mockIO({ 'L.md': ledgerMd }),
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--legacy-digest expects a 64-char lowercase sha256 hex digest');
+  });
   it('stats', async () => {
     const r = await run(['ledger', 'stats', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out).ACCEPT).toBe(1);
@@ -216,6 +281,24 @@ describe('ledger', () => {
     expect(JSON.parse(withPending.out).duplicateDirections.some((d: string) => d.includes('zero merge streak'))).toBe(
       true,
     );
+  });
+  it('signals reviewBacklogSize defaults to null without --open-count', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).reviewBacklogSize).toBeNull();
+  });
+  it('signals --open-count echoes the live open-PR count into reviewBacklogSize', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count', '5'], mockIO({ 'L.md': ledgerMd }));
+    expect(JSON.parse(r.out).reviewBacklogSize).toBe(5);
+  });
+  it('signals rejects a non-numeric --open-count with a clear usage error, not NaN', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
+  });
+  it('signals rejects a value-less --open-count with a clear usage error, not a crash', async () => {
+    const r = await run(['ledger', 'signals', '--path', 'L.md', '--open-count'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
   });
   it('append writes a row (bootstraps ledger if missing)', async () => {
     const io = mockIO();
@@ -464,6 +547,164 @@ describe('verify-entrypoint', () => {
   });
 });
 
+describe('verify-entrypoints', () => {
+  function mockIOWithExecFile(
+    execFile: (file: string, args: string[]) => Promise<{ code: number; stdout: string; stderr: string }>,
+    files: Record<string, string> = {},
+  ): IO {
+    return { ...mockIO(files), execFile };
+  }
+
+  const config = JSON.stringify({
+    repo: 'ruvnet/dream-machine',
+    cron: '0 9 * * *',
+    slots: [{ deep: 'evaluation-adapters', scan: ['flywheel', 'darwin'] }],
+    evaluatorEntrypoints: { bench: 'npm test', darwin: 'npx @metaharness/darwin evolve . --sandbox mock' },
+  });
+
+  it('classifies every configured entrypoint in one pass, no manual --cmd retyping', async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
+      },
+      { 'dream.config.json': config },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: live');
+    expect(calls).toEqual([
+      { file: 'npm', args: ['test'] },
+      { file: 'npx', args: ['@metaharness/darwin', 'evolve', '.', '--sandbox', 'mock'] },
+    ]);
+  });
+
+  it('refuses a shell-metacharacter config value instead of executing it as garbled argv', async () => {
+    // Reproduces #17's 2026-08-17 injection probe against the automated path, hardened
+    // further 2026-09-18 (PR #116 review): a config value containing `&&` is not just
+    // kept as inert argv text, it is refused outright — execFile is never called for it
+    // at all. (Naively dispatching argv[0]='echo' with the rest as its args would not be
+    // a shell-injection risk, but it silently runs the wrong thing — see the
+    // compound-command test below for why that matters in practice.)
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'hi', stderr: '' };
+      },
+      {
+        'evil.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: 'echo hi && touch PWNED' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    expect(calls).toEqual([]);
+  });
+
+  it('refuses this repo\'s own real darwin entry (a compound command) instead of running `rm` with garbage argv', async () => {
+    // Reproduces PR #116's review finding exactly: dream.config.json's actual darwin
+    // entrypoint is `rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
+    // mock`. Naively dispatching argv[0]='rm' with the remaining tokens (including a
+    // bare `.`) as its args never invokes npx/darwin at all, and would attempt an `rm`
+    // with the current directory among its arguments. This must be refused, not executed.
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
+      },
+      {
+        'dream.config.json': JSON.stringify({
+          repo: 'ruvnet/dream-machine',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'evaluation-adapters', scan: ['flywheel', 'darwin'] }],
+          evaluatorEntrypoints: {
+            bench: 'npm test',
+            darwin: 'rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock',
+          },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    // bench still runs; darwin's `rm` is never invoked, for any argv.
+    expect(calls).toEqual([{ file: 'npm', args: ['test'] }]);
+    expect(r.code).toBe(1);
+  });
+
+  it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {
+    const io = mockIOWithExecFile(async (file) => ({ code: 0, stdout: `${file} ok`, stderr: '' }), {
+      'dream.config.json': JSON.stringify({
+        repo: 'x/y',
+        cron: '0 9 * * *',
+        slots: [{ deep: 'd', scan: ['a', 'b'] }],
+        evaluatorEntrypoints: { bench: 'npm test', redblue: '', flywheel: 123 },
+      }),
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('redblue: blocked');
+    expect(r.out).toContain('flywheel: blocked');
+    expect(r.code).toBe(1);
+  });
+
+  it('reports the worst verdict across entries as the aggregate exit code', async () => {
+    const io = mockIOWithExecFile(
+      async (file) => (file === 'npm' ? { code: 0, stdout: 'ok', stderr: '' } : { code: 0, stdout: '', stderr: '' }),
+      { 'dream.config.json': config },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(2); // darwin: exit 0 + empty output → suspicious-silent (2) outranks bench's live (0)
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: suspicious-silent');
+  });
+
+  it('reports no configured entrypoints instead of erroring', async () => {
+    const io = mockIOWithExecFile(async () => ({ code: 0, stdout: '', stderr: '' }), {
+      'dream.config.json': JSON.stringify({
+        repo: 'x/y',
+        cron: '0 9 * * *',
+        slots: [{ deep: 'd', scan: ['a', 'b'] }],
+        evaluatorEntrypoints: {},
+      }),
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('no evaluatorEntrypoints configured');
+  });
+
+  it('errors on a missing config file instead of throwing', async () => {
+    const io = mockIOWithExecFile(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const r = await run(['verify-entrypoints', 'missing.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('failed to load missing.json');
+  });
+
+  it('errors when the IO has no execFile()', async () => {
+    const r = await run(['verify-entrypoints'], mockIO({ 'dream.config.json': config }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no execFile()');
+  });
+
+  it('leaves the manual verify-entrypoint (singular) command untouched', async () => {
+    const io: IO = { ...mockIO(), exec: async () => ({ code: 0, stdout: 'ok', stderr: '' }) };
+    const r = await run(['verify-entrypoint', 'bench', '--cmd', 'npm test'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+  });
+});
+
 describe('self-hosted dream.config.json — darwin entrypoint contract', () => {
   it('is idempotently re-runnable: required <repo> positional present, state reset before each invocation', async () => {
     const { readFile } = await import('node:fs/promises');
@@ -527,6 +768,19 @@ describe('tui', () => {
     const frame = renderDashboard(md, { noColor: true });
     expect(frame).toContain('zero merges');
   });
+  it('singularizes "1 night" instead of "1 nights" when the window is a single distinct date (caught in review)', () => {
+    // All 14 rows share sampleRow's default date, so distinctDatesInWindow=1.
+    let md = emptyLedger();
+    for (let i = 0; i < 14; i++) md = appendRow(md, sampleRow({ pr: `#${i}`, verdict: 'INCONCLUSIVE' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('zero merges in 1 night, 14 rows');
+    expect(frame).not.toContain('1 nights');
+  });
+  it('labels the header stat "rows", not "nights" (total is an all-time row count, not a per-night count)', () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('rows 1');
+  });
   it('shows a ledger-stale warning when `today` is far past the last row', () => {
     const md = appendRow(emptyLedger(), sampleRow({ date: '2026-08-01' }));
     const frame = renderDashboard(md, { noColor: true, today: '2026-08-20' });
@@ -551,6 +805,33 @@ describe('tui', () => {
     expect(frame).not.toContain('zero merges');
     expect(frame).toContain('signals nominal');
   });
+  it('renderDashboard omits the "other" stat segment when every verdict is in the enum (no regression)', () => {
+    let md = emptyLedger();
+    for (const verdict of ['ACCEPT', 'REJECT', 'INCONCLUSIVE'] as const) {
+      md = appendRow(md, sampleRow({ pr: `#${verdict}`, verdict }));
+    }
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toContain('other');
+  });
+  it('renderDashboard surfaces stats.other for a non-enum verdict instead of silently dropping it (regression: compound "portfolio" verdicts like "ACCEPT / REJECT / INCONCLUSIVE" vanished from the stats line)', () => {
+    let md = emptyLedger();
+    md = appendRow(md, sampleRow({ pr: '#a', verdict: 'ACCEPT' }));
+    md = appendRow(md, sampleRow({ pr: '#b', verdict: 'ACCEPT / REJECT / INCONCLUSIVE' }));
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).toContain('1 other');
+    // The four displayed counts must sum to the total row count, not undercount it.
+    expect(frame).toContain('rows 2');
+    expect(frame).toContain('1 accept');
+  });
+  it('renderDashboard: displayed verdict counts sum to total nights on the real committed ledger', async () => {
+    const fs = await import('node:fs');
+    const md = fs.readFileSync(new URL('../../../docs/dream-cycle/LEDGER.md', import.meta.url), 'utf8');
+    const { rows } = parseLedger(md);
+    const stats = verdictStats(rows);
+    expect(stats.ACCEPT + stats.REJECT + stats.INCONCLUSIVE + stats.other).toBe(rows.length);
+    const frame = renderDashboard(md, { noColor: true });
+    if (stats.other > 0) expect(frame).toContain(`${stats.other} other`);
+  });
   it('tui --merged clears the zero-merge warning end-to-end', async () => {
     const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
     const r = await run(['tui', '--path', 'L.md', '--no-color', '--merged', '181'], mockIO({ 'L.md': md }));
@@ -562,6 +843,49 @@ describe('tui', () => {
     const r = await run(['tui', '--path', 'L.md', '--merged'], mockIO({ 'L.md': md }));
     expect(r.code).toBe(1);
     expect(r.err).toContain('--merged expects a comma-separated PR number list');
+  });
+  it('renderDashboard shows a review-backlog warning when openCandidateCount is positive', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const frame = renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']), openCandidateCount: 5 });
+    expect(frame).toContain('5 candidate PR(s) open, unreviewed');
+  });
+  it('renderDashboard omits the review-backlog line when openCandidateCount is 0 or omitted', () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    expect(renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']) })).not.toContain('unreviewed');
+    expect(
+      renderDashboard(md, { noColor: true, mergedPrNumbers: new Set(['181']), openCandidateCount: 0 }),
+    ).not.toContain('unreviewed');
+  });
+  it('tui --open-count surfaces the review-backlog warning end-to-end', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ pr: '#181' }));
+    const r = await run(
+      ['tui', '--path', 'L.md', '--no-color', '--merged', '181', '--open-count', '5'],
+      mockIO({ 'L.md': md }),
+    );
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('5 candidate PR(s) open, unreviewed');
+  });
+  it('tui rejects a non-numeric --open-count with a clear usage error, not a crash', async () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const r = await run(['tui', '--path', 'L.md', '--open-count', 'abc'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--open-count expects a non-negative integer');
+  });
+
+  it('renderDashboard with noColor:true emits no ANSI escape anywhere, including the verdict cell (regression: verdictColor bypassed the no-color proxy, flagged unfixed in PR #21)', () => {
+    let md = emptyLedger();
+    for (const verdict of ['ACCEPT', 'REJECT', 'INCONCLUSIVE', 'HALT: budget'] as const) {
+      md = appendRow(md, sampleRow({ pr: `#${verdict}`, verdict }));
+    }
+    const frame = renderDashboard(md, { noColor: true });
+    expect(frame).not.toMatch(/\x1b\[/);
+  });
+
+  it('renderDashboard with noColor:false still colors the verdict cell per verdict (no regression to the colored path)', () => {
+    const accept = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'ACCEPT' })), {});
+    const reject = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'REJECT' })), {});
+    expect(accept).toContain('\x1b[32m'); // green
+    expect(reject).toContain('\x1b[31m'); // red
   });
 
   it('displayWidth matches .length for plain ASCII (no regression)', () => {

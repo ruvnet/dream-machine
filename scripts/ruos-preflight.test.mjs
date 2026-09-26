@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectRuosPreflight, inspectRuosPreflight } from './ruos-preflight.mjs';
+import { pngFixture } from './ruos-test-fixtures.mjs';
 
-const image = { content: [{ type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4ioAAAAASUVORK5CYII=' }] };
+const image = { content: [{ type: 'image', mimeType: 'image/png', data: pngFixture().toString('base64') }] };
 const success = { structuredContent: { status: 'ok', exitCode: 0, completionVersion: 1, completionVerified: true } };
 
 test('actual ruOS null exit plus SUCCESS prose never passes preflight', () => {
@@ -15,7 +16,10 @@ test('actual ruOS null exit plus SUCCESS prose never passes preflight', () => {
 });
 
 test('pixels must be returned, not a URL or dimensions or corrupt bytes', () => {
-  for (const screenshot of [null, { structuredContent: { image: { width: 1280 } } }, { content: [{ type: 'image', mimeType: 'image/png', data: 'https://example.com/image.png' }] }]) {
+  for (const screenshot of [null, { structuredContent: { image: { width: 1280 } } }, { content: [{ type: 'image', mimeType: 'image/png', data: 'https://example.com/image.png' }] },
+    { content: [{ type: 'image', mimeType: 'image/jpeg', data: Buffer.from('ffd8ffd9', 'hex').toString('base64') }] },
+    { content: [{ type: 'image', mimeType: 'image/png', data: pngFixture({ corruptIdatCrc: true }).toString('base64') }] },
+    { content: [{ type: 'image', mimeType: 'image/png', data: pngFixture({ idat: Buffer.from([0]) }).toString('base64') }] }]) {
     assert.equal(inspectRuosPreflight(success, screenshot).verdict, 'INCONCLUSIVE');
   }
 });

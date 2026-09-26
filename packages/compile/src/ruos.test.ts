@@ -17,7 +17,7 @@ describe('optional ruOS evaluation boundary', () => {
     expect(validateConfig(c).ok).toBe(true);
     expect(withDefaults(c).autoMerge).toBe(false);
     const prompt = compile(c);
-    for (const constraint of ['evaluation_01', '3600 seconds', 'actual screenshot artifact', 'null exitCode is never success', 'INCONCLUSIVE', 'node scripts/ruos-evaluation.mjs observation-or-pair.json trusted-policy.json', 'external evaluator', 'separate promotion service', 'no secrets recording', 'production sessions']) {
+    for (const constraint of ['evaluation_01', '3600 seconds', 'actual screenshot artifact', 'null exitCode is never success', 'INCONCLUSIVE', 'npx --no-install dream-machine ruos verify observation-or-pair.json trusted-policy.json', 'external evaluator', 'separate promotion service', 'no secrets recording', 'production sessions']) {
       expect(prompt).toContain(constraint);
     }
   });
