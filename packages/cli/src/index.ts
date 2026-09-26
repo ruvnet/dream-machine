@@ -21,6 +21,9 @@ import {
   stamp,
   verify,
   verifySteps,
+  stampReport,
+  verifyReportBytes,
+  verifyReportSelfContained,
   evaluateEvidenceFreshness,
   evidenceFreshnessPolicyDigest,
   type EvidenceDependency,
@@ -142,6 +145,8 @@ Commands:
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
+  witness verify-report <report-file> [--commit sha]   Self-contained: verify a report against
+                                                         its own embedded "## Witness" section
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
   verify-entrypoints [config]                           Classify every evaluatorEntrypoints entry
                                                          (execFile, never a shell — no manual retyping)
@@ -322,26 +327,34 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           const file = _[2];
           const commit = _[3];
           if (!file || !commit) {
-            sink.error('usage: dream-machine witness stamp <report-file> <commit>');
+            sink.error('usage: dream-machine witness stamp <report-file> <commit> [--report]');
             return { code: 1, out: sink.out, err: sink.err };
           }
           const report = await io.readFile(file);
-          const w = stamp(report, commit);
+          // --report: hash canonical (pre-"## Witness"-section) bytes, so the
+          // triple is reproducible after the section is pasted into the file —
+          // see @dream-machine/witness's report-witness module (issue #112).
+          const w = flags.report ? stampReport(report, commit) : stamp(report, commit);
           sink.log(`report_sha256 : ${w.reportHash}`);
           sink.log(`session_commit: ${w.sessionCommit}`);
           sink.log(`witness       : ${w.witness}`);
           sink.log('');
-          sink.log(verifySteps());
+          if (flags.report) {
+            sink.log(`# Paste this section (heading through end) at the end of ${file}, then verify with:`);
+            sink.log(`dream-machine witness verify-report ${file} --commit ${w.sessionCommit}`);
+          } else {
+            sink.log(verifySteps());
+          }
           return { code: 0, out: sink.out, err: sink.err };
         }
         if (sub === 'verify') {
           const [, , file, commit, claimed] = _;
           if (!file || !commit || !claimed) {
-            sink.error('usage: dream-machine witness verify <report-file> <commit> <witness>');
+            sink.error('usage: dream-machine witness verify <report-file> <commit> <witness> [--report]');
             return { code: 1, out: sink.out, err: sink.err };
           }
           const report = await io.readFile(file);
-          const r = verify(report, commit, claimed);
+          const r = flags.report ? verifyReportBytes(report, commit, claimed) : verify(report, commit, claimed);
           if (r.ok) {
             sink.log('✓ witness VALID — report is bound to this commit');
             return { code: 0, out: sink.out, err: sink.err };
@@ -350,7 +363,24 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.error(`  expected: ${r.expected.witness}`);
           return { code: 1, out: sink.out, err: sink.err };
         }
-        sink.error('witness: expected sub-command stamp|verify');
+        if (sub === 'verify-report') {
+          const file = _[2];
+          const expectedCommit = flags.commit as string | undefined;
+          if (!file) {
+            sink.error('usage: dream-machine witness verify-report <report-file> [--commit <sha>]');
+            return { code: 1, out: sink.out, err: sink.err };
+          }
+          const report = await io.readFile(file);
+          const r = verifyReportSelfContained(report, expectedCommit);
+          if (r.ok) {
+            sink.log('✓ witness VALID — report is self-contained and bound to its declared commit');
+            sink.log(`  session_commit: ${r.published?.sessionCommit}`);
+            return { code: 0, out: sink.out, err: sink.err };
+          }
+          sink.error(`✗ witness INVALID — ${r.reason}`);
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        sink.error('witness: expected sub-command stamp|verify|verify-report');
         return { code: 1, out: sink.out, err: sink.err };
       }
 

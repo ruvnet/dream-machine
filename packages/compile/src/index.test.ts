@@ -46,6 +46,29 @@ describe('validateConfig', () => {
     expect(r.ok).toBe(false);
     expect(r.errors.join()).toMatch(/slot/);
   });
+  it.each(['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const)(
+    'rejects %s given as a bare string instead of an array',
+    (field) => {
+      const r = validateConfig({ ...metaharness, [field]: 'not-an-array' } as Partial<DreamConfig>);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`${field} must be an array of non-empty strings`));
+    },
+  );
+  it.each(['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const)(
+    'rejects %s containing a blank element',
+    (field) => {
+      const r = validateConfig({ ...metaharness, [field]: ['ok', '   '] } as Partial<DreamConfig>);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`${field} must be an array of non-empty strings`));
+    },
+  );
+  it('leaves these string[] fields optional (absent is still valid)', () => {
+    const rest = { ...metaharness };
+    for (const field of ['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const) {
+      delete rest[field];
+    }
+    expect(validateConfig(rest).ok).toBe(true);
+  });
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
   });
@@ -157,6 +180,12 @@ describe('compile', () => {
 
   it('throws instead of silently compiling a dangling "add " bonus-dive line from an empty bonusModuli value', () => {
     expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
+  });
+
+  it('throws a clean validation error instead of crashing on a bare-string labels field', () => {
+    expect(() => compile({ ...metaharness, labels: 'dream-cycle' as unknown as string[] })).toThrow(
+      /labels must be an array of non-empty strings/,
+    );
   });
 
   it('throws instead of silently compiling a corrupted ADR path from a malformed adrConvention', () => {
