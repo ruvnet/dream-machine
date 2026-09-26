@@ -81,6 +81,25 @@ export interface ValidationResult {
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
 
+/** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
+function isNonEmptyStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.trim().length > 0);
+}
+
+/**
+ * Validate one of the config's `string[]`-typed fields, if present. Without
+ * this, a bare-string authoring mistake (e.g. `"labels": "x"` instead of
+ * `"labels": ["x"]`) passes validation silently and later crashes `compile()`
+ * with an opaque `TypeError` (`.map`/`.join` is not a function) deep inside a
+ * section builder, instead of a clean, actionable validation error.
+ */
+function checkStringArrayField(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (v !== undefined && !isNonEmptyStringArray(v)) {
+    errors.push(`${field} must be an array of non-empty strings`);
+  }
+}
+
 /** Validate a dream.config, returning structured errors (never throws). */
 export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   const errors: string[] = [];
@@ -101,10 +120,30 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     errors.push('at least one rotation slot is required');
   } else {
     config.slots.forEach((s, i) => {
-      if (!s.deep) errors.push(`slot ${i}: missing "deep" surface`);
-      if (!s.scan || s.scan.length < 1) warnings.push(`slot ${i}: no scan surfaces`);
+      // typeof guards keep validateConfig's never-throws contract for
+      // hand-authored JSON (e.g. `"deep": 42`, `"scan": [1]`, a null slot).
+      if (s === null || typeof s !== 'object') {
+        errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
+        return;
+      }
+      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (!s.scan) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else if (!Array.isArray(s.scan)) {
+        errors.push(`slot ${i}: "scan" must be an array of surface names`);
+      } else if (s.scan.length < 1) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else {
+        s.scan.forEach((sc, j) => {
+          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+        });
+      }
     });
   }
+  checkStringArrayField(config, 'labels', errors);
+  checkStringArrayField(config, 'competitors', errors);
+  checkStringArrayField(config, 'extraDisciplines', errors);
+  checkStringArrayField(config, 'controlPlaneProbes', errors);
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
@@ -121,6 +160,12 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     if (typeof dir !== 'string' || dir.trim().length === 0) {
       errors.push('adrConvention.dir must be a non-empty string');
     }
+  }
+  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
+    errors.push('ledgerPath must be a non-empty string');
+  }
+  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
+    errors.push('branchPrefix must be a non-empty string');
   }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;

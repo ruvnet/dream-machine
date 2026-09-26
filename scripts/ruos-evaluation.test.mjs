@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { digest,evaluateObservation,evaluatePair } from './ruos-evaluation.mjs';
+import { pngFixture } from './ruos-test-fixtures.mjs';
 const now=100000;
 function fixture(){
  const p={schemaVersion:1,bindings:{candidateCommit:'a'.repeat(40),baseCommit:'b'.repeat(40),sourceCommit:'c'.repeat(40),evaluatorDigest:'d'.repeat(64),runNonce:'nonce-123',machineId:'isolated-1',workloadDigest:'e'.repeat(64),environmentDigest:'f'.repeat(64)},expectedTenant:'test-tenant',assertionIds:['button','persisted'],caseIds:['overview'],ttlMs:1000,maxFutureSkewMs:0,minSamples:10,maxLatencyRegression:0.05,maxCostRegression:0.05,maxSuccessDrop:0};
- const data='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aA1sAAAAASUVORK5CYII=';
+ const data=pngFixture().toString('base64');
  const o={schemaVersion:1,arm:'baseline',completionVersion:1,completionVerified:true,executedCommit:p.bindings.baseCommit,bindings:{...p.bindings,policyDigest:digest(p)},timestampMs:now,status:'ok',exitCode:0,tenant:{id:p.expectedTenant,verified:true},assertions:p.assertionIds.map(id=>({id,pass:true})),screenshot:{encoding:'base64',mime:'image/png',data,sha256:createHash('sha256').update(Buffer.from(data,'base64')).digest('hex')},humanTakeover:false,contaminated:false,cases:[{id:'overview',samples:10,latencyMs:100,cost:1,successRate:1}]};
  return {p,o};
 }
@@ -43,6 +44,17 @@ for(const [field,value,reason] of [['latencyMs',106,'LATENCY_REGRESSION'],['cost
 test('changed workload rejected even with passing cases',()=>{const {p,o}=fixture();const c=structuredClone(o);c.arm='candidate';c.executedCommit=p.bindings.candidateCommit;c.bindings.workloadDigest='0'.repeat(64);assert.equal(evaluatePair(o,c,p,now).status,'REJECT');});
 test('same arm cannot be compared to itself',()=>{const {p,o}=fixture();assert.deepEqual(evaluatePair(o,o,p,now).reasons,['INVALID_PAIR_ARMS']);});
 test('malformed PNG with correct byte digest rejected',()=>{const {p,o}=fixture();const b=Buffer.alloc(40);o.screenshot.data=b.toString('base64');o.screenshot.sha256=createHash('sha256').update(b).digest('hex');assert.ok(evaluateObservation(o,p,now).reasons.includes('INVALID_SCREENSHOT'));});
+for (const [name, bytes, mime] of [
+ ['SOI/EOI-only JPEG', Buffer.from('ffd8ffd9', 'hex'), 'image/jpeg'],
+ ['JPEG with invalid segment length', Buffer.from('ffd8ffe00001ffd9', 'hex'), 'image/jpeg'],
+ ['PNG with invalid CRC', pngFixture({ corruptIdatCrc: true }), 'image/png'],
+ ['PNG with invalid zlib stream', pngFixture({ idat: Buffer.from([0]) }), 'image/png'],
+ ['PNG beyond decompression bound', pngFixture({ width: 4096, height: 4097, raw: Buffer.alloc(1) }), 'image/png'],
+]) test(`${name} is rejected despite a matching byte digest`, () => {
+ const {p,o}=fixture();
+ o.screenshot={encoding:'base64',mime,data:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex')};
+ assert.ok(evaluateObservation(o,p,now).reasons.includes('INVALID_SCREENSHOT'));
+});
 test('secrets are absent from receipt',()=>{const {p,o}=fixture();o.stdout='SECRET';o.token='SECRET';assert.ok(!JSON.stringify(evaluateObservation(o,p,now)).includes('SECRET'));});
 
 test('wrong execution commit fails closed',()=>{const {p,o}=fixture();o.executedCommit=p.bindings.candidateCommit;assert.ok(evaluateObservation(o,p,now).reasons.includes('EXECUTED_COMMIT_MISMATCH'));});
