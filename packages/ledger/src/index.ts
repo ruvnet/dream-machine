@@ -12,6 +12,8 @@
  * next night — instead of the model re-deriving them from prose every time.
  */
 
+import { createHash } from 'node:crypto';
+
 export const LEDGER_COLUMNS = [
   'Date',
   'Deep',
@@ -102,12 +104,22 @@ export interface ParseResult {
   rows: LedgerRow[];
   /** Non-fatal issues (malformed rows skipped, wrong column count, etc.). */
   warnings: string[];
+  /**
+   * Parallel to `rows`: true when that row's raw line had exactly
+   * `LEDGER_COLUMNS.length` cells. A `false` entry means the row was
+   * defensively padded/truncated by `cellsToRow` and its field values may be
+   * shifted or missing — `verifyLedger` treats this as fatal for enforced
+   * rows (see `VerifyOptions.sinceRow`), since a column-count mismatch is
+   * exactly the kind of corruption a structural gate exists to catch.
+   */
+  wellFormed: boolean[];
 }
 
 /** Parse a LEDGER.md string into typed rows (skips header/divider/blank lines). */
 export function parseLedger(markdown: string): ParseResult {
   const rows: LedgerRow[] = [];
   const warnings: string[] = [];
+  const wellFormed: boolean[] = [];
   const lines = markdown.split(/\r?\n/);
   let seenHeader = false;
   for (const line of lines) {
@@ -125,10 +137,13 @@ export function parseLedger(markdown: string): ParseResult {
     if (cells.length !== LEDGER_COLUMNS.length) {
       warnings.push(`row has ${cells.length} columns, expected ${LEDGER_COLUMNS.length}: ${line.trim()}`);
       // Pad/truncate defensively so a malformed row is still readable.
+      wellFormed.push(false);
+    } else {
+      wellFormed.push(true);
     }
     rows.push(cellsToRow(cells));
   }
-  return { rows, warnings };
+  return { rows, warnings, wellFormed };
 }
 
 /** Render a single row as a markdown table line. */
@@ -155,22 +170,97 @@ export interface VerifyResult {
   rowCount: number;
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * True when `s` matches YYYY-MM-DD *and* is a real calendar date. The regex
+ * shape alone accepts impossible dates like `2026-99-99` or `2026-02-30`,
+ * which then silently counted as valid "nights" in every signal derived
+ * from row dates (caught in review: they inflated distinctDatesInWindow /
+ * lastRowDate / daysSinceLastRow / ledgerStale, and passed verifyLedger).
+ */
+function isValidCalendarDate(s: string): boolean {
+  if (!DATE_RE.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+export interface VerifyOptions {
+  /**
+   * 1-indexed row number to start enforcement from (default 1 = every row,
+   * byte-identical prior behavior). Rows before `sinceRow` are parsed and
+   * counted in `rowCount` but never contribute errors — lets CI gate future
+   * drift without first repairing already-accepted historical debt (see
+   * issues #48/#58: 37 legacy rows, 40 known/accepted schema violations from
+   * pre-single-repo-schema "portfolio" nights, closed as accepted debt
+   * 2026-09-07). Out-of-range values (< 1) are clamped to 1.
+   */
+  sinceRow?: number;
+  /**
+   * sha256 hex digest of the canonical legacy prefix (rows `1..sinceRow-1`),
+   * from `legacyPrefixDigest()`. `sinceRow` alone anchors the grandfathered
+   * boundary to an ORDINAL POSITION, not to specific content: inserting or
+   * deleting a row anywhere before the boundary shifts every row after it,
+   * so a newly inserted bad row can land below `sinceRow` (grandfathered)
+   * while a previously-enforced row shifts to a position that's never
+   * actually been checked. When `legacyPrefixDigest` is supplied and doesn't
+   * match the actual prefix, verification fails closed: it reports the
+   * mismatch as an error and enforces every row (as if `sinceRow` were 1),
+   * rather than silently trusting a boundary that may no longer point at the
+   * content it was frozen against. Omit to keep today's ordinal-only trust
+   * (unchanged default behavior).
+   */
+  legacyPrefixDigest?: string;
+}
+
+/**
+ * Canonical sha256 hex digest of `rows[0..sinceRow-2]` (the rows grandfathered
+ * by `sinceRow`), computed by re-rendering each row through `renderRow` (so
+ * incidental whitespace in the source file can't produce a false mismatch)
+ * and hashing the joined result. Recompute this whenever `sinceRow` moves
+ * forward, and pass it to `verifyLedger` as `legacyPrefixDigest` to anchor
+ * the grandfathered boundary to content, not just position.
+ */
+export function legacyPrefixDigest(rows: LedgerRow[], sinceRow: number): string {
+  const prefix = rows.slice(0, Math.max(0, sinceRow - 1));
+  const canonical = prefix.map(renderRow).join('\n');
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
 /** Structurally verify a ledger: header present, verdicts/evaluated in range. */
-export function verifyLedger(markdown: string): VerifyResult {
+export function verifyLedger(markdown: string, opts: VerifyOptions = {}): VerifyResult {
   const errors: string[] = [];
-  const { rows, warnings } = parseLedger(markdown);
+  const { rows, warnings, wellFormed } = parseLedger(markdown);
+  let sinceRow = Math.max(1, opts.sinceRow ?? 1);
   if (!markdown.includes(HEADER.replace(/\s/g, '')) && !/\|\s*Date\s*\|/.test(markdown)) {
     errors.push('ledger is missing the Date header row');
   }
+  if (opts.legacyPrefixDigest !== undefined) {
+    const actual = legacyPrefixDigest(rows, sinceRow);
+    if (actual !== opts.legacyPrefixDigest) {
+      errors.push(
+        `legacy prefix digest mismatch (expected ${opts.legacyPrefixDigest}, got ${actual}) — ` +
+          `rows 1..${sinceRow - 1} no longer match the frozen grandfathered content; refusing to ` +
+          `trust the sinceRow boundary and verifying every row instead`,
+      );
+      sinceRow = 1;
+    }
+  }
   rows.forEach((r, i) => {
-    if (r.verdict && !VERDICTS.includes(r.verdict)) {
-      errors.push(`row ${i + 1}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
+    const rowNum = i + 1;
+    if (rowNum < sinceRow) return;
+    if (!wellFormed[i]) {
+      errors.push(`row ${rowNum}: malformed — wrong column count (expected ${LEDGER_COLUMNS.length})`);
     }
-    if (r.evaluated && !EVALS.includes(r.evaluated)) {
-      errors.push(`row ${i + 1}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
+    if (!VERDICTS.includes(r.verdict)) {
+      errors.push(`row ${rowNum}: verdict "${r.verdict}" not in ${VERDICTS.join('|')}`);
     }
-    if (r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
-      errors.push(`row ${i + 1}: date "${r.date}" is not YYYY-MM-DD`);
+    if (!EVALS.includes(r.evaluated)) {
+      errors.push(`row ${rowNum}: evaluated "${r.evaluated}" not in ${EVALS.join('|')}`);
+    }
+    if (!isValidCalendarDate(r.date)) {
+      errors.push(`row ${rowNum}: date "${r.date}" is not a valid calendar date (YYYY-MM-DD)`);
     }
   });
   return { ok: errors.length === 0, errors, warnings, rowCount: rows.length };
@@ -191,6 +281,17 @@ export interface LearningSignals {
   blockedEvalStreak: boolean;
   /** Count of nights considered. */
   nightsConsidered: number;
+  /**
+   * Distinct calendar dates among the windowed rows (`nightsConsidered` rows).
+   * The window is a raw row-count slice, not a calendar-night slice: a night
+   * whose row was re-appended later (e.g. once its real PR/issue number
+   * became known) consumes two window slots for one real night. Observed on
+   * the real committed ledger: the last 14 rows cover only 11 distinct
+   * dates. Compare against `nightsConsidered` to tell whether "N nights" in
+   * `zeroMergeStreak`/`blockedEvalStreak` is trustworthy or inflated by
+   * duplicate/re-appended rows.
+   */
+  distinctDatesInWindow: number;
   /**
    * Most recent valid row date (YYYY-MM-DD), or null if the ledger has no
    * dated rows. The nightly cron runs daily, but every candidate PR ships its
@@ -247,8 +348,6 @@ export interface SignalOptions {
   openCandidateCount?: number;
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 /** Whole days between two YYYY-MM-DD dates (UTC, `to` minus `from`). */
 function daysBetween(from: string, to: string): number {
   const a = Date.parse(`${from}T00:00:00Z`);
@@ -299,8 +398,11 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const blockedEvalStreak =
     recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
 
+  // Distinct calendar dates within the windowed rows (see field doc above).
+  const distinctDatesInWindow = new Set(recent.map((r) => r.date).filter(isValidCalendarDate)).size;
+
   // Staleness: the newest valid row date, regardless of row order.
-  const validDates = rows.map((r) => r.date).filter((d) => DATE_RE.test(d));
+  const validDates = rows.map((r) => r.date).filter(isValidCalendarDate);
   const lastRowDate = validDates.length ? validDates.reduce((max, d) => (d > max ? d : max)) : null;
   const today = opts.today;
   const staleAfterDays = opts.staleAfterDays ?? 1;
@@ -315,6 +417,7 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
     lowScoreStreak,
     blockedEvalStreak,
     nightsConsidered: recent.length,
+    distinctDatesInWindow,
     lastRowDate,
     daysSinceLastRow,
     ledgerStale,
