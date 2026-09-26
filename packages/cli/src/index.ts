@@ -30,11 +30,18 @@ import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule'
 import { renderDashboard } from './tui.js';
 import { classifyEntrypointResult, type ExecResult } from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
+import {
+  evaluateDocuments,
+  invalidInputReceipt,
+  receiptExitCode,
+} from './ruos-evaluation.mjs';
 
 export const VERSION = '0.1.1';
 
 export interface IO {
   readFile(path: string): Promise<string>;
+  /** Read a bounded, non-symlink evidence file when the host supports it. */
+  readEvidenceFile?(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   now(): string; // YYYY-MM-DD
   env: Record<string, string | undefined>;
@@ -132,6 +139,7 @@ Commands:
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
   tui             [--path LEDGER.md] [--no-color] [--merged "7,12"]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
+  ruos verify <observation-or-pair.json> <policy.json>  Verify a governed ruOS receipt
   freshness stamp --base <sha> --paths "a,b" [--out F]  Freeze the evidence read set at evaluation time
   freshness verify --policy <file> --head <sha>         Re-verify that read set against the promotion target
                                                          (exit 0 FRESH, 1 STALE, 2 indeterminate/invalid)
@@ -396,6 +404,24 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         );
         const code = r.verdict === 'clear' ? 0 : r.verdict === 'blocked' ? 1 : 2;
         return { code, out: sink.out, err: sink.err };
+      }
+
+      case 'ruos': {
+        if (_[1] !== 'verify' || !_[2] || !_[3] || _.length !== 4) {
+          sink.error('usage: dream-machine ruos verify <observation-or-pair.json> <trusted-policy.json>');
+          return { code: 1, out: sink.out, err: sink.err };
+        }
+        let receipt;
+        try {
+          const read = io.readEvidenceFile ?? io.readFile;
+          const input = JSON.parse(await read(_[2]));
+          const policy = JSON.parse(await read(_[3]));
+          receipt = evaluateDocuments(input, policy);
+        } catch {
+          receipt = invalidInputReceipt();
+        }
+        sink.log(JSON.stringify(receipt));
+        return { code: receiptExitCode(receipt), out: sink.out, err: sink.err };
       }
 
       /**
