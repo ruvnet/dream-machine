@@ -529,6 +529,164 @@ describe('verify-entrypoint', () => {
   });
 });
 
+describe('verify-entrypoints', () => {
+  function mockIOWithExecFile(
+    execFile: (file: string, args: string[]) => Promise<{ code: number; stdout: string; stderr: string }>,
+    files: Record<string, string> = {},
+  ): IO {
+    return { ...mockIO(files), execFile };
+  }
+
+  const config = JSON.stringify({
+    repo: 'ruvnet/dream-machine',
+    cron: '0 9 * * *',
+    slots: [{ deep: 'evaluation-adapters', scan: ['flywheel', 'darwin'] }],
+    evaluatorEntrypoints: { bench: 'npm test', darwin: 'npx @metaharness/darwin evolve . --sandbox mock' },
+  });
+
+  it('classifies every configured entrypoint in one pass, no manual --cmd retyping', async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
+      },
+      { 'dream.config.json': config },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: live');
+    expect(calls).toEqual([
+      { file: 'npm', args: ['test'] },
+      { file: 'npx', args: ['@metaharness/darwin', 'evolve', '.', '--sandbox', 'mock'] },
+    ]);
+  });
+
+  it('refuses a shell-metacharacter config value instead of executing it as garbled argv', async () => {
+    // Reproduces #17's 2026-08-17 injection probe against the automated path, hardened
+    // further 2026-09-18 (PR #116 review): a config value containing `&&` is not just
+    // kept as inert argv text, it is refused outright — execFile is never called for it
+    // at all. (Naively dispatching argv[0]='echo' with the rest as its args would not be
+    // a shell-injection risk, but it silently runs the wrong thing — see the
+    // compound-command test below for why that matters in practice.)
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'hi', stderr: '' };
+      },
+      {
+        'evil.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: 'echo hi && touch PWNED' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    expect(calls).toEqual([]);
+  });
+
+  it('refuses this repo\'s own real darwin entry (a compound command) instead of running `rm` with garbage argv', async () => {
+    // Reproduces PR #116's review finding exactly: dream.config.json's actual darwin
+    // entrypoint is `rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
+    // mock`. Naively dispatching argv[0]='rm' with the remaining tokens (including a
+    // bare `.`) as its args never invokes npx/darwin at all, and would attempt an `rm`
+    // with the current directory among its arguments. This must be refused, not executed.
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
+      },
+      {
+        'dream.config.json': JSON.stringify({
+          repo: 'ruvnet/dream-machine',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'evaluation-adapters', scan: ['flywheel', 'darwin'] }],
+          evaluatorEntrypoints: {
+            bench: 'npm test',
+            darwin: 'rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock',
+          },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    // bench still runs; darwin's `rm` is never invoked, for any argv.
+    expect(calls).toEqual([{ file: 'npm', args: ['test'] }]);
+    expect(r.code).toBe(1);
+  });
+
+  it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {
+    const io = mockIOWithExecFile(async (file) => ({ code: 0, stdout: `${file} ok`, stderr: '' }), {
+      'dream.config.json': JSON.stringify({
+        repo: 'x/y',
+        cron: '0 9 * * *',
+        slots: [{ deep: 'd', scan: ['a', 'b'] }],
+        evaluatorEntrypoints: { bench: 'npm test', redblue: '', flywheel: 123 },
+      }),
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('redblue: blocked');
+    expect(r.out).toContain('flywheel: blocked');
+    expect(r.code).toBe(1);
+  });
+
+  it('reports the worst verdict across entries as the aggregate exit code', async () => {
+    const io = mockIOWithExecFile(
+      async (file) => (file === 'npm' ? { code: 0, stdout: 'ok', stderr: '' } : { code: 0, stdout: '', stderr: '' }),
+      { 'dream.config.json': config },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(2); // darwin: exit 0 + empty output → suspicious-silent (2) outranks bench's live (0)
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('darwin: suspicious-silent');
+  });
+
+  it('reports no configured entrypoints instead of erroring', async () => {
+    const io = mockIOWithExecFile(async () => ({ code: 0, stdout: '', stderr: '' }), {
+      'dream.config.json': JSON.stringify({
+        repo: 'x/y',
+        cron: '0 9 * * *',
+        slots: [{ deep: 'd', scan: ['a', 'b'] }],
+        evaluatorEntrypoints: {},
+      }),
+    });
+    const r = await run(['verify-entrypoints'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('no evaluatorEntrypoints configured');
+  });
+
+  it('errors on a missing config file instead of throwing', async () => {
+    const io = mockIOWithExecFile(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const r = await run(['verify-entrypoints', 'missing.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('failed to load missing.json');
+  });
+
+  it('errors when the IO has no execFile()', async () => {
+    const r = await run(['verify-entrypoints'], mockIO({ 'dream.config.json': config }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('no execFile()');
+  });
+
+  it('leaves the manual verify-entrypoint (singular) command untouched', async () => {
+    const io: IO = { ...mockIO(), exec: async () => ({ code: 0, stdout: 'ok', stderr: '' }) };
+    const r = await run(['verify-entrypoint', 'bench', '--cmd', 'npm test'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+  });
+});
+
 describe('self-hosted dream.config.json — darwin entrypoint contract', () => {
   it('is idempotently re-runnable: required <repo> positional present, state reset before each invocation', async () => {
     const { readFile } = await import('node:fs/promises');

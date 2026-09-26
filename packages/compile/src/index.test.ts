@@ -46,8 +46,82 @@ describe('validateConfig', () => {
     expect(r.ok).toBe(false);
     expect(r.errors.join()).toMatch(/slot/);
   });
+  it.each(['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const)(
+    'rejects %s given as a bare string instead of an array',
+    (field) => {
+      const r = validateConfig({ ...metaharness, [field]: 'not-an-array' } as Partial<DreamConfig>);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`${field} must be an array of non-empty strings`));
+    },
+  );
+  it.each(['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const)(
+    'rejects %s containing a blank element',
+    (field) => {
+      const r = validateConfig({ ...metaharness, [field]: ['ok', '   '] } as Partial<DreamConfig>);
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`${field} must be an array of non-empty strings`));
+    },
+  );
+  it('leaves these string[] fields optional (absent is still valid)', () => {
+    const rest = { ...metaharness };
+    for (const field of ['labels', 'competitors', 'extraDisciplines', 'controlPlaneProbes'] as const) {
+      delete rest[field];
+    }
+    expect(validateConfig(rest).ok).toBe(true);
+  });
   it('rejects a non-integer bonus modulus key', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { x: 'y' } }).ok).toBe(false);
+  });
+  it('rejects a blank or whitespace-only deep surface', () => {
+    for (const deep of ['', '   ']) {
+      const slots = [{ ...metaharness.slots[0], deep }, ...metaharness.slots.slice(1)];
+      const r = validateConfig({ ...metaharness, slots });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(/missing "deep" surface/);
+    }
+  });
+  it('rejects a blank or whitespace-only scan entry', () => {
+    for (const scan of [['', 'turn-credit'], ['router', '   ']]) {
+      const slots = [{ ...metaharness.slots[0], scan }, ...metaharness.slots.slice(1)];
+      const r = validateConfig({ ...metaharness, slots });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(/scan\[\d+\] must be a non-empty surface name/);
+    }
+  });
+  it('does not flag a well-formed scan array', () => {
+    expect(validateConfig(metaharness).warnings).toHaveLength(0);
+  });
+  it('rejects a bare-string scan instead of an array, without throwing', () => {
+    const slots = [{ ...metaharness.slots[0], scan: 'config-schema' }, ...metaharness.slots.slice(1)] as typeof metaharness.slots;
+    let r;
+    expect(() => {
+      r = validateConfig({ ...metaharness, slots });
+    }).not.toThrow();
+    expect(r!.ok).toBe(false);
+    expect(r!.errors.join()).toMatch(/slot 0: "scan" must be an array of surface names/);
+  });
+  it('rejects non-string deep/scan values and null slots without throwing', () => {
+    const cases = [
+      [{ ...metaharness.slots[0], deep: 42 }, /slot 0: missing "deep" surface/],
+      [{ ...metaharness.slots[0], scan: [1, 'ok'] }, /slot 0: scan\[0\] must be a non-empty surface name/],
+      [null, /slot 0: must be an object/],
+    ] as const;
+    for (const [slot0, msg] of cases) {
+      const slots = [slot0, ...metaharness.slots.slice(1)] as unknown as typeof metaharness.slots;
+      let r: ReturnType<typeof validateConfig> | undefined;
+      expect(() => {
+        r = validateConfig({ ...metaharness, slots });
+      }).not.toThrow();
+      expect(r!.ok).toBe(false);
+      expect(r!.errors.join()).toMatch(msg);
+    }
+  });
+  it('still warns (not errors) when scan is entirely absent', () => {
+    const { scan: _scan, ...slot0 } = metaharness.slots[0];
+    const slots = [slot0, ...metaharness.slots.slice(1)] as typeof metaharness.slots;
+    const r = validateConfig({ ...metaharness, slots });
+    expect(r.ok).toBe(true);
+    expect(r.warnings.join()).toMatch(/no scan surfaces/);
   });
   it('accepts a well-formed bonus modulus value', () => {
     expect(validateConfig({ ...metaharness, bonusModuli: { '25': 'vertical-packs' } }).ok).toBe(true);
@@ -95,6 +169,22 @@ describe('validateConfig', () => {
     expect(validateConfig({ ...metaharness, adrConvention: '3-digit' }).ok).toBe(true);
     expect(validateConfig({ ...metaharness, adrConvention: '4-digit' }).ok).toBe(true);
   });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('rejects an empty %s', (field) => {
+    const r = validateConfig({ ...metaharness, [field]: '' });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(new RegExp(`${field} must be a non-empty string`));
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('rejects a whitespace-only %s', (field) => {
+    const r = validateConfig({ ...metaharness, [field]: '   ' });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(new RegExp(`${field} must be a non-empty string`));
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('leaves %s optional (absent is still valid)', (field) => {
+    expect(validateConfig({ ...metaharness, [field]: undefined }).ok).toBe(true);
+  });
+  it.each(['ledgerPath', 'branchPrefix'] as const)('accepts a well-formed %s', (field) => {
+    expect(validateConfig({ ...metaharness, [field]: 'docs/custom-path' }).ok).toBe(true);
+  });
 });
 
 describe('compile', () => {
@@ -108,10 +198,24 @@ describe('compile', () => {
     expect(() => compile({ ...metaharness, bonusModuli: { '25': '' } })).toThrow(/bonusModuli\["25"\]/);
   });
 
+  it('throws a clean validation error instead of crashing on a bare-string labels field', () => {
+    expect(() => compile({ ...metaharness, labels: 'dream-cycle' as unknown as string[] })).toThrow(
+      /labels must be an array of non-empty strings/,
+    );
+  });
+
   it('throws instead of silently compiling a corrupted ADR path from a malformed adrConvention', () => {
     expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
       /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
     );
+  });
+
+  it('throws instead of silently compiling a broken ledger reference from an empty ledgerPath', () => {
+    expect(() => compile({ ...metaharness, ledgerPath: '' })).toThrow(/ledgerPath must be a non-empty string/);
+  });
+
+  it('throws instead of silently compiling a stripped branch name from an empty branchPrefix', () => {
+    expect(() => compile({ ...metaharness, branchPrefix: '' })).toThrow(/branchPrefix must be a non-empty string/);
   });
 
   it('is deterministic (same input → identical output)', () => {

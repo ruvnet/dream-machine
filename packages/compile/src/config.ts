@@ -30,6 +30,15 @@ export interface EvaluatorEntrypoints {
 
 export type AdrConvention = '3-digit' | '4-digit' | { pad: number; dir: string };
 
+export interface RuosEvaluation {
+  enabled: true;
+  /** Dedicated isolated desktop identifier; never a command or URL. */
+  machine: string;
+  requireScreenshot: true;
+  /** Evidence freshness limit, 60 seconds through 24 hours. */
+  maxReceiptAgeSeconds: number;
+}
+
 export interface DreamConfig {
   /** Target repo, "owner/name". */
   repo: string;
@@ -59,6 +68,8 @@ export interface DreamConfig {
   labels?: string[];
   /** If true, the guarded auto-merge policy is described in the PR step. */
   autoMerge?: boolean;
+  /** Optional independent desktop evaluation; never grants promotion authority. */
+  ruosEvaluation?: RuosEvaluation;
 }
 
 export interface ValidationResult {
@@ -69,6 +80,25 @@ export interface ValidationResult {
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
+
+/** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
+function isNonEmptyStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.trim().length > 0);
+}
+
+/**
+ * Validate one of the config's `string[]`-typed fields, if present. Without
+ * this, a bare-string authoring mistake (e.g. `"labels": "x"` instead of
+ * `"labels": ["x"]`) passes validation silently and later crashes `compile()`
+ * with an opaque `TypeError` (`.map`/`.join` is not a function) deep inside a
+ * section builder, instead of a clean, actionable validation error.
+ */
+function checkStringArrayField(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (v !== undefined && !isNonEmptyStringArray(v)) {
+    errors.push(`${field} must be an array of non-empty strings`);
+  }
+}
 
 /** Validate a dream.config, returning structured errors (never throws). */
 export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
@@ -90,10 +120,30 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     errors.push('at least one rotation slot is required');
   } else {
     config.slots.forEach((s, i) => {
-      if (!s.deep) errors.push(`slot ${i}: missing "deep" surface`);
-      if (!s.scan || s.scan.length < 1) warnings.push(`slot ${i}: no scan surfaces`);
+      // typeof guards keep validateConfig's never-throws contract for
+      // hand-authored JSON (e.g. `"deep": 42`, `"scan": [1]`, a null slot).
+      if (s === null || typeof s !== 'object') {
+        errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
+        return;
+      }
+      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (!s.scan) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else if (!Array.isArray(s.scan)) {
+        errors.push(`slot ${i}: "scan" must be an array of surface names`);
+      } else if (s.scan.length < 1) {
+        warnings.push(`slot ${i}: no scan surfaces`);
+      } else {
+        s.scan.forEach((sc, j) => {
+          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+        });
+      }
     });
   }
+  checkStringArrayField(config, 'labels', errors);
+  checkStringArrayField(config, 'competitors', errors);
+  checkStringArrayField(config, 'extraDisciplines', errors);
+  checkStringArrayField(config, 'controlPlaneProbes', errors);
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
@@ -111,12 +161,35 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       errors.push('adrConvention.dir must be a non-empty string');
     }
   }
+  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
+    errors.push('ledgerPath must be a non-empty string');
+  }
+  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
+    errors.push('branchPrefix must be a non-empty string');
+  }
+  if (config.ruosEvaluation !== undefined) {
+    const r = config.ruosEvaluation;
+    if (r === null || typeof r !== 'object' || Array.isArray(r)) {
+      errors.push('ruosEvaluation must be an object');
+    } else {
+      const allowed = ['enabled', 'machine', 'requireScreenshot', 'maxReceiptAgeSeconds'];
+      if (Object.keys(r).some(k => !allowed.includes(k))) errors.push('ruosEvaluation contains unknown fields');
+      if (r.enabled !== true) errors.push('ruosEvaluation.enabled must be true; omit the option to disable');
+      if (typeof r.machine !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(r.machine)) {
+        errors.push('ruosEvaluation.machine must be an opaque safe identifier of 1 to 128 characters');
+      }
+      if (r.requireScreenshot !== true) errors.push('ruosEvaluation.requireScreenshot must be true');
+      if (!Number.isInteger(r.maxReceiptAgeSeconds) || r.maxReceiptAgeSeconds < 60 || r.maxReceiptAgeSeconds > 86400) {
+        errors.push('ruosEvaluation.maxReceiptAgeSeconds must be an integer from 60 to 86400');
+      }
+    }
+  }
   return { ok: errors.length === 0, errors, warnings };
 }
 
 /** Fill defaults over a partial config after validation passes. */
-export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli'>> &
-  Pick<DreamConfig, 'buildStep' | 'bonusModuli'> {
+export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'>> &
+  Pick<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'> {
   return {
     repo: config.repo,
     cron: config.cron.trim(),
@@ -132,6 +205,7 @@ export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'b
     branchPrefix: config.branchPrefix ?? 'dream/',
     labels: config.labels ?? ['dream-cycle', 'research'],
     autoMerge: config.autoMerge ?? false,
+    ...(config.ruosEvaluation === undefined ? {} : { ruosEvaluation: { ...config.ruosEvaluation } }),
   };
 }
 
