@@ -91,8 +91,9 @@ Not modified after evaluation began.
 ## Candidate
 
 `packages/cli/src/bin.ts` (+82/−40) and new `packages/cli/src/bin.test.ts`
-(+52) — 174 changed lines across 2 files. One conceptual change (the
-`execFile` spawn-diagnostic fix) plus its two necessary, mechanical, bundled
+(88 lines total, added across two rounds — see Reward-Hack Check) — 210
+changed lines across 2 files. One conceptual change (the `execFile`
+spawn-diagnostic fix) plus its two necessary, mechanical, bundled
 prerequisites (the `createIO()` extraction and the symlink-safe entry-point
 guard), all required to make the fix testable and safely importable at all.
 
@@ -121,11 +122,11 @@ tests green.
 Real evaluator: `npm test` (`vitest run && npm run test:governance`), this
 repo's own `bench` entrypoint.
 
-| | Baseline (`main@9ebc9b6`) | Candidate |
+| | Baseline (`main@9ebc9b6`) | Candidate (round 2, post-critic) |
 |---|---|---|
-| vitest | 755 | 760 (+5 new, 0 regressions) |
+| vitest | 755 | 762 (+7 new, 0 regressions) |
 | governance | 150 | 150 (unchanged) |
-| Total | 905 | 910 |
+| Total | 905 | 912 |
 | `npm run typecheck` | clean | clean |
 | `npm run lint` | clean | clean |
 
@@ -182,7 +183,7 @@ OBSERVATION (`bin.ts` has zero existing test file, confirmed via
 `execFile` on a nonexistent command yields `code: 'ENOENT'`, empty
 stdout/stderr; `exec` on the identical command yields `code: 127`, real
 shell stderr) → MEASUREMENT (baseline vs. candidate CLI output on the same
-bad-config repro) → MEASUREMENT (905 → 910 tests, 0 regressions) →
+bad-config repro) → MEASUREMENT (905 → 912 tests, 0 regressions) →
 MEASUREMENT (symlink invocation dispatches correctly) → INFERENCE
 (independent critic subagent, separate context) → DECISION (verdict
 ACCEPT).
@@ -193,11 +194,50 @@ Independent adversarial-critic subagent (separate context, full repo read
 access, instructed to distrust this session's own framing): reviewed
 `bin.ts`'s full diff against `main`, the new `bin.test.ts`, and the
 unmodified consumers (`entrypoint.ts`, `index.ts`'s `verify-entrypoints`
-command). Checked specifically whether the new tests are tautological
-(would they pass against the unfixed code?), whether the entry-point guard
-could silently break real CLI dispatch, and whether the realpath-based
-symlink resolution introduces new risk. See disclosed findings and this
-session's response below.
+command).
+
+**Verdict: CLEAR**, one moderate gap flagged (closed same session, see
+below).
+
+What the critic independently verified, empirically, not just by reading:
+1. **Non-tautology of the core fix.** Reverted only `bin.ts`'s fixed stderr
+   line back to the pre-fix form and reran `bin.test.ts`: the ENOENT test
+   failed exactly as expected (`expected '' to match /ENOENT/`); restoring
+   the fix made all tests pass again. Rules out a test that would pass
+   against unfixed code.
+2. **`createIO()` extraction is behavior-preserving**: `readFile`/
+   `writeFile`/`readEvidenceFile`/`now`/`env`/`exec` byte-for-byte unchanged;
+   only `execFile`'s catch block changed, in the documented way.
+3. **`isEntryPoint()` correctness**, live: built the project and ran
+   `node packages/cli/dist/bin.js --help` directly (works — the real
+   deployment path); separately created a symlink and invoked through it
+   (reproduces the ADR-0002 npm/npx-bin-symlink shape — also works); confirmed
+   importing `bin.ts` from vitest does not trigger `run()`/`process.exit()`
+   (the guard fails closed as intended).
+4. Full `packages/cli` suite green post-build.
+5. **Security**: no new attack surface — `process.argv[1]`/`import.meta.url`
+   are both the tool's own trusted invocation path, not attacker input; a
+   hypothetical symlink race between the two `realpath` calls could at worst
+   cause the guard to wrongly refuse to run (denial-of-service on the CLI
+   itself), never an escalation; the `catch { return false }` is fail-closed.
+6. **Scope justified**: the guard and `createIO()` are load-bearing
+   infrastructure for `bin.test.ts` to exist at all, not padding.
+
+**Gap disclosed by the critic**: `isEntryPoint()` — "the single
+highest-consequence piece of new logic in the diff" — had zero automated
+coverage; only manually verified. **Closed same session**: added
+`describe('bin.js entry-point dispatch ...')` to `bin.test.ts`, spawning the
+actual built `dist/bin.js` as a real child process both directly and through
+a symlink (`mkdtempSync` + `symlinkSync`), asserting real dispatch (`version`
+prints a semver string) in both cases — the exact two scenarios the critic
+manually checked, now locked in as regression tests. `npm test`: 905 → 912
+(+7 total across both rounds), 0 regressions.
+
+No benchmark/gold data touched (none exists for this surface); no
+cherry-picked assertions; no evaluator exploit; no hidden cost (no new
+dependency — `node:child_process`/`node:fs`/`node:os`/`node:path` are all
+built-in); no undocumented cache; no threshold changed.
+`reward_hack_clear` / `critic_clear`.
 
 ## Security Review
 
@@ -218,12 +258,14 @@ present, correctly unused — this finding needed no model call to test).
 ## Regression Analysis
 
 0 pre-existing tests modified or removed. All 905 baseline tests
-(755 vitest + 150 governance) pass unchanged; 5 new vitest tests added
+(755 vitest + 150 governance) pass unchanged; 7 new vitest tests added
 (3 for `execFile`'s live/exit-nonzero/spawn-failure paths, 2 for `exec`'s
-live/missing-command paths, the latter proving `exec` needed no fix).
-`npm run lint` and `npm run typecheck` clean. `npm run build` clean (all
-packages, no wasm/NAPI degradation to record tonight — the same
-`npm ci && npm run build` this whole session ran at STEP 0.5).
+live/missing-command paths proving `exec` needed no fix, 2 for
+`isEntryPoint()`'s real-dispatch and symlink-dispatch paths added in
+round 2 per the critic's disclosed gap). `npm run lint` and
+`npm run typecheck` clean. `npm run build` clean (all packages, no
+wasm/NAPI degradation to record tonight — the same `npm ci && npm run build`
+this whole session ran at STEP 0.5).
 
 ## ADR
 

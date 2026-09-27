@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { mkdtempSync, symlinkSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createIO } from './bin.js';
 
 // bin.ts is the real IO wiring behind every CLI command (`verify-entrypoint`,
@@ -48,5 +53,36 @@ describe('createIO().exec', () => {
     const result = await io.exec!('dream-machine-nightly-nonexistent-xyz');
     expect(result.code).toBe(127);
     expect(result.stderr).toMatch(/dream-machine-nightly-nonexistent-xyz/);
+  });
+});
+
+// The entry-point guard (`isEntryPoint()`) is unexported and load-bearing:
+// get it wrong and the real CLI silently stops dispatching at all (the
+// exact failure class this repo's own ADR-0002 documents for a different
+// package). Verified by actually spawning the *built* dist/bin.js — the
+// literal way this repo's own nightly pipeline invokes it — both directly
+// and through a symlink (reproducing the npm/npx `bin`-field symlink shape
+// ADR-0002 describes). Flagged by tonight's independent critic as the one
+// gap worth closing before merge (2026-09-27 review).
+describe('bin.js entry-point dispatch (built dist, spawned as a real process)', () => {
+  const distBin = fileURLToPath(new URL('../dist/bin.js', import.meta.url));
+  let tmpDir: string | undefined;
+
+  afterEach(() => {
+    if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  it('dispatches when invoked directly, the real deployment path', () => {
+    const stdout = execFileSync(process.execPath, [distBin, 'version'], { encoding: 'utf8' });
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('still dispatches when reached through a symlink (the npm/npx `bin`-field shape)', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'dream-machine-bin-symlink-'));
+    const link = join(tmpDir, 'dream-machine');
+    symlinkSync(distBin, link);
+    const stdout = execFileSync(process.execPath, [link, 'version'], { encoding: 'utf8' });
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
