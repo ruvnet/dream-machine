@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "report": "2026-09-27-portfolio-report.md",
+  "reportSha256": "c5a2c0d6204b219d6ec1052e06661be3db658dce9510e29b324df77c75d6ff62",
+  "sessionCommit": "9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c",
+  "witness": "044cf6fbf1c51b7ab1f3633f431478a7592bbf5a1a06a5d20064cea0fa8ae521",
+  "witnessMeaning": "Integrity binding to inspected contract, not authentication or promotion",
+  "artifactSha256": {
+    "2026-09-27-qudag-process-status.txt": "01caed10f0356a5047a070013ff3905429aa1fdc137d1757b8ff7e3f13ab19d5"
+  },
+  "qudag": {
+    "head": "61b8bd7125612d13b9cb03681bd6eb8483bd37e8",
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "skipped": 0,
+    "runtime": "Node 24.19.0",
+    "deliveryVerdict": "REJECT"
+  },
+  "ruflo": {
+    "mergeCommit": "9f3ac3b8019e684f3f50a3732fc754003f228867",
+    "registryTags": {
+      "latest": "3.0.0-alpha.9",
+      "alpha": "3.0.0-alpha.9",
+      "v3alpha": "3.0.0-alpha.9"
+    },
+    "alpha10": "E404",
+    "deliveryVerdict": "REJECT"
+  },
+  "researchVerdict": "INCONCLUSIVE",
+  "overallVerdict": "INCONCLUSIVE",
+  "fullCost": null
+}

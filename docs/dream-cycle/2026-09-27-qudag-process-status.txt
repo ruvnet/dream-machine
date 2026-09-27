@@ -1,0 +1,20 @@
+✔ CLI preserves ordinary exit 0 (297.418031ms)
+✔ API preserves ordinary exit 0 (64.665525ms)
+✔ CLI preserves ordinary exit 7 (159.525925ms)
+✔ API preserves ordinary exit 7 (52.859122ms)
+✔ CLI fails on SIGTERM (202.268316ms)
+✔ API fails on SIGTERM (57.254544ms)
+✔ CLI fails on SIGINT (151.851186ms)
+✔ API fails on SIGINT (48.754237ms)
+✔ CLI fails on SIGKILL (602.216383ms)
+✔ API fails on SIGKILL (646.367055ms)
+✔ API collects complete stdout and stderr (535.120669ms)
+✔ CLI and API fail when the installed file is not executable (134.15401ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3149.870509
