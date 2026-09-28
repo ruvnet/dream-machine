@@ -96,14 +96,14 @@ None — a detector trigger-set extension, not a new architectural decision, sch
 `GIST=LOCAL` — no `gh` CLI or gist-creation MCP tool available this session. Full report committed at `docs/dream-cycle/2026-09-28-security-adversarial-report.md`.
 
 ## Issue
-(filled after creation — see PR body)
+#138
 
 ## Witness
 
 ```
-report_sha256 : 32965ae10579d8dc088a71724ea65e858ba591caffde4c5930137a340c554961
+report_sha256 : 8096cccf1d8ad0ba116cc068bb4df4b7d4dc106fc31345a2046266829301508d
 session_commit: 9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c
-witness       : 6c359b44165820db9ed3fecc24cca8d77bf167f88ac32459936b42d93db1c43f
+witness       : bb2bc7bd371d0b9901455cf2acd3ee6e145d3fca7a981604a822f42aad25345c
 ```
 
 Computed over this file's canonical bytes (everything above this heading,
