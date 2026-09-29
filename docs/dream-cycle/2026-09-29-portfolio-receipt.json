@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-29",
+  "contract_commit": "9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c",
+  "primary_outcome": "Verify delivery of the accepted Ruflo MCP remediation in official published artifacts",
+  "hypothesis": "Official current-tag package closes the source-to-registry gap only if exact artifacts install/import, alpha.10 passes all three direct-argv cases, stable excludes the affected helper, and audits are clean.",
+  "owner": "Ruflo release maintainer",
+  "resource": "@claude-flow/mcp official npm artifacts",
+  "acceptance": {
+    "direct_argv_cases": {
+      "baseline": "affected alpha.9",
+      "threshold": "3/3",
+      "candidate": "3/3"
+    },
+    "clean_imports": {
+      "threshold": "2/2",
+      "candidate": "2/2"
+    },
+    "stable_affected_helper": {
+      "threshold": "absent",
+      "candidate": "absent"
+    },
+    "npm_audit": {
+      "threshold": "0 high/critical",
+      "candidate": "0 findings in both installs"
+    }
+  },
+  "artifacts": [
+    {
+      "version": "3.0.0-alpha.10",
+      "published_at": "2026-09-27T15:34:16.105Z",
+      "npm_shasum": "50d52b3544aae00abe4ac5f0ba832d83ff3a12fb",
+      "sha256": "cb17b2537a05e7ce26759fcbf622df2e064bf5ef7a67239501fe43b42a97731c"
+    },
+    {
+      "version": "3.0.0",
+      "published_at": "2026-09-28T20:56:12.169Z",
+      "npm_shasum": "56e54ca5b0bbad3f8ecab0e5d980251ed12abac5",
+      "sha256": "0c44e4e99634cd6e73d3fa64fb9bdb6a5516f9c5db0d1ac9fb56090db179a56d"
+    }
+  ],
+  "verdict": "ACCEPT",
+  "delivery_state": "verified_published",
+  "independent_review": "bounded independent artifact replay; human review pending",
+  "security": {
+    "npm_audit_findings": 0,
+    "pinned_ruflo_scan": "INCONCLUSIVE: identical npx-cache ENOENT before scan on two retries",
+    "new_high_or_critical": false
+  },
+  "inventory": {
+    "owned": 325,
+    "public": 221,
+    "private_aggregate": 104,
+    "archived": 0,
+    "empty": 11
+  },
+  "durable": {
+    "core_memory_pr": 137,
+    "core_source_head": "981c9cc3910397e23602d7cdd64019e4284029a3",
+    "core_snapshot_commit": "a253b7221cefe5c63f0792a48f15c7f20b518661"
+  },
+  "report_sha256": "d1f4ad91988821751e9d42bf91f6afbf736b6d05e9aacddc46e067dd4f91a93f",
+  "witness_sha256": "e41a7606f1972b6af89de2f406b1d3e900712de6113275fd3adaeeab7e8a21fc",
+  "cost": {
+    "elapsed_minutes": null,
+    "compute_api_cost": null
+  },
+  "rollback": "Deprecate a faulty version and retag a previously verified artifact through the authorized release workflow.",
+  "blockers": [
+    "Adoption, production outcomes, latency, errors and full cost are unverified.",
+    "Independent human review of the corrected W40 edition is pending."
+  ],
+  "next_action": "Perform the seven-day outcome review on or after 2026-10-04 without treating publication as customer value."
+}
+
