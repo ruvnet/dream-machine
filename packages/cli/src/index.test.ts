@@ -881,6 +881,16 @@ describe('tui', () => {
     expect(frame).not.toMatch(/\x1b\[/);
   });
 
+  it('tui command still suppresses all ANSI when a stray positional follows --no-color (regression: parseArgs swallows it as a string value, defeating a strict === true check)', async () => {
+    const md = appendRow(emptyLedger(), sampleRow({ verdict: 'ACCEPT' }));
+    // parseArgs's `--flag value` greedy consumption turns this into
+    // flags['no-color'] === 'extra' (a string), not the boolean `true`.
+    expect(parseArgs(['tui', '--no-color', 'extra']).flags['no-color']).toBe('extra');
+    const r = await run(['tui', '--path', 'L.md', '--no-color', 'extra'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(0);
+    expect(r.out).not.toMatch(/\x1b\[/);
+  });
+
   it('renderDashboard with noColor:false still colors the verdict cell per verdict (no regression to the colored path)', () => {
     const accept = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'ACCEPT' })), {});
     const reject = renderDashboard(appendRow(emptyLedger(), sampleRow({ verdict: 'REJECT' })), {});
