@@ -161,6 +161,19 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       errors.push('adrConvention.dir must be a non-empty string');
     }
   }
+  if (config.buildStep !== undefined) {
+    const b = config.buildStep;
+    if (b === null || typeof b !== 'object' || Array.isArray(b)) {
+      errors.push('buildStep must be an object with a "cmd" string');
+    } else {
+      if (typeof b.cmd !== 'string' || b.cmd.trim().length === 0) {
+        errors.push('buildStep.cmd must be a non-empty string');
+      }
+      if (b.degradeOnWasmFailure !== undefined && typeof b.degradeOnWasmFailure !== 'boolean') {
+        errors.push('buildStep.degradeOnWasmFailure must be a boolean');
+      }
+    }
+  }
   if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
     errors.push('ledgerPath must be a non-empty string');
   }

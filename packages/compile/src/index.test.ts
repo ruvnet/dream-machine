@@ -169,6 +169,33 @@ describe('validateConfig', () => {
     expect(validateConfig({ ...metaharness, adrConvention: '3-digit' }).ok).toBe(true);
     expect(validateConfig({ ...metaharness, adrConvention: '4-digit' }).ok).toBe(true);
   });
+  it('leaves buildStep optional (absent is still valid)', () => {
+    expect(validateConfig({ ...metaharness, buildStep: undefined }).ok).toBe(true);
+  });
+  it('accepts a well-formed buildStep', () => {
+    expect(validateConfig({ ...metaharness, buildStep: { cmd: 'npm ci && npm run build' } }).ok).toBe(true);
+  });
+  it('rejects a buildStep that is not an object', () => {
+    const r = validateConfig({ ...metaharness, buildStep: 'npm ci' as unknown as DreamConfig['buildStep'] });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/buildStep must be an object/);
+  });
+  it.each([undefined, '', '   ', 42, ['npm', 'ci']])('rejects buildStep.cmd = %j', (cmd) => {
+    const r = validateConfig({ ...metaharness, buildStep: { cmd: cmd as unknown as string } });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/buildStep\.cmd must be a non-empty string/);
+  });
+  it.each(['no', 0, 'true'])('rejects a non-boolean buildStep.degradeOnWasmFailure = %j', (v) => {
+    const r = validateConfig({
+      ...metaharness,
+      buildStep: { cmd: 'npm ci', degradeOnWasmFailure: v as unknown as boolean },
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/buildStep\.degradeOnWasmFailure must be a boolean/);
+  });
+  it('leaves buildStep.degradeOnWasmFailure optional', () => {
+    expect(validateConfig({ ...metaharness, buildStep: { cmd: 'npm ci' } }).ok).toBe(true);
+  });
   it.each(['ledgerPath', 'branchPrefix'] as const)('rejects an empty %s', (field) => {
     const r = validateConfig({ ...metaharness, [field]: '' });
     expect(r.ok).toBe(false);
@@ -208,6 +235,18 @@ describe('compile', () => {
     expect(() => compile({ ...metaharness, adrConvention: { pad: -1, dir: '' } })).toThrow(
       /adrConvention\.pad.*adrConvention\.dir|adrConvention\.dir.*adrConvention\.pad/s,
     );
+  });
+
+  it('throws instead of silently compiling the literal shell command "undefined" from a missing buildStep.cmd', () => {
+    expect(() =>
+      compile({ ...metaharness, buildStep: { degradeOnWasmFailure: true } as unknown as NonNullable<DreamConfig['buildStep']> }),
+    ).toThrow(/buildStep\.cmd must be a non-empty string/);
+  });
+
+  it('throws instead of silently inverting the wasm-degradation policy from a truthy non-boolean degradeOnWasmFailure', () => {
+    expect(() =>
+      compile({ ...metaharness, buildStep: { cmd: 'npm ci', degradeOnWasmFailure: 'no' as unknown as boolean } }),
+    ).toThrow(/buildStep\.degradeOnWasmFailure must be a boolean/);
   });
 
   it('throws instead of silently compiling a broken ledger reference from an empty ledgerPath', () => {
