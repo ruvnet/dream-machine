@@ -51,10 +51,39 @@ export function emptyLedger(): string {
   return `${HEADER}\n${DIVIDER}\n`;
 }
 
+/**
+ * Split a table row on its UNESCAPED pipes, treating `\|` (the exact sequence
+ * `escapeCell` produces for a literal `|`) as part of the cell content rather
+ * than a column boundary, and unescaping it back to `|`.
+ *
+ * Before this, the split was escape-blind (`trimmed.split('|')`): any field
+ * written through `escapeCell` — the function documented as making a cell
+ * "cannot break the table" — still broke the table on the very next parse,
+ * because the backslash it inserts doesn't stop a literal `|` split. A `|`
+ * anywhere in a Finding/Effect/etc. silently shifted every later column
+ * (Verdict landing in Effect, Evaluated landing in Witness, ...), and the
+ * ledger's own structural gate caught it only as an opaque "wrong column
+ * count", never as the specific cause. This is a correctness fix, not a new
+ * escaping convention — it makes parsing the true inverse of `escapeCell`.
+ */
 function splitRow(line: string): string[] {
-  // Trim the leading/trailing pipe, then split on unescaped pipes.
+  // Trim the leading/trailing pipe first — those are structural, never cell content.
   const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-  return trimmed.split('|').map((c) => c.trim());
+  const cells: string[] = [];
+  let cur = '';
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] === '\\' && trimmed[i + 1] === '|') {
+      cur += '|';
+      i++; // consume the escaped pipe too
+    } else if (trimmed[i] === '|') {
+      cells.push(cur);
+      cur = '';
+    } else {
+      cur += trimmed[i];
+    }
+  }
+  cells.push(cur);
+  return cells.map((c) => c.trim());
 }
 
 function isDivider(cells: string[]): boolean {
