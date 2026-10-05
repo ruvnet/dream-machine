@@ -212,6 +212,79 @@ describe('validateConfig', () => {
   it.each(['ledgerPath', 'branchPrefix'] as const)('accepts a well-formed %s', (field) => {
     expect(validateConfig({ ...metaharness, [field]: 'docs/custom-path' }).ok).toBe(true);
   });
+  it('leaves evaluatorEntrypoints optional (absent is still valid)', () => {
+    expect(validateConfig({ ...metaharness, evaluatorEntrypoints: undefined }).ok).toBe(true);
+  });
+  it('accepts a well-formed evaluatorEntrypoints with only some fields set', () => {
+    expect(validateConfig({ ...metaharness, evaluatorEntrypoints: { darwin: 'npx @metaharness/darwin evolve .' } }).ok).toBe(
+      true,
+    );
+  });
+  it.each([null, 'npm test', ['npm', 'test']])('rejects an evaluatorEntrypoints that is not a plain object (%j)', (v) => {
+    const r = validateConfig({ ...metaharness, evaluatorEntrypoints: v as unknown as DreamConfig['evaluatorEntrypoints'] });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/evaluatorEntrypoints must be an object/);
+  });
+  it.each(['bench', 'flywheel', 'darwin', 'redblue'] as const)(
+    'rejects evaluatorEntrypoints.%s = an object',
+    (key) => {
+      const r = validateConfig({ ...metaharness, evaluatorEntrypoints: { [key]: { pkg: '@metaharness/darwin' } } });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`evaluatorEntrypoints\\.${key} must be a non-empty string`));
+    },
+  );
+  it.each(['bench', 'flywheel', 'darwin', 'redblue'] as const)(
+    'rejects evaluatorEntrypoints.%s = an array',
+    (key) => {
+      const r = validateConfig({ ...metaharness, evaluatorEntrypoints: { [key]: ['npm', 'test'] } });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`evaluatorEntrypoints\\.${key} must be a non-empty string`));
+    },
+  );
+  it.each(['bench', 'flywheel', 'darwin', 'redblue'] as const)(
+    'rejects evaluatorEntrypoints.%s = a number',
+    (key) => {
+      const r = validateConfig({ ...metaharness, evaluatorEntrypoints: { [key]: 42 } });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`evaluatorEntrypoints\\.${key} must be a non-empty string`));
+    },
+  );
+  it.each(['bench', 'flywheel', 'darwin', 'redblue'] as const)(
+    'rejects evaluatorEntrypoints.%s = an empty or whitespace-only string',
+    (key) => {
+      const r = validateConfig({ ...metaharness, evaluatorEntrypoints: { [key]: '   ' } });
+      expect(r.ok).toBe(false);
+      expect(r.errors.join()).toMatch(new RegExp(`evaluatorEntrypoints\\.${key} must be a non-empty string`));
+    },
+  );
+  // Both consumers (step6to9Candidate, findUnpinnedNpxInvocations) walk
+  // Object.entries(ev) regardless of key name, so an unrecognized key must
+  // get the same type check as the four known ones — not just the exact
+  // bench/flywheel/darwin/redblue spellings.
+  it('rejects an unrecognized evaluatorEntrypoints key with a non-string value', () => {
+    const r = validateConfig({
+      ...metaharness,
+      evaluatorEntrypoints: { darwn: { pkg: '@metaharness/darwin' } } as unknown as DreamConfig['evaluatorEntrypoints'],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/evaluatorEntrypoints\.darwn must be a non-empty string/);
+  });
+  it('rejects an unrecognized evaluatorEntrypoints key with an empty string value', () => {
+    const r = validateConfig({
+      ...metaharness,
+      evaluatorEntrypoints: { darwn: '' } as unknown as DreamConfig['evaluatorEntrypoints'],
+    });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/evaluatorEntrypoints\.darwn must be a non-empty string/);
+  });
+  it('accepts (but warns on) an unrecognized evaluatorEntrypoints key with a well-formed string value', () => {
+    const r = validateConfig({
+      ...metaharness,
+      evaluatorEntrypoints: { darwn: 'npx @metaharness/darwin evolve .' } as unknown as DreamConfig['evaluatorEntrypoints'],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.warnings.join()).toMatch(/evaluatorEntrypoints\.darwn is not a recognized entrypoint/);
+  });
 });
 
 describe('compile', () => {
@@ -247,6 +320,30 @@ describe('compile', () => {
     expect(() =>
       compile({ ...metaharness, buildStep: { cmd: 'npm ci', degradeOnWasmFailure: 'no' as unknown as boolean } }),
     ).toThrow(/buildStep\.degradeOnWasmFailure must be a boolean/);
+  });
+
+  it('throws a clean validation error instead of crashing with "command.split is not a function" on an object-valued evaluatorEntrypoints.darwin', () => {
+    expect(() =>
+      compile({
+        ...metaharness,
+        evaluatorEntrypoints: { darwin: { pkg: '@metaharness/darwin' } as unknown as string },
+      }),
+    ).toThrow(/evaluatorEntrypoints\.darwin must be a non-empty string/);
+  });
+
+  it('throws instead of silently dropping an empty-string evaluatorEntrypoints.redblue from the compiled prompt', () => {
+    expect(() => compile({ ...metaharness, evaluatorEntrypoints: { redblue: '' } })).toThrow(
+      /evaluatorEntrypoints\.redblue must be a non-empty string/,
+    );
+  });
+
+  it('throws a clean validation error instead of crashing on a typo\'d evaluatorEntrypoints key, not just the four recognized ones', () => {
+    expect(() =>
+      compile({
+        ...metaharness,
+        evaluatorEntrypoints: { darwn: { pkg: '@metaharness/darwin' } } as unknown as DreamConfig['evaluatorEntrypoints'],
+      }),
+    ).toThrow(/evaluatorEntrypoints\.darwn must be a non-empty string/);
   });
 
   it('throws instead of silently compiling a broken ledger reference from an empty ledgerPath', () => {

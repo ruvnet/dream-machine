@@ -174,6 +174,27 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       }
     }
   }
+  if (config.evaluatorEntrypoints !== undefined) {
+    const ev = config.evaluatorEntrypoints;
+    if (ev === null || typeof ev !== 'object' || Array.isArray(ev)) {
+      errors.push('evaluatorEntrypoints must be an object');
+    } else {
+      // Every entry is checked, not just the four recognized keys: both
+      // step6to9Candidate() and findUnpinnedNpxInvocations() walk
+      // Object.entries(ev) regardless of key name, so a typo'd key (e.g.
+      // "darwn" instead of "darwin") reaches the exact same unvalidated
+      // value those functions would otherwise crash or silently drop.
+      const known = ['bench', 'flywheel', 'darwin', 'redblue'];
+      for (const [key, v] of Object.entries(ev)) {
+        if (typeof v !== 'string' || v.trim().length === 0) {
+          errors.push(`evaluatorEntrypoints.${key} must be a non-empty string`);
+        }
+        if (!known.includes(key)) {
+          warnings.push(`evaluatorEntrypoints.${key} is not a recognized entrypoint (expected one of ${known.join(', ')})`);
+        }
+      }
+    }
+  }
   if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
     errors.push('ledgerPath must be a non-empty string');
   }
