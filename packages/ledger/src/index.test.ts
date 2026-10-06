@@ -264,6 +264,33 @@ describe('learning signals', () => {
     expect(learningSignals(rows).blockedEvalStreak).toBe(true);
   });
 
+  it('does not flag a blocked-eval streak from 3 blocked nights buried in an otherwise-healthy 14-night window (regression)', () => {
+    // 3/14 blocked is a minority, not the "majority of the window blocked"
+    // this field's own doc comment requires alongside last-3-consecutive.
+    let l = emptyLedger();
+    for (let i = 0; i < 11; i++) l = appendRow(l, row({ evaluated: 'yes', verdict: 'ACCEPT' }));
+    for (let i = 0; i < 3; i++) l = appendRow(l, row({ evaluated: 'blocked', verdict: 'INCONCLUSIVE' }));
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).blockedEvalStreak).toBe(false);
+  });
+
+  it('flags a blocked-eval streak once blocked nights are a strict majority of the window, with the last 3 blocked', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 6; i++) l = appendRow(l, row({ evaluated: 'yes', verdict: 'ACCEPT' }));
+    for (let i = 0; i < 8; i++) l = appendRow(l, row({ evaluated: 'blocked', verdict: 'INCONCLUSIVE' }));
+    const { rows } = parseLedger(l);
+    // window is the last 14 rows: 6 yes + 8 blocked -> 8/14 is a strict majority.
+    expect(learningSignals(rows).blockedEvalStreak).toBe(true);
+  });
+
+  it('does not flag a blocked-eval streak on an exact 50/50 split (not a strict majority), even with the last 3 blocked', () => {
+    let l = emptyLedger();
+    for (let i = 0; i < 7; i++) l = appendRow(l, row({ evaluated: 'yes', verdict: 'ACCEPT' }));
+    for (let i = 0; i < 7; i++) l = appendRow(l, row({ evaluated: 'blocked', verdict: 'INCONCLUSIVE' }));
+    const { rows } = parseLedger(l);
+    expect(learningSignals(rows).blockedEvalStreak).toBe(false);
+  });
+
   it('is not stale by default (no `today` supplied)', () => {
     const { rows } = parseLedger(appendRow(emptyLedger(), row({ date: '2026-08-01' })));
     const s = learningSignals(rows);

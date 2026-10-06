@@ -394,9 +394,18 @@ export function learningSignals(rows: LedgerRow[], opts: SignalOptions = {}): Le
   const lowScoreStreak = lastThree.length === 3 && lastThree.every((s) => s < 5);
 
   // Blocked-eval streak: majority of the window blocked, and last 3 all blocked.
+  // Both conjuncts are load-bearing: the trailing-3 check alone flips true from
+  // 3 blocked nights buried in an otherwise-healthy 14-night window (3/14 is not
+  // a "streak" by this field's own name or its "Long run" doc comment) — the
+  // same false-positive class CircuitBreaker-style designs (Resilience4j,
+  // Hystrix) guard against by pairing a count with a window-share threshold.
   const lastThreeEvals = recent.slice(-3).map((r) => r.evaluated);
+  const blockedCount = recent.filter((r) => r.evaluated === 'blocked').length;
   const blockedEvalStreak =
-    recent.length >= 3 && lastThreeEvals.length === 3 && lastThreeEvals.every((e) => e === 'blocked');
+    recent.length >= 3 &&
+    lastThreeEvals.length === 3 &&
+    lastThreeEvals.every((e) => e === 'blocked') &&
+    blockedCount * 2 > recent.length;
 
   // Distinct calendar dates within the windowed rows (see field doc above).
   const distinctDatesInWindow = new Set(recent.map((r) => r.date).filter(isValidCalendarDate)).size;
