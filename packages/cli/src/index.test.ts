@@ -99,6 +99,20 @@ describe('init', () => {
     expect(r.code).toBe(0);
     expect(JSON.parse(io.files['dream.config.json']).repo).toBe('acme/widget');
   });
+  it('rejects a value-less --repo with a clear usage error, not a silently-baked `"repo": true`', async () => {
+    // Live repro pre-fix: `init --repo` with nothing after it parsed `flags.repo`
+    // to the boolean `true` (parseArgs), which then survived `(flags.repo as
+    // string) || 'owner/name'` unchanged and was baked into the generated
+    // config as `"repo": true` — a malformed config, written with exit 0.
+    const r = await run(['init', '--repo'], mockIO());
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--repo requires a value');
+  });
+  it('rejects a value-less --out with a clear usage error, not a crash deep in fs', async () => {
+    const r = await run(['init', '--repo', 'acme/widget', '--out'], mockIO());
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--out requires a value');
+  });
 });
 
 describe('compile', () => {
@@ -122,6 +136,13 @@ describe('compile', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('invalid config');
   });
+  it('rejects a value-less --out with a clear usage error', async () => {
+    const io = mockIO();
+    await run(['init', '--repo', 'a/b', '--out', 'c.json'], io);
+    const r = await run(['compile', 'c.json', '--out'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--out requires a value');
+  });
 });
 
 describe('schedule', () => {
@@ -133,6 +154,13 @@ describe('schedule', () => {
     const body = JSON.parse(r.out);
     expect(body.job_config.ccr.environment_id).toBe('env_1');
   });
+  it('rejects a value-less --out with a clear usage error', async () => {
+    const io = mockIO();
+    await run(['init', '--repo', 'a/b', '--out', 'c.json'], io);
+    const r = await run(['schedule', 'c.json', '--out'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--out requires a value');
+  });
 });
 
 describe('ledger', () => {
@@ -142,6 +170,16 @@ describe('ledger', () => {
     const r = await run(['ledger', 'verify', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(r.code).toBe(0);
     expect(r.out).toContain('ledger OK');
+  });
+  it('rejects a value-less --path with a clear usage error, not a silent fall-through to an empty ledger', async () => {
+    // Live repro pre-fix: a trailing bare `--path` parsed to the boolean `true`
+    // (parseArgs), which survived `(flags.path as string) || default` unchanged,
+    // then `io.readFile(true)` threw and was swallowed by the bootstrap catch —
+    // `ledger verify --path` silently reported "✓ ledger OK — 0 rows" against an
+    // empty ledger instead of erroring, on a real, non-empty ledger on disk.
+    const r = await run(['ledger', 'verify', '--path'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--path requires a value');
   });
   it('verify flags a bad verdict', async () => {
     const bad = appendRow(emptyLedger(), sampleRow({ verdict: 'MAYBE' }));
@@ -329,6 +367,33 @@ describe('ledger', () => {
     expect(r.err).toContain('evaluated');
     expect(io.files['L.md']).toBeUndefined();
   });
+  it('rejects a value-less --date with a clear usage error, not a silently-corrupted `true` cell', async () => {
+    // Live repro pre-fix: `--date` immediately followed by another `--flag`
+    // (nothing consumed as its value) parsed to the boolean `true`, which
+    // survived `(flags.date as string) || io.now()` unchanged and was written
+    // as the literal Markdown cell `| true |` into LEDGER.md — exit 0, no error.
+    const io = mockIO();
+    const r = await run(
+      ['ledger', 'append', '--path', 'L.md', '--date', '--deep', 'perf', '--finding', 'x', '--verdict', 'INCONCLUSIVE'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--date requires a value');
+    expect(io.files['L.md']).toBeUndefined();
+  });
+  it.each(['deep', 'finding', 'issue', 'pr', 'effect', 'witness', 'priorFates'])(
+    'rejects a value-less --%s with a clear usage error, not a silently-corrupted `true` cell',
+    async (field) => {
+      const io = mockIO();
+      const r = await run(
+        ['ledger', 'append', '--path', 'L.md', '--deep', 'perf', '--finding', 'x', '--verdict', 'INCONCLUSIVE', `--${field}`],
+        io,
+      );
+      expect(r.code).toBe(1);
+      expect(r.err).toContain(`--${field} requires a value`);
+      expect(io.files['L.md']).toBeUndefined();
+    },
+  );
 });
 
 describe('freshness', () => {
@@ -354,6 +419,17 @@ describe('freshness', () => {
       'dream.config.json',
       'src.ts',
     ]);
+  });
+
+  it('rejects a value-less --id with a clear usage error, not a silently-corrupted `true` policyId (independent-critic finding)', async () => {
+    // Same vulnerable `(flags.id as string) || fallback` shape as every other
+    // site in this file — missed in the first pass, caught by an independent
+    // critic subagent, fixed here. A bare trailing `--id` parses to the
+    // boolean `true` (parseArgs), which previously survived the `||` default
+    // unchanged and was written verbatim as `policy.policyId: true`.
+    const { r } = await stampPolicy({ 'dream.config.json': cfgV1, 'src.ts': srcV1 }, ['--id']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--id requires a value');
   });
 
   it('verify is FRESH (exit 0) when the read set has not moved', async () => {
@@ -761,6 +837,12 @@ describe('tui', () => {
   it('renderDashboard handles an empty ledger', () => {
     const frame = renderDashboard(emptyLedger(), { noColor: true });
     expect(frame).toContain('no dream nights yet');
+  });
+  it('rejects a value-less --path with a clear usage error, not a silently-empty dashboard', async () => {
+    const md = appendRow(emptyLedger(), sampleRow());
+    const r = await run(['tui', '--path'], mockIO({ 'L.md': md }));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--path requires a value');
   });
   it('shows a zero-merge warning', () => {
     let md = emptyLedger();
