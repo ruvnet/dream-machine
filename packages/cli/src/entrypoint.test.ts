@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, splitAndChain } from './entrypoint.js';
 
 describe('tokenizeCommand', () => {
   it('splits a plain command on whitespace', () => {
@@ -66,6 +66,45 @@ describe('looksLikeCompoundCommand', () => {
     // Only a standalone `&&`/`;`/`|`/`||`/`&` token counts — a package name or
     // flag that happens to contain one of these characters mid-string does not.
     expect(looksLikeCompoundCommand(['echo', 'a&b'])).toBe(false);
+  });
+});
+
+describe('splitAndChain', () => {
+  it("splits this repo's own real darwin entry into its two && segments", () => {
+    const argv = tokenizeCommand('rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock');
+    expect(splitAndChain(argv)).toEqual([
+      ['rm', '-rf', '.metaharness'],
+      ['npx', '@metaharness/darwin', 'evolve', '.', '--sandbox', 'mock'],
+    ]);
+  });
+
+  it('splits a three-segment &&-chain in order', () => {
+    expect(splitAndChain(tokenizeCommand('a && b && c'))).toEqual([['a'], ['b'], ['c']]);
+  });
+
+  it('returns null for a plain, non-compound command', () => {
+    expect(splitAndChain(tokenizeCommand('npm test'))).toBeNull();
+  });
+
+  it('returns null when any non-&& control operator is present, even alongside &&', () => {
+    expect(splitAndChain(tokenizeCommand('a && b ; c'))).toBeNull();
+    expect(splitAndChain(tokenizeCommand('a && b | c'))).toBeNull();
+    expect(splitAndChain(tokenizeCommand('a && b || c'))).toBeNull();
+    expect(splitAndChain(tokenizeCommand('a && b &'))).toBeNull();
+  });
+
+  it('returns null for a leading, trailing, or doubled && (an empty segment)', () => {
+    expect(splitAndChain(tokenizeCommand('&& echo hi'))).toBeNull();
+    expect(splitAndChain(tokenizeCommand('echo hi &&'))).toBeNull();
+    expect(splitAndChain(tokenizeCommand('echo hi && && echo bye'))).toBeNull();
+  });
+
+  it('returns null for a quoted-empty-token segment (falsy executable name), not [""]', () => {
+    // `a && "" && b` tokenizes to ['a', '&&', '', '&&', 'b'] — the middle segment's
+    // sole token is an empty string, not an absent one, so a bare length check (used
+    // for the leading/trailing/doubled-&& case above) would miss it and let an
+    // `io.execFile('', [])` call through instead of failing closed here.
+    expect(splitAndChain(tokenizeCommand('a && "" && b'))).toBeNull();
   });
 });
 

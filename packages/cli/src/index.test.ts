@@ -581,41 +581,69 @@ describe('verify-entrypoints', () => {
     ]);
   });
 
-  it('refuses a shell-metacharacter config value instead of executing it as garbled argv', async () => {
-    // Reproduces #17's 2026-08-17 injection probe against the automated path, hardened
-    // further 2026-09-18 (PR #116 review): a config value containing `&&` is not just
-    // kept as inert argv text, it is refused outright — execFile is never called for it
-    // at all. (Naively dispatching argv[0]='echo' with the rest as its args would not be
-    // a shell-injection risk, but it silently runs the wrong thing — see the
-    // compound-command test below for why that matters in practice.)
+  it('splits and runs a trusted &&-chain command segment-by-segment, never via a shell', async () => {
+    // Reproduces #17's 2026-08-17 injection probe against the automated path: `&&` in a
+    // config value is never shell-interpreted (tokenizeCommand already locks that in).
+    // 2026-10-07: a well-formed &&-chain with no other operator and no empty segment is
+    // now actually run — each segment dispatched as its own execFile call, in order —
+    // instead of being refused outright (the prior, more conservative behavior; see
+    // splitAndChain's doc comment for why that left this repo's own darwin entry
+    // permanently unclassifiable).
     const calls: Array<{ file: string; args: string[] }> = [];
     const io = mockIOWithExecFile(
       async (file, args) => {
         calls.push({ file, args });
-        return { code: 0, stdout: 'hi', stderr: '' };
+        return { code: 0, stdout: `${file} ok`, stderr: '' };
       },
       {
-        'evil.config.json': JSON.stringify({
+        'chain.config.json': JSON.stringify({
           repo: 'x/y',
           cron: '0 9 * * *',
           slots: [{ deep: 'd', scan: ['a', 'b'] }],
-          evaluatorEntrypoints: { bench: 'echo hi && touch PWNED' },
+          evaluatorEntrypoints: { bench: 'echo hi && touch marker' },
         }),
       },
     );
-    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
-    expect(r.code).toBe(1);
-    expect(r.out).toContain('bench: blocked');
-    expect(r.out.toLowerCase()).toContain('compound command');
-    expect(calls).toEqual([]);
+    const r = await run(['verify-entrypoints', 'chain.config.json'], io);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('bench: live');
+    expect(r.out).toContain('&&-chain, all 2 segments ran');
+    expect(calls).toEqual([
+      { file: 'echo', args: ['hi'] },
+      { file: 'touch', args: ['marker'] },
+    ]);
   });
 
-  it('refuses this repo\'s own real darwin entry (a compound command) instead of running `rm` with garbage argv', async () => {
-    // Reproduces PR #116's review finding exactly: dream.config.json's actual darwin
-    // entrypoint is `rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
-    // mock`. Naively dispatching argv[0]='rm' with the remaining tokens (including a
-    // bare `.`) as its args never invokes npx/darwin at all, and would attempt an `rm`
-    // with the current directory among its arguments. This must be refused, not executed.
+  it('short-circuits an &&-chain on the first failing segment, matching shell && semantics', async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return file === 'false' ? { code: 1, stdout: '', stderr: 'boom' } : { code: 0, stdout: 'ok', stderr: '' };
+      },
+      {
+        'chain.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: 'false && echo never' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'chain.config.json'], io);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out).toContain('&&-chain segment 1/2 failed');
+    expect(r.out).toContain('boom');
+    // The second segment never runs once the first fails, same as a real shell's &&.
+    expect(calls).toEqual([{ file: 'false', args: [] }]);
+    expect(r.code).toBe(1);
+  });
+
+  it("runs this repo's own real darwin entry's &&-chain correctly instead of refusing it outright", async () => {
+    // dream.config.json's actual darwin entrypoint is `rm -rf .metaharness && npx
+    // @metaharness/darwin evolve . --sandbox mock`. Each segment now gets its own
+    // correctly-split argv ('rm' never sees the `npx ...` tokens as garbage arguments),
+    // dispatched via execFile — never a shell — in order.
     const calls: Array<{ file: string; args: string[] }> = [];
     const io = mockIOWithExecFile(
       async (file, args) => {
@@ -636,11 +664,60 @@ describe('verify-entrypoints', () => {
     );
     const r = await run(['verify-entrypoints'], io);
     expect(r.out).toContain('bench: live');
-    expect(r.out).toContain('darwin: blocked');
-    expect(r.out.toLowerCase()).toContain('compound command');
-    // bench still runs; darwin's `rm` is never invoked, for any argv.
-    expect(calls).toEqual([{ file: 'npm', args: ['test'] }]);
+    expect(r.out).toContain('darwin: live');
+    expect(r.out).toContain('&&-chain, all 2 segments ran');
+    expect(calls).toEqual([
+      { file: 'npm', args: ['test'] },
+      { file: 'rm', args: ['-rf', '.metaharness'] },
+      { file: 'npx', args: ['@metaharness/darwin', 'evolve', '.', '--sandbox', 'mock'] },
+    ]);
+    expect(r.code).toBe(0);
+  });
+
+  it('still refuses a non-&&-chain compound command outright (;, |, & do not share && semantics)', async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'hi', stderr: '' };
+      },
+      {
+        'evil.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: 'echo hi ; touch PWNED' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
     expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    expect(calls).toEqual([]);
+  });
+
+  it('still refuses a malformed &&-chain (leading operator, empty segment) outright', async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'hi', stderr: '' };
+      },
+      {
+        'evil.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: '&& echo hi' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('compound command');
+    expect(calls).toEqual([]);
   });
 
   it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {

@@ -32,7 +32,14 @@ import {
 } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, type ExecResult } from './entrypoint.js';
+import {
+  classifyEntrypointResult,
+  tokenizeCommand,
+  looksLikeCompoundCommand,
+  splitAndChain,
+  type ExecResult,
+  type EntrypointVerdict,
+} from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
 import {
   evaluateDocuments,
@@ -82,6 +89,20 @@ function makeSink() {
       return err;
     },
   };
+}
+
+/** `verify-entrypoints`' aggregate exit code for one entry's classified verdict. */
+function verdictExitCode(verdict: EntrypointVerdict): number {
+  switch (verdict) {
+    case 'live':
+      return 0;
+    case 'blocked':
+      return 1;
+    case 'suspicious-silent':
+      return 2;
+    case 'stale-state':
+      return 3;
+  }
 }
 
 /** Minimal flag parser: --key val, --key=val, --bool, positionals. */
@@ -545,30 +566,46 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             continue;
           }
           if (looksLikeCompoundCommand(argv)) {
-            // Fail closed rather than dispatch argv[0] with the rest of a multi-command
-            // string as its arguments — see looksLikeCompoundCommand's own doc comment
-            // for the live repro (this repo's own darwin entry). Nothing is executed.
-            sink.log(
-              `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
-                `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
-                'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
-                'command, or verify its pieces individually via verify-entrypoint',
-            );
-            worst = Math.max(worst, 1);
+            const chain = splitAndChain(argv);
+            if (!chain) {
+              // Fail closed rather than dispatch argv[0] with the rest of a multi-command
+              // string as its arguments — see looksLikeCompoundCommand's own doc comment
+              // for the live repro. Nothing is executed.
+              sink.log(
+                `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
+                  `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
+                  'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
+                  'command, or verify its pieces individually via verify-entrypoint',
+              );
+              worst = Math.max(worst, 1);
+              continue;
+            }
+            // A pure &&-chain (this repo's own darwin entry is exactly this shape): run
+            // each segment in order via execFile — never a shell — short-circuiting on
+            // the first nonzero exit, the same semantics a real shell's `&&` has.
+            let result: ExecResult | null = null;
+            let failedAt = -1;
+            for (let i = 0; i < chain.length; i++) {
+              const [segFile, ...segArgs] = chain[i];
+              result = await io.execFile(segFile, segArgs);
+              if (result.code !== 0) {
+                failedAt = i;
+                break;
+              }
+            }
+            const check = classifyEntrypointResult(result as ExecResult);
+            const chainNote =
+              failedAt >= 0
+                ? `&&-chain segment ${failedAt + 1}/${chain.length} failed`
+                : `&&-chain, all ${chain.length} segments ran`;
+            sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${chainNote}: ${check.reason}`);
+            worst = Math.max(worst, verdictExitCode(check.verdict));
             continue;
           }
           const result = await io.execFile(file, args);
           const check = classifyEntrypointResult(result);
           sink.log(`${label}: ${check.verdict} (exit ${check.code}) — ${check.reason}`);
-          const code =
-            check.verdict === 'live'
-              ? 0
-              : check.verdict === 'blocked'
-                ? 1
-                : check.verdict === 'suspicious-silent'
-                  ? 2
-                  : 3; // stale-state
-          worst = Math.max(worst, code);
+          worst = Math.max(worst, verdictExitCode(check.verdict));
         }
         return { code: worst, out: sink.out, err: sink.err };
       }
