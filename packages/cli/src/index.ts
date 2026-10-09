@@ -244,6 +244,29 @@ function parseLegacyDigest(flag: string | boolean | undefined): string | undefin
   return flag;
 }
 
+/**
+ * Parse an optional string flag that falls back to `fallback` when the flag
+ * is absent, but fails closed when it's PRESENT without a value. `parseArgs`
+ * turns a value-less `--foo` (nothing after it, or another `--flag` right
+ * after) into the boolean `true`, not a string — the same shape already
+ * documented and guarded on `parseMergedPrNumbers`/`parseOpenCandidateCount`/
+ * `parseSinceRow`/`parseLegacyDigest` below. Every plain `(flags.foo as
+ * string) || fallback` call site in this file missed that case: `true` is
+ * truthy, so it survives the `||` and gets used as the string value verbatim
+ * — live repro: `ledger append --date` with no value silently wrote the
+ * literal cell `true` into LEDGER.md (exit 0); `ledger --path` / `tui --path`
+ * with no value silently reported "0 rows" / an empty dashboard on the real
+ * ledger instead of erroring (exit 0); `init --repo` with no value silently
+ * baked `"repo": true` into the generated config. This throws instead.
+ */
+function stringFlag(flag: string | boolean | undefined, name: string, fallback: string): string {
+  if (flag === undefined) return fallback;
+  if (typeof flag !== 'string') {
+    throw new Error(`--${name} requires a value, e.g. --${name} "..."`);
+  }
+  return flag;
+}
+
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
   const raw = await io.readFile(path);
   return JSON.parse(raw) as DreamConfig;
@@ -267,10 +290,10 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
 
     switch (cmd) {
       case 'init': {
-        const repo = (flags.repo as string) || 'owner/name';
+        const repo = stringFlag(flags.repo, 'repo', 'owner/name');
         const cfg = defaultConfig(repo);
         const json = JSON.stringify(cfg, null, 2);
-        const out = (flags.out as string) || '';
+        const out = stringFlag(flags.out, 'out', '');
         if (out) {
           await io.writeFile(out, json + '\n');
           sink.log(`wrote ${out} for ${repo}`);
@@ -289,7 +312,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           return { code: 1, out: sink.out, err: sink.err };
         }
         const prompt = compile(cfg);
-        const out = (flags.out as string) || '';
+        const out = stringFlag(flags.out, 'out', '');
         if (out) {
           await io.writeFile(out, prompt);
           sink.log(`compiled ${cfg.repo} → ${out} (${prompt.length} bytes)`);
@@ -303,7 +326,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         const cfgPath = _[1] || 'dream.config.json';
         const cfg = await loadConfig(io, cfgPath);
         const body = serializeRoutine(cfg, { environmentId: flags.env as string | undefined });
-        const out = (flags.out as string) || '';
+        const out = stringFlag(flags.out, 'out', '');
         if (out) {
           await io.writeFile(out, body + '\n');
           sink.log(`wrote routine body → ${out}`);
@@ -317,7 +340,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
 
       case 'ledger': {
         const sub = _[1];
-        const path = (flags.path as string) || 'docs/dream-cycle/LEDGER.md';
+        const path = stringFlag(flags.path, 'path', 'docs/dream-cycle/LEDGER.md');
         let md = '';
         try {
           md = await io.readFile(path);
@@ -368,16 +391,16 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         if (sub === 'append') {
           const row: LedgerRow = {
-            date: (flags.date as string) || io.now(),
-            deep: (flags.deep as string) || '',
-            finding: (flags.finding as string) || '',
-            issue: (flags.issue as string) || 'LOCAL',
-            pr: (flags.pr as string) || 'NONE',
-            evaluated: (flags.evaluated as string) || 'no',
-            verdict: (flags.verdict as string) || 'INCONCLUSIVE',
-            effect: (flags.effect as string) || '',
-            witness: (flags.witness as string) || '',
-            priorFates: (flags.priorFates as string) || '',
+            date: stringFlag(flags.date, 'date', io.now()),
+            deep: stringFlag(flags.deep, 'deep', ''),
+            finding: stringFlag(flags.finding, 'finding', ''),
+            issue: stringFlag(flags.issue, 'issue', 'LOCAL'),
+            pr: stringFlag(flags.pr, 'pr', 'NONE'),
+            evaluated: stringFlag(flags.evaluated, 'evaluated', 'no'),
+            verdict: stringFlag(flags.verdict, 'verdict', 'INCONCLUSIVE'),
+            effect: stringFlag(flags.effect, 'effect', ''),
+            witness: stringFlag(flags.witness, 'witness', ''),
+            priorFates: stringFlag(flags.priorFates, 'priorFates', ''),
           };
           if (!VERDICTS.includes(row.verdict)) {
             sink.error(`ledger append: verdict "${row.verdict}" not in ${VERDICTS.join('|')}`);
@@ -649,7 +672,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           }
           const maxAgeRaw = flags['max-age'];
           const policy: EvidenceFreshnessPolicy = {
-            policyId: (flags.id as string) || 'dream-cycle-candidate',
+            policyId: stringFlag(flags.id, 'id', 'dream-cycle-candidate'),
             baseCommit: base,
             evaluatedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
             dependencies,
@@ -742,7 +765,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
       }
 
       case 'tui': {
-        const path = (flags.path as string) || 'docs/dream-cycle/LEDGER.md';
+        const path = stringFlag(flags.path, 'path', 'docs/dream-cycle/LEDGER.md');
         let md = '';
         try {
           md = await io.readFile(path);
