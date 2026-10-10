@@ -80,6 +80,18 @@ export interface ValidationResult {
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
+/** A newline or a 3+ backtick run breaks out of the ```text fence that STEP
+ * 0's slot map embeds `deep`/`scan`/bonusModuli values in verbatim, letting a
+ * config value inject fabricated markdown (a fake heading, a fake step) into
+ * the compiled prompt a future night is told to follow exactly. */
+const FENCE_BREAK_RE = /[\r\n]|`{3,}/;
+
+/** Push an error if `value` would break out of STEP 0's slot-map fence. */
+function checkNoFenceBreak(value: string, label: string, errors: string[]): void {
+  if (FENCE_BREAK_RE.test(value)) {
+    errors.push(`${label} must not contain a newline or a backtick-fence sequence (would corrupt the compiled prompt's markdown structure)`);
+  }
+}
 
 /** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
 function isNonEmptyStringArray(v: unknown): v is string[] {
@@ -126,7 +138,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
         return;
       }
-      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (typeof s.deep !== 'string' || !s.deep.trim()) {
+        errors.push(`slot ${i}: missing "deep" surface`);
+      } else {
+        checkNoFenceBreak(s.deep, `slot ${i}: "deep"`, errors);
+      }
       if (!s.scan) {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else if (!Array.isArray(s.scan)) {
@@ -135,7 +151,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else {
         s.scan.forEach((sc, j) => {
-          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          if (typeof sc !== 'string' || !sc.trim()) {
+            errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          } else {
+            checkNoFenceBreak(sc, `slot ${i}: scan[${j}]`, errors);
+          }
         });
       }
     });
@@ -149,6 +169,8 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
       if (typeof v !== 'string' || v.trim().length === 0) {
         errors.push(`bonusModuli["${k}"] must be a non-empty string`);
+      } else {
+        checkNoFenceBreak(v, `bonusModuli["${k}"]`, errors);
       }
     }
   }
