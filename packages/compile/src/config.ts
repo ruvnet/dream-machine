@@ -111,6 +111,27 @@ function checkStringArrayFenceBreak(config: Partial<DreamConfig>, field: keyof D
   }
 }
 
+/**
+ * buildStep.cmd and controlPlaneProbes entries are legitimately free-form
+ * shell text embedded verbatim inside their own ```bash fence
+ * (step05Build) -- a real command may contain a lone backtick (command
+ * substitution) or a newline (a multi-line script), so FENCE_BREAK_RE's
+ * blanket ban would reject valid configuration. But they share the same
+ * fence-breakable container as slots[].deep: a line that IS a fence
+ * marker (optional indent, then 3+ backticks, optionally followed by a
+ * language tag) closes/reopens the surrounding ```bash block exactly like
+ * the original bug, and no legitimate shell command is ever just a bare
+ * backtick-fence line. Flagged live by an independent critic reviewing
+ * the widened fix, after the blanket exclusion of these two fields.
+ */
+const FENCE_LINE_RE = /^[ \t]{0,3}`{3,}.*$/m;
+
+function checkNoFenceLine(value: string, label: string, errors: string[]): void {
+  if (FENCE_LINE_RE.test(value)) {
+    errors.push(`${label} must not contain a line that is itself a markdown fence marker (would corrupt the compiled prompt's fenced block)`);
+  }
+}
+
 /** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
 function isNonEmptyStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.trim().length > 0);
@@ -187,13 +208,18 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   checkStringArrayField(config, 'extraDisciplines', errors);
   checkStringArrayField(config, 'controlPlaneProbes', errors);
   // labels/competitors/extraDisciplines are short identifiers rendered as
-  // backtick-wrapped inline spans or plain bullet prose; controlPlaneProbes
-  // is deliberately excluded -- its entries are free-form shell commands,
-  // where a literal backtick or (for a legitimate multi-line probe) newline
-  // is not a defect.
+  // backtick-wrapped inline spans or plain bullet prose: no legitimate
+  // value needs a backtick or newline, so the blanket check applies.
   checkStringArrayFenceBreak(config, 'labels', errors);
   checkStringArrayFenceBreak(config, 'competitors', errors);
   checkStringArrayFenceBreak(config, 'extraDisciplines', errors);
+  // controlPlaneProbes entries are free-form shell commands embedded in
+  // their own ```bash fence: a lone backtick or a legitimate multi-line
+  // probe is not a defect, but a line that is itself a fence marker would
+  // still break out of that block, so the narrower per-line check applies.
+  if (isNonEmptyStringArray(config.controlPlaneProbes)) {
+    config.controlPlaneProbes.forEach((p, i) => checkNoFenceLine(p, `controlPlaneProbes[${i}]`, errors));
+  }
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
@@ -231,6 +257,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     } else {
       if (typeof b.cmd !== 'string' || b.cmd.trim().length === 0) {
         errors.push('buildStep.cmd must be a non-empty string');
+      } else {
+        // Free-form shell text, embedded in its own ```bash fence: see
+        // checkNoFenceLine's doc comment for why this is narrower than
+        // checkNoFenceBreak.
+        checkNoFenceLine(b.cmd, 'buildStep.cmd', errors);
       }
       if (b.degradeOnWasmFailure !== undefined && typeof b.degradeOnWasmFailure !== 'boolean') {
         errors.push('buildStep.degradeOnWasmFailure must be a boolean');
