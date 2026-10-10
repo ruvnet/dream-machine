@@ -80,6 +80,57 @@ export interface ValidationResult {
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
+/**
+ * compile() interpolates identifier-like config values either inside a
+ * ```text fence (STEP 0's slot map) or inside a single-backtick inline
+ * span (most other sections, e.g. `` `${cron}` ``, `` `${ledgerPath}` ``).
+ * A newline breaks either container (a block fence closes on the next
+ * line starting with its own fence marker; a line break inside prose
+ * fields like extraDisciplines/competitors injects a fresh markdown line
+ * with no fence needed at all). A single backtick closes a one-backtick
+ * inline span early regardless of newlines. Either lets the remainder of
+ * the value render as literal, fabricated markdown/instructions in the
+ * compiled nightly prompt that a future night is told to follow exactly
+ * -- live-reproduced for slots[].deep, cron, evaluatorEntrypoints.*,
+ * labels[], extraDisciplines[], branchPrefix, and bonusModuli values.
+ */
+const FENCE_BREAK_RE = /[\r\n`]/;
+
+/** Push an error if `value` would break out of its markdown container. */
+function checkNoFenceBreak(value: string, label: string, errors: string[]): void {
+  if (FENCE_BREAK_RE.test(value)) {
+    errors.push(`${label} must not contain a newline or a backtick (would corrupt the compiled prompt's markdown structure)`);
+  }
+}
+
+/** Apply checkNoFenceBreak to every element of an already-validated string[] field. */
+function checkStringArrayFenceBreak(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (isNonEmptyStringArray(v)) {
+    v.forEach((item, i) => checkNoFenceBreak(item, `${field}[${i}]`, errors));
+  }
+}
+
+/**
+ * buildStep.cmd and controlPlaneProbes entries are legitimately free-form
+ * shell text embedded verbatim inside their own ```bash fence
+ * (step05Build) -- a real command may contain a lone backtick (command
+ * substitution) or a newline (a multi-line script), so FENCE_BREAK_RE's
+ * blanket ban would reject valid configuration. But they share the same
+ * fence-breakable container as slots[].deep: a line that IS a fence
+ * marker (optional indent, then 3+ backticks, optionally followed by a
+ * language tag) closes/reopens the surrounding ```bash block exactly like
+ * the original bug, and no legitimate shell command is ever just a bare
+ * backtick-fence line. Flagged live by an independent critic reviewing
+ * the widened fix, after the blanket exclusion of these two fields.
+ */
+const FENCE_LINE_RE = /^[ \t]{0,3}`{3,}.*$/m;
+
+function checkNoFenceLine(value: string, label: string, errors: string[]): void {
+  if (FENCE_LINE_RE.test(value)) {
+    errors.push(`${label} must not contain a line that is itself a markdown fence marker (would corrupt the compiled prompt's fenced block)`);
+  }
+}
 
 /** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
 function isNonEmptyStringArray(v: unknown): v is string[] {
@@ -111,6 +162,10 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   if (typeof config.cron !== 'string' || !CRON_RE.test(config.cron.trim())) {
     errors.push('cron must be a 5-field expression');
   } else {
+    // CRON_RE's \s+ separators also match newlines, so a "5-field" cron can
+    // smuggle a fence break between two fields; reject independently of the
+    // field-count check above.
+    checkNoFenceBreak(config.cron.trim(), 'cron', errors);
     const [minute] = config.cron.trim().split(/\s+/);
     if (!FIXED_MINUTE_RE.test(minute)) {
       errors.push('cron minute field must be a single value from 0 to 59; minimum interval is 1 hour');
@@ -126,7 +181,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
         return;
       }
-      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (typeof s.deep !== 'string' || !s.deep.trim()) {
+        errors.push(`slot ${i}: missing "deep" surface`);
+      } else {
+        checkNoFenceBreak(s.deep, `slot ${i}: "deep"`, errors);
+      }
       if (!s.scan) {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else if (!Array.isArray(s.scan)) {
@@ -135,7 +194,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else {
         s.scan.forEach((sc, j) => {
-          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          if (typeof sc !== 'string' || !sc.trim()) {
+            errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          } else {
+            checkNoFenceBreak(sc, `slot ${i}: scan[${j}]`, errors);
+          }
         });
       }
     });
@@ -144,11 +207,26 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   checkStringArrayField(config, 'competitors', errors);
   checkStringArrayField(config, 'extraDisciplines', errors);
   checkStringArrayField(config, 'controlPlaneProbes', errors);
+  // labels/competitors/extraDisciplines are short identifiers rendered as
+  // backtick-wrapped inline spans or plain bullet prose: no legitimate
+  // value needs a backtick or newline, so the blanket check applies.
+  checkStringArrayFenceBreak(config, 'labels', errors);
+  checkStringArrayFenceBreak(config, 'competitors', errors);
+  checkStringArrayFenceBreak(config, 'extraDisciplines', errors);
+  // controlPlaneProbes entries are free-form shell commands embedded in
+  // their own ```bash fence: a lone backtick or a legitimate multi-line
+  // probe is not a defect, but a line that is itself a fence marker would
+  // still break out of that block, so the narrower per-line check applies.
+  if (isNonEmptyStringArray(config.controlPlaneProbes)) {
+    config.controlPlaneProbes.forEach((p, i) => checkNoFenceLine(p, `controlPlaneProbes[${i}]`, errors));
+  }
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
       if (typeof v !== 'string' || v.trim().length === 0) {
         errors.push(`bonusModuli["${k}"] must be a non-empty string`);
+      } else {
+        checkNoFenceBreak(v, `bonusModuli["${k}"]`, errors);
       }
     }
   }
@@ -159,6 +237,17 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     }
     if (typeof dir !== 'string' || dir.trim().length === 0) {
       errors.push('adrConvention.dir must be a non-empty string');
+    } else {
+      checkNoFenceBreak(dir, 'adrConvention.dir', errors);
+    }
+  }
+  // evaluatorEntrypoints has no type/shape validation on main yet (tracked
+  // separately, open draft PR #152); guard defensively here regardless of
+  // that PR's fate -- any string value present must not break the
+  // backtick-wrapped entrypoint list in STEP 6-9.
+  if (config.evaluatorEntrypoints !== undefined && config.evaluatorEntrypoints !== null && typeof config.evaluatorEntrypoints === 'object' && !Array.isArray(config.evaluatorEntrypoints)) {
+    for (const [key, v] of Object.entries(config.evaluatorEntrypoints)) {
+      if (typeof v === 'string') checkNoFenceBreak(v, `evaluatorEntrypoints.${key}`, errors);
     }
   }
   if (config.buildStep !== undefined) {
@@ -168,17 +257,30 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     } else {
       if (typeof b.cmd !== 'string' || b.cmd.trim().length === 0) {
         errors.push('buildStep.cmd must be a non-empty string');
+      } else {
+        // Free-form shell text, embedded in its own ```bash fence: see
+        // checkNoFenceLine's doc comment for why this is narrower than
+        // checkNoFenceBreak.
+        checkNoFenceLine(b.cmd, 'buildStep.cmd', errors);
       }
       if (b.degradeOnWasmFailure !== undefined && typeof b.degradeOnWasmFailure !== 'boolean') {
         errors.push('buildStep.degradeOnWasmFailure must be a boolean');
       }
     }
   }
-  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
-    errors.push('ledgerPath must be a non-empty string');
+  if (config.ledgerPath !== undefined) {
+    if (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0) {
+      errors.push('ledgerPath must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.ledgerPath, 'ledgerPath', errors);
+    }
   }
-  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
-    errors.push('branchPrefix must be a non-empty string');
+  if (config.branchPrefix !== undefined) {
+    if (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0) {
+      errors.push('branchPrefix must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.branchPrefix, 'branchPrefix', errors);
+    }
   }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;
