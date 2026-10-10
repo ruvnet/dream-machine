@@ -238,6 +238,26 @@ hypothesis, benchmarks, evaluation, witness, 3 concrete next steps. No fabricate
 benchmarks; every quantitative claim carries its evidence grade.`;
 }
 
+/**
+ * Wrap `s` as a markdown inline code span that cannot be broken out of
+ * regardless of its content: picks a backtick-run delimiter one longer
+ * than the longest backtick run inside `s` (CommonMark's own rule for an
+ * unambiguous code span), and pads with a space if `s` starts or ends
+ * with a backtick. For ordinary content (no backticks) this is identical
+ * to a plain single-backtick wrap. Needed because `packageSpec` below is
+ * extracted from a `controlPlaneProbes` command, which -- unlike the
+ * identifier-like config fields `validateConfig()` rejects a lone
+ * backtick from outright -- is allowed to contain one (command
+ * substitution), so a plain `` `${s}` `` wrap is not safe here.
+ */
+function inlineCode(s: string): string {
+  const runs = s.match(/`+/g) ?? [];
+  const longest = runs.reduce((max, r) => Math.max(max, r.length), 0);
+  const fence = '`'.repeat(longest + 1);
+  const pad = s.startsWith('`') || s.endsWith('`') ? ' ' : '';
+  return `${fence}${pad}${s}${pad}${fence}`;
+}
+
 function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: string[]): string {
   const evLines = Object.entries(ev ?? {})
     .filter(([, val]) => val)
@@ -249,7 +269,7 @@ function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: stri
       unpinned
         .map(
           (f) =>
-            `- \`${f.source}\` runs \`npx ${f.packageSpec}\` — not pinned to an exact version. \`npx\` resolves the ` +
+            `- ${inlineCode(f.source)} runs ${inlineCode(`npx ${f.packageSpec}`)} — not pinned to an exact version. \`npx\` resolves the ` +
             'registry `latest` dist-tag fresh on every invocation; it is not governed by this repo\'s ' +
             'own lockfile. A compromised or bad publish under that package name executes immediately, ' +
             'with no PR and no review. Treat a result from this entrypoint as evidence about "whatever ' +

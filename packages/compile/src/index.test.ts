@@ -496,6 +496,25 @@ describe('compile', () => {
     });
     expect(p).not.toContain('Supply-chain warning');
   });
+  // packageSpec is extracted from a controlPlaneProbes command, which is
+  // allowed to contain a lone backtick (command substitution) -- unlike
+  // the identifier-like config fields validateConfig() rejects one from
+  // outright. A naive `` `${packageSpec}` `` wrap breaks out of its own
+  // inline span when the spec itself carries a backtick. Found during
+  // this same candidate's own review, after two rounds of an independent
+  // critic's adversarial pass returned CLEAR without catching it.
+  it('safely renders a packageSpec containing a backtick without breaking its own inline-code span', () => {
+    const p = compile({ ...metaharness, controlPlaneProbes: ['npx `evil`@latest'] });
+    expect(p).toContain('Supply-chain warning');
+    // A correctly-escaped span uses a longer backtick run as its delimiter
+    // (`` `` ... `` ``), so the literal single backtick inside the spec
+    // never terminates the span early.
+    expect(p).toContain('``npx `evil`@latest``');
+  });
+  it('safely renders a packageSpec containing a backtick run longer than one', () => {
+    const p = compile({ ...metaharness, controlPlaneProbes: ['npx a```b@latest'] });
+    expect(p).toContain('````npx a```b@latest````');
+  });
 });
 
 describe('defaults', () => {
