@@ -80,16 +80,34 @@ export interface ValidationResult {
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
-/** A newline or a 3+ backtick run breaks out of the ```text fence that STEP
- * 0's slot map embeds `deep`/`scan`/bonusModuli values in verbatim, letting a
- * config value inject fabricated markdown (a fake heading, a fake step) into
- * the compiled prompt a future night is told to follow exactly. */
-const FENCE_BREAK_RE = /[\r\n]|`{3,}/;
+/**
+ * compile() interpolates identifier-like config values either inside a
+ * ```text fence (STEP 0's slot map) or inside a single-backtick inline
+ * span (most other sections, e.g. `` `${cron}` ``, `` `${ledgerPath}` ``).
+ * A newline breaks either container (a block fence closes on the next
+ * line starting with its own fence marker; a line break inside prose
+ * fields like extraDisciplines/competitors injects a fresh markdown line
+ * with no fence needed at all). A single backtick closes a one-backtick
+ * inline span early regardless of newlines. Either lets the remainder of
+ * the value render as literal, fabricated markdown/instructions in the
+ * compiled nightly prompt that a future night is told to follow exactly
+ * -- live-reproduced for slots[].deep, cron, evaluatorEntrypoints.*,
+ * labels[], extraDisciplines[], branchPrefix, and bonusModuli values.
+ */
+const FENCE_BREAK_RE = /[\r\n`]/;
 
-/** Push an error if `value` would break out of STEP 0's slot-map fence. */
+/** Push an error if `value` would break out of its markdown container. */
 function checkNoFenceBreak(value: string, label: string, errors: string[]): void {
   if (FENCE_BREAK_RE.test(value)) {
-    errors.push(`${label} must not contain a newline or a backtick-fence sequence (would corrupt the compiled prompt's markdown structure)`);
+    errors.push(`${label} must not contain a newline or a backtick (would corrupt the compiled prompt's markdown structure)`);
+  }
+}
+
+/** Apply checkNoFenceBreak to every element of an already-validated string[] field. */
+function checkStringArrayFenceBreak(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (isNonEmptyStringArray(v)) {
+    v.forEach((item, i) => checkNoFenceBreak(item, `${field}[${i}]`, errors));
   }
 }
 
@@ -123,6 +141,10 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   if (typeof config.cron !== 'string' || !CRON_RE.test(config.cron.trim())) {
     errors.push('cron must be a 5-field expression');
   } else {
+    // CRON_RE's \s+ separators also match newlines, so a "5-field" cron can
+    // smuggle a fence break between two fields; reject independently of the
+    // field-count check above.
+    checkNoFenceBreak(config.cron.trim(), 'cron', errors);
     const [minute] = config.cron.trim().split(/\s+/);
     if (!FIXED_MINUTE_RE.test(minute)) {
       errors.push('cron minute field must be a single value from 0 to 59; minimum interval is 1 hour');
@@ -164,6 +186,14 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   checkStringArrayField(config, 'competitors', errors);
   checkStringArrayField(config, 'extraDisciplines', errors);
   checkStringArrayField(config, 'controlPlaneProbes', errors);
+  // labels/competitors/extraDisciplines are short identifiers rendered as
+  // backtick-wrapped inline spans or plain bullet prose; controlPlaneProbes
+  // is deliberately excluded -- its entries are free-form shell commands,
+  // where a literal backtick or (for a legitimate multi-line probe) newline
+  // is not a defect.
+  checkStringArrayFenceBreak(config, 'labels', errors);
+  checkStringArrayFenceBreak(config, 'competitors', errors);
+  checkStringArrayFenceBreak(config, 'extraDisciplines', errors);
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
@@ -181,6 +211,17 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     }
     if (typeof dir !== 'string' || dir.trim().length === 0) {
       errors.push('adrConvention.dir must be a non-empty string');
+    } else {
+      checkNoFenceBreak(dir, 'adrConvention.dir', errors);
+    }
+  }
+  // evaluatorEntrypoints has no type/shape validation on main yet (tracked
+  // separately, open draft PR #152); guard defensively here regardless of
+  // that PR's fate -- any string value present must not break the
+  // backtick-wrapped entrypoint list in STEP 6-9.
+  if (config.evaluatorEntrypoints !== undefined && config.evaluatorEntrypoints !== null && typeof config.evaluatorEntrypoints === 'object' && !Array.isArray(config.evaluatorEntrypoints)) {
+    for (const [key, v] of Object.entries(config.evaluatorEntrypoints)) {
+      if (typeof v === 'string') checkNoFenceBreak(v, `evaluatorEntrypoints.${key}`, errors);
     }
   }
   if (config.buildStep !== undefined) {
@@ -196,11 +237,19 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       }
     }
   }
-  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
-    errors.push('ledgerPath must be a non-empty string');
+  if (config.ledgerPath !== undefined) {
+    if (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0) {
+      errors.push('ledgerPath must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.ledgerPath, 'ledgerPath', errors);
+    }
   }
-  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
-    errors.push('branchPrefix must be a non-empty string');
+  if (config.branchPrefix !== undefined) {
+    if (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0) {
+      errors.push('branchPrefix must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.branchPrefix, 'branchPrefix', errors);
+    }
   }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;
