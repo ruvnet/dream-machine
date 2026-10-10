@@ -751,7 +751,15 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         }
         sink.log(
           renderDashboard(md, {
-            noColor: flags['no-color'] === true,
+            // Truthy, not `=== true`: matches this file's own established
+            // pattern for every other boolean-ish flag (`flags.help`,
+            // `flags.version`, `flags.report`). `parseArgs`'s `--flag value`
+            // greedy consumption turns a trailing stray positional (e.g.
+            // `--no-color extra`) into a string, not the boolean `true` — a
+            // strict-equality check there silently drops the user's
+            // no-color request and re-leaks ANSI, reopening the same
+            // user-visible symptom PR #103 fixed for a different cause.
+            noColor: Boolean(flags['no-color']),
             repo: flags.repo as string | undefined,
             today: io.now(),
             mergedPrNumbers: parseMergedPrNumbers(flags.merged),
