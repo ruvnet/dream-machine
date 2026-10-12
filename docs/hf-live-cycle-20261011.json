@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "specHash": "a86872d0225ca103eb86e192cf90b7bcf6853dc2881900ab6d7b05cf51212b12",
+  "createdAt": "2026-10-11T16:19:24.761Z",
+  "results": [
+    {
+      "task": "affine",
+      "trainingHash": "7b35011687bf9165243c999a2eab9261d1c21a822864f030a4fec179f6c2a599",
+      "confirmationHash": "fc9c7344fb6c520a9f7d6d8a4079256933351f50f4096d49057885a71cc933df",
+      "candidate": null,
+      "candidateHash": null,
+      "baselineCorrect": 20,
+      "searchCorrect": 0,
+      "candidateCorrect": 0,
+      "total": 20,
+      "exactReplay": false,
+      "discoveryStatus": "fallback",
+      "attempts": [
+        {
+          "requestHash": "813e01e945675c8e3d70e27b3f32724d69a9001f15c15bed8db14d63b2b1c06a",
+          "model": "openai/gpt-oss-120b",
+          "provider": "groq",
+          "latencyMs": 3925.398452,
+          "error": "inference_or_validation_failed",
+          "httpStatus": 200,
+          "finishReason": "stop",
+          "phase": "candidate",
+          "validationError": "Unsupported operation"
+        },
+        {
+          "requestHash": "57d221aaebce78199fd28577a6fdd720173a9e14563030625c7b30e7889d7d41",
+          "model": "openai/gpt-oss-120b",
+          "provider": "groq",
+          "latencyMs": 3198.957184000001,
+          "error": "inference_or_validation_failed",
+          "httpStatus": 400,
+          "finishReason": null,
+          "phase": "http",
+          "validationError": null
+        }
+      ],
+      "reservedUsd": 0.0029166,
+      "verdict": "NO_GAIN"
+    }
+  ],
+  "reservedUsd": 0.0029165999999999984,
+  "billedCostUsd": null,
+  "promotion": "NOT_AUTHORIZED",
+  "learning": "candidate refinement and quarantined evidence; no weight training",
+  "receiptHash": "d8b44aaa37d9b7133f5c1b7b055271f362108c402ef22f6c0a8aa3f5e55579c8"
+}
