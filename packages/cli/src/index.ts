@@ -27,6 +27,7 @@ import {
   verifyReportSelfContained,
   evaluateEvidenceFreshness,
   evidenceFreshnessPolicyDigest,
+  MAX_EVIDENCE_AGE_DAYS,
   type EvidenceDependency,
   type EvidenceFreshnessPolicy,
 } from '@dream-machine/witness';
@@ -242,6 +243,31 @@ function parseLegacyDigest(flag: string | boolean | undefined): string | undefin
     throw new Error('--legacy-digest expects a 64-char lowercase sha256 hex digest');
   }
   return flag;
+}
+
+/**
+ * Parse `--max-age DAYS` into `freshness stamp`'s optional `maxAgeDays` policy
+ * field. Same fail-closed shape as `--open-count`/`--since-row`: a value-less
+ * flag parses as the boolean `true` from `parseArgs`, and `Number(true) === 1`
+ * is a safe positive integer — so without this guard a bare `--max-age` (no
+ * number given) silently froze the policy at the strictest possible value
+ * (`maxAgeDays: 1`) instead of failing the usage error every other numeric
+ * flag in this file already gives. Omitted entirely → `undefined` (no age
+ * bound, today's default behavior, unchanged).
+ *
+ * Bounds mirror `evidenceFreshnessPolicyDigest`'s own `normalizedMaxAgeDays`
+ * check (`@dream-machine/witness`) exactly, so every rejection is a single
+ * consistent CLI usage error (code 1) instead of some out-of-range values
+ * sailing past this guard only to fail one call deeper with a different exit
+ * code and message shape (code 2, from the library).
+ */
+function parseMaxAgeDays(flag: string | boolean | undefined): number | undefined {
+  if (flag === undefined) return undefined;
+  const n = typeof flag === 'string' ? Number(flag) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > MAX_EVIDENCE_AGE_DAYS) {
+    throw new Error(`--max-age expects an integer in [1, ${MAX_EVIDENCE_AGE_DAYS}] days, e.g. --max-age 14`);
+  }
+  return n;
 }
 
 async function loadConfig(io: IO, path: string): Promise<DreamConfig> {
@@ -647,14 +673,14 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
               return { code: 2, out: sink.out, err: sink.err };
             }
           }
-          const maxAgeRaw = flags['max-age'];
+          const maxAgeDays = parseMaxAgeDays(flags['max-age']);
           const policy: EvidenceFreshnessPolicy = {
             policyId: (flags.id as string) || 'dream-cycle-candidate',
             baseCommit: base,
             evaluatedAt: new Date(`${io.now()}T00:00:00.000Z`).toISOString(),
             dependencies,
             requireDeclaredDependencies: true,
-            ...(maxAgeRaw === undefined ? {} : { maxAgeDays: Number(maxAgeRaw) }),
+            ...(maxAgeDays === undefined ? {} : { maxAgeDays }),
           };
           let policyDigest: string;
           try {

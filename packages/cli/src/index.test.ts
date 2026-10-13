@@ -456,6 +456,40 @@ describe('freshness', () => {
     expect((await run(['freshness', 'stamp'], io)).code).toBe(2);
     expect((await run(['freshness', 'verify'], io)).code).toBe(2);
   });
+
+  it('stamp accepts a numeric --max-age and carries it into the policy', async () => {
+    const { io } = await stampPolicy({ 'a.ts': 'x' }, ['--max-age', '14']);
+    expect(JSON.parse(io.files['p.json']).policy.maxAgeDays).toBe(14);
+  });
+
+  // Regression: `parseArgs` turns a value-less `--max-age` (nothing after it,
+  // or another flag right after) into the boolean `true`, and `Number(true)`
+  // is the safe integer `1` — before the fix this silently froze the policy
+  // at the strictest possible age bound instead of erroring, the same class
+  // of bug `--open-count`/`--since-row` were already hardened against.
+  it('stamp rejects a value-less --max-age instead of silently freezing maxAgeDays: 1', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    const r = await run(
+      ['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts', '--out', 'p.json', '--max-age'],
+      io,
+    );
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--max-age expects an integer in [1, 3650] days');
+    expect(io.files['p.json']).toBeUndefined();
+  });
+
+  it('stamp rejects a non-numeric or out-of-range --max-age', async () => {
+    const io = mockIO({ 'a.ts': 'x' });
+    for (const bad of ['abc', '0', '-1', '1.5', '3651']) {
+      const r = await run(
+        ['freshness', 'stamp', '--base', 'abc1234', '--paths', 'a.ts', '--out', 'p.json', '--max-age', bad],
+        io,
+      );
+      expect(r.code).toBe(1);
+      expect(r.err).toContain('--max-age expects an integer in [1, 3650] days');
+      expect(io.files['p.json']).toBeUndefined();
+    }
+  });
 });
 
 describe('witness', () => {
