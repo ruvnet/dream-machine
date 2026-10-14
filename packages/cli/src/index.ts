@@ -461,8 +461,8 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
 
       case 'verify-entrypoint': {
         const label = _[1];
-        const cmd = flags.cmd as string | undefined;
-        if (!label || !cmd) {
+        const cmd = flags.cmd;
+        if (!label || typeof cmd !== 'string' || !cmd) {
           sink.error('usage: dream-machine verify-entrypoint <label> --cmd "<command>"');
           return { code: 1, out: sink.out, err: sink.err };
         }

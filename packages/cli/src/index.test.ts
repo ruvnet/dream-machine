@@ -516,6 +516,35 @@ describe('verify-entrypoint', () => {
     expect(r.err).toContain('usage:');
   });
 
+  it('errors on a bare, value-less --cmd instead of letting a boolean reach exec()', async () => {
+    // Regression test: `--cmd` with nothing after it (end of argv, or immediately followed
+    // by another `--flag`) makes parseArgs yield `flags.cmd === true`. The old guard
+    // (`if (!label || !cmd)`) treated `!true` as falsy-safe and let the boolean `true`
+    // reach `io.exec(cmd)`, which then misreported a misleading "blocked" liveness verdict
+    // instead of a usage error.
+    let capturedCmd: unknown;
+    const io = mockIOWithExec(async (cmd) => {
+      capturedCmd = cmd;
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    const r = await run(['verify-entrypoint', 'redblue', '--cmd'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('usage:');
+    expect(capturedCmd).toBeUndefined();
+  });
+
+  it('errors on --cmd immediately followed by another flag, same as a trailing bare --cmd', async () => {
+    let capturedCmd: unknown;
+    const io = mockIOWithExec(async (cmd) => {
+      capturedCmd = cmd;
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    const r = await run(['verify-entrypoint', 'redblue', '--cmd', '--other-flag'], io);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('usage:');
+    expect(capturedCmd).toBeUndefined();
+  });
+
   it('rejects an unquoted multi-word --cmd instead of silently truncating it', async () => {
     // Regression test: `verify-entrypoint redblue --cmd npx @metaharness/redblue` (no
     // quotes/`=`) used to let --cmd absorb only "npx" and silently drop
