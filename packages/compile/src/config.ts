@@ -284,6 +284,17 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       checkNoFenceBreak(config.branchPrefix, 'branchPrefix', errors);
     }
   }
+  // autoMerge had no type check at all: withDefaults' `?? false` only
+  // catches undefined/null, so a non-boolean like the string "no" or "false"
+  // passed validation silently and was then used as a bare JS truthy/falsy
+  // condition in step20to25PublishFlow -- the same inversion-on-a-truthy-
+  // non-boolean class already fixed for buildStep.degradeOnWasmFailure
+  // (issue #142/PR #143), but here it flips which merge policy (guarded
+  // auto-merge enabled vs. human-review-only) this self-hosting system's
+  // own compiled nightly prompt tells every future night to follow.
+  if (config.autoMerge !== undefined && typeof config.autoMerge !== 'boolean') {
+    errors.push('autoMerge must be a boolean');
+  }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;
     if (r === null || typeof r !== 'object' || Array.isArray(r)) {
