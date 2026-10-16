@@ -1,5 +1,4 @@
-# Isolated CPU experiment only. Install torch from the official CPU wheel index.
---extra-index-url https://download.pytorch.org/whl/cpu
+# Isolated Python 3.12 Linux x86_64 CPU experiment. No mixed package indexes.
 certifi==2026.7.22
 charset-normalizer==3.5.2
 filelock==3.32.3
@@ -20,7 +19,7 @@ safetensors==0.6.2
 setuptools==78.1.0
 sympy==1.14.0
 tokenizers==0.22.2
-torch==2.8.0+cpu
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl
 tqdm==4.70.1
 transformers==4.57.1
 typing_extensions==4.16.0
