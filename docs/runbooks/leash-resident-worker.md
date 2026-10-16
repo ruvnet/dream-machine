@@ -58,3 +58,51 @@ these failures and the strict checker. Do not reroll seeds or relax acceptance
 to manufacture a gain. A stronger representative model and real repository tasks
 are prerequisites to a production-relevant routing claim. No schedule changes,
 provider spending, merge or deployment are authorized by these scripts.
+
+## Verified ruOS follow-up
+
+Work Desktop was subsequently awakened at the user's instruction. Source
+e469a062aee2cd97672d278a0906f894f70172e5 tested three fixed prompt templates
+on eight training cases, then froze template 1 before 24 new confirmation cases.
+Training and confirmation have distinct task IDs and exact prompt text. These
+remain public synthetic tool calls and arithmetic repairs, not real repository
+work or private holdouts. The strict checker was unchanged.
+
+The optional dynamic integer quantization mode uses the existing CPU PyTorch
+runtime and introduces no dependency or provider. Its model identity ends in
+`/dynamic-int8`, forcing a separate calibration bank. In a paired CPU timing
+check over 24 requests per mode, activation p95 fell from 241.46 to 129.90 ms,
+about 46%. Timing includes tokenization and stat checks, but excludes transport,
+completion generation and application queues. This is a measured activation
+optimization, not an end-to-end 150 ms gate pass.
+
+The selected prompt passed 2 of 8 training cases in float32 and 0 of 8 with
+integer quantization. The runner therefore rejected the faster generator and
+retained float32. Confirmation passed 0 of 12 tool calls and 1 of 12 arithmetic
+repairs, versus 0 in both baseline families. The 90% per-family format gate
+failed, as did the selected float32 activation latency gate. A faster but worse
+generator was not promoted. Integer activations could be studied separately
+from float32 generation, but require new calibration and outcome evidence.
+
+The long executor call lost transport. It was not resubmitted. Complete saved
+artifacts were recovered and independently checked by a fresh verified executor
+job at 00d19794705ea4ee4ab10ba4d13ebd830ac9b0b4: completionVersion 1,
+completionVerified true, status ok, exitCode 0. The verification regraded all
+80 outcomes, recomputed selection and timing summaries, and checked source and
+protocol hashes. Original long-call terminal completion remains unverified.
+Forty-five Python and six JavaScript tests passed on ruOS. No secrets were
+loaded or exported and no provider calls were made. Hardware costs are unmetered.
+
+Full artifacts are under `docs/research/leash-ruos-followup-20261016/`.
+Replay without inference:
+
+```sh
+python scripts/leash_verify_followup.py docs/research/leash-ruos-followup-20261016
+```
+
+Decision: retain the implementation and negative results as a draft. Do not
+continue tuning this tiny model against observed confirmation cases. The next
+quality experiment needs a model that passes training-only schema checks and
+new representative tasks, plus a deterministic parser baseline for these simple
+requests. Useful learned routing and the original multi-task improvement gate
+remain unproven. No merge, deployment or schedule promotion follows this result.
