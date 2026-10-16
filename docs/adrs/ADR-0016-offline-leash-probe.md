@@ -76,3 +76,18 @@ standalone scripts rolls back the experiment; no existing runtime paths change.
 Remaining acceptance work: independently verified two-family real traces, monetary
 controls on representative tasks, uncertainty intervals, monitored
 drift, permission integration and actual Ruflo action-latency measurement.
+
+## Resident worker and shadow follow-up
+
+The opt-in resident worker, bounded two-family model evaluator, Python observer,
+and async Ruflo adapter are implemented. The JS scorer replays Python-fitted
+synthetic banks. The actual upstream Ruflo class was checked for preservation of
+its original result on 24 permission-denied shadow observations; no production
+hook is installed. See the three `docs/runbooks/leash-*.md` runbooks.
+
+The first real model-output evaluation was inconclusive: both pinned small models
+failed all 36 strict JSON cases, so no bank was fitted. The 24-request warm
+activation p95 was 248.38 ms, missing 150 ms. Preserve full public-synthetic
+receipts, failures and source hashes under `docs/research/leash-resident-20261016/`.
+These are infrastructure and negative model-compatibility results, not useful
+self-improvement, production routing, automatic drift detection or deployment.
