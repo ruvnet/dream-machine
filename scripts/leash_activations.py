@@ -29,7 +29,7 @@ class ActivationWorker:
     A parent process must enforce a hard process timeout for untrusted workloads.
     """
     def __init__(self, model_path, revision, layer, *, max_tokens=256, threads=2,
-                 max_requests=256, max_model_bytes=512 * 1024 * 1024, chat=True):
+                 max_requests=256, max_model_bytes=512 * 1024 * 1024, chat=True, precision="float32"):
         from leash_probe import require, identity, digest
         start = time.perf_counter_ns()
         validate_text("setup", max_tokens)
@@ -38,6 +38,7 @@ class ActivationWorker:
         require(type(max_model_bytes) is int and 0 < max_model_bytes <= 1024 * 1024 * 1024,
                 "invalid model byte ceiling")
         require(type(chat) is bool, "explicit prompt format required")
+        require(precision in ("float32", "dynamic-int8"), "invalid precision")
         forbidden = [k for k in os.environ if any(s in k.upper() for s in ("TOKEN", "SECRET", "PASSWORD", "API_KEY"))]
         require(not forbidden, "run the activation child with a credential-free environment")
         path = Path(model_path).resolve(strict=True)
@@ -64,12 +65,16 @@ class ActivationWorker:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
         torch.set_num_threads(threads)
-        self.identity = identity({"model": path.name + ("/chat" if chat else ""), "revision": revision,
+        self.identity = identity({"model": path.name + ("/chat" if chat else "") +
+                                  ("/dynamic-int8" if precision == "dynamic-int8" else ""), "revision": revision,
                                   "artifactDigest": digest(artifacts), "layer": layer,
                                   "position": "last_prompt_token"})
         self.tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True, trust_remote_code=False)
         self.model = AutoModelForCausalLM.from_pretrained(str(path), local_files_only=True,
                                                        trust_remote_code=False, use_safetensors=True).eval()
+        if precision == "dynamic-int8":
+            self.model = torch.ao.quantization.quantize_dynamic(
+                self.model, {torch.nn.Linear}, dtype=torch.qint8, inplace=False).eval()
         self.torch, self.path, self.inventory, self.artifacts = torch, path, inventory, artifacts
         self.max_tokens, self.max_requests, self.requests = max_tokens, max_requests, 0
         self.chat, self.layer, self.closed = chat, layer, False
