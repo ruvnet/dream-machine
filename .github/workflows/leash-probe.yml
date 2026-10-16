@@ -1,0 +1,29 @@
+name: Offline LEASH probe
+on:
+  pull_request:
+    paths:
+      - 'scripts/leash*'
+      - 'scripts/test_leash*'
+      - '.github/workflows/leash-probe.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/leash*'
+      - 'scripts/test_leash*'
+      - '.github/workflows/leash-probe.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-contracts-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Isolated NumPy-only test environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/leash-tests"
+          "$RUNNER_TEMP/leash-tests/bin/pip" install --only-binary=:all: numpy==2.2.6
+      - name: Contract and credential-boundary regressions, no models or providers
+        run: '"$RUNNER_TEMP/leash-tests/bin/python" -m unittest discover -s scripts -p "test_leash_*.py" -v'

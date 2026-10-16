@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-16",
+  "verdict": "RUNTIME_INTERFACE_VERIFIED_NOT_USEFUL_GAIN",
+  "evaluatedSource": "7aae6d91971e79507b1448eb9bf20c8511acdc2e",
+  "model": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "modelRevision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+  "licenseFromHubMetadata": "apache-2.0",
+  "modelBytes": 269060552,
+  "modelSha256": "5af571cbf074e6d21a03528d2330792e532ca608f24ac70a143f6b369968ab8c",
+  "artifactInventoryDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+  "layer": 30,
+  "position": "last_prompt_token",
+  "activationDimensions": 576,
+  "local": {
+    "python": "3.12",
+    "unitAndBoundaryTests": 21,
+    "threeIndependentProcessesSameActivations": true,
+    "forwardMsThreeRuns": [88.502629, 99.696902, 85.914074],
+    "finalArtifactIdentityBindingSmokeMs": 110.497284
+  },
+  "ruos": {
+    "registryId": "43faac2ae346b16fafdd7c6b70061294",
+    "machineId": "85050dc77130e8",
+    "python": "3.12.3",
+    "torch": "2.8.0+cpu",
+    "transformers": "4.57.1",
+    "unitAndBoundaryTests": 21,
+    "activationSmokeForwardMs": 159.552396,
+    "completionVersion": 1,
+    "completionVerified": true,
+    "status": "ok",
+    "exitCode": 0,
+    "evidenceType": "Sanitized summary of executor-owned metadata; this committed JSON is not itself an attestation",
+    "installFailuresRetained": ["python venv bootstrap lacked ensurepip", "mixed index resolution rejected incompatible certifi pin; fixed by direct official CPU wheel URL without unsafe resolver override"]
+  },
+  "execution": {
+    "providerInferenceCalls": 0,
+    "credentialsRequired": false,
+    "credentialFreeChild": true,
+    "remoteModelCode": false,
+    "pickleWeightLoading": false,
+    "modelDownloads": "Public pinned safetensors and tokenizer assets, downloaded once per tested host",
+    "infrastructureCost": "Existing CPU time and storage, unmetered; no new rentals or provider requests"
+  },
+  "limits": [
+    "No task-level strong versus weak routing experiment has been run.",
+    "No useful learning, cost saving or quality gain is demonstrated.",
+    "Forward timing excludes artifact hashing, imports, model loading, tokenization, queueing and application integration.",
+    "One Work Desktop forward pass exceeded 150 ms. No p95 or end-to-end latency acceptance is claimed.",
+    "Synthetic score tests are not hidden confirmation tasks.",
+    "Mid-task takeover, shadow oversight and automatic drift detection are not implemented.",
+    "Full dependency vulnerability audit and exact-head integration CI remain separate review gates."
+  ],
+  "next": "Collect independent paired initial-routing traces on two relevant workflow families, measure all costs and latency, then evaluate frozen confirmation data without provider proposals or changed gates.",
+  "promotionAuthorized": false
+}
