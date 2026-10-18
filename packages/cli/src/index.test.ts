@@ -643,6 +643,36 @@ describe('verify-entrypoints', () => {
     expect(r.code).toBe(1);
   });
 
+  it('refuses a shell-interpreter escape (sh -c "...") instead of really invoking a shell via execFile', async () => {
+    // Live-reproduced 2026-10-18 (security-adversarial night, SCAN=redblue,supply-chain):
+    // against the real CLI binary + real execFile (not this mock), an evaluatorEntrypoints
+    // value of exactly this shape wrote a file and ran a second `&&`-joined statement —
+    // looksLikeCompoundCommand missed it because tokenizeCommand's double-quote handling
+    // folds the whole -c payload into one token, so `&&` never appears as a standalone
+    // argv entry. This must be refused before execFile is ever called, like the
+    // compound-command case above.
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'hi', stderr: '' };
+      },
+      {
+        'evil.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { bench: 'sh -c "echo hi && touch PWNED"' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints', 'evil.config.json'], io);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('bench: blocked');
+    expect(r.out.toLowerCase()).toContain('shell interpreter');
+    expect(calls).toEqual([]);
+  });
+
   it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {
     const io = mockIOWithExecFile(async (file) => ({ code: 0, stdout: `${file} ok`, stderr: '' }), {
       'dream.config.json': JSON.stringify({
