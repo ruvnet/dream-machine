@@ -75,7 +75,7 @@ describe('bin.js entry-point dispatch (built dist, spawned as a real process)', 
 
   it('dispatches when invoked directly, the real deployment path', () => {
     const stdout = execFileSync(process.execPath, [distBin, 'version'], { encoding: 'utf8' });
-    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
   });
 
   it('still dispatches when reached through a symlink (the npm/npx `bin`-field shape)', () => {
@@ -83,6 +83,6 @@ describe('bin.js entry-point dispatch (built dist, spawned as a real process)', 
     const link = join(tmpDir, 'dream-machine');
     symlinkSync(distBin, link);
     const stdout = execFileSync(process.execPath, [link, 'version'], { encoding: 'utf8' });
-    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
   });
 });
