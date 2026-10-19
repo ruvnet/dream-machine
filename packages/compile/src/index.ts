@@ -484,3 +484,5 @@ the researcher enforces branch protection, independent checks, rollout and rollb
 Existing autoMerge configuration does not override this boundary. Do not claim deployment,
 production success, or an implemented promotion service from a passing local receipt.`;
 }
+
+export * from "./rule-learning.js";

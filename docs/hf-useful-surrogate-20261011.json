@@ -1,0 +1,100 @@
+{
+  "initialReceiptHash": "2fc3c365f0faa2e2f50c5ca264b4b0c0ec1536f1528af584a93c402f4a9ab802",
+  "sources": {
+    "benchmark-hf-surrogate.mjs": "1ea6004b9630ac7cfafb2aa2fa607f77881bdf6748d8f7b7f02b98400a935865",
+    "hf-rule-learning.mjs": "06ddf3bd40135a17295fc6da0822af3e3ac5f93ee068ea41d150f214da6be845",
+    "validated-rule-cache.mjs": "b66dc01ed674fd5e8bf0db74ac8453d0774fbdd0a84bb6e1f38ce1ff38e3d416"
+  },
+  "initial": [
+    {
+      "family": "framed_file",
+      "accepted": true,
+      "searchCorrect": 0,
+      "handAuthoredCorrect": 100,
+      "workloadCorrect": 100,
+      "workloadTotal": 100,
+      "oracleCalls": 10,
+      "setupCalls": 24,
+      "lifetimeCalls": 34,
+      "referenceOnlyCalls": 100,
+      "interactionReduction": 0.6599999999999999,
+      "baselineP95Ms": 162.1513380000015,
+      "learnedP95Ms": 77.57782700000098,
+      "baselineTotalMs": 4579.004941999995,
+      "learnedTotalMs": 1416.682664,
+      "driftDetected": true,
+      "revokedAfterDrift": true,
+      "maximumUnauditedCalls": 9
+    },
+    {
+      "family": "sqlite_batch",
+      "accepted": false
+    }
+  ],
+  "candidate": {
+    "schemaVersion": 1,
+    "candidateId": "hf-8422e73eee67a68c98d768c25ccce23f",
+    "rulebook": "Model proposed bounded program; prose is not evidence.",
+    "program": [
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "addAction",
+        "key": "x"
+      },
+      {
+        "op": "add",
+        "key": "x",
+        "value": 3
+      }
+    ]
+  },
+  "amortization": {
+    "schema": "hf-amortization/v1",
+    "createdAt": "2026-10-11T16:28:44.050Z",
+    "node": "v20.20.2",
+    "parentReceiptHash": "2fc3c365f0faa2e2f50c5ca264b4b0c0ec1536f1528af584a93c402f4a9ab802",
+    "candidateHash": "1fb1f955a36d27b863fb5d12e0b205987054cf9a6dd64f7c64cf242d6316abc5",
+    "workloadTotal": 1000,
+    "correct": 1000,
+    "replayMatches": 1000,
+    "handAuthoredCorrect": 1000,
+    "setupCalls": 24,
+    "operationalOracleCalls": 100,
+    "totalOperationalCalls": 124,
+    "measurementReferenceCalls": 1000,
+    "interactionReduction": 0.876,
+    "setupMs": 1525.657067,
+    "inferenceMs": 3444.485612,
+    "baselineTotalMs": 39591.38906800012,
+    "learnedServingMs": 4959.325474000103,
+    "learnedTotalWithSetupMs": 9929.468153000103,
+    "baselineP95Ms": 160.489477000001,
+    "learnedP95Ms": 27.04948300000069,
+    "limitations": "One synthetic file workload. Learned arithmetic ties a hand-authored formula. Full run also performs 1000 reference calls for measurement. Prior failed exploration calls are not included in per-candidate amortization. No production promotion; periodic audit can miss nine changed-environment predictions.",
+    "totalLatencyReduction": 0.7492013191063904,
+    "receiptHash": "1e816ae621efb4b8179680b9cc180e5eaeaad03d18dbb0499f018e98f24fa83d"
+  }
+}

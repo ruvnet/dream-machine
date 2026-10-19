@@ -318,3 +318,7 @@ reward-hack check, and human-only merge boundary exist precisely because of them
 ## License
 
 MIT © [rUv](https://github.com/ruvnet)
+
+### Experimental rule-and-code learning
+
+The compile package exports a bounded integer-state DSL and exact replay receipts via `@dream-machine/compile/rule-learning`. An observation-only finite proposer generates competing hypotheses; a trusted evaluator checks them without executing generated code. This opt-in prototype does not change nightly promotion behavior. See [the contract, private-probe handling, and limits](docs/adrs/ADR-035-bounded-rule-learning.md). After building, run `node scripts/benchmark-rule-learning.mjs` for a synthetic correctness and local latency check. Research acceptance and interaction savings remain unmeasured.
