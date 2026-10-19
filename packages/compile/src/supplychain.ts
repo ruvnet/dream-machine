@@ -119,9 +119,42 @@ function extractPackageSpecs(tokens: string[], start: number): string[] {
 }
 
 /**
+ * Every ad-hoc-execution trigger this scanner recognizes, and how many tokens
+ * to skip to reach the package-spec position. `pnpm dlx` and `yarn dlx`
+ * resolve an unpinned package from the registry at invocation time exactly
+ * like `npx` does (pnpm's and Yarn Berry's own docs describe `dlx` in those
+ * terms); `bunx` is documented by Bun itself as "equivalent to `npx`". None of
+ * the three is governed by this repo's lockfile any more than `npx` is, so
+ * they carry the identical risk `npx`/`npm exec` are already scanned for.
+ * Scope: the common single-package form (`pnpm dlx pkg@ver`, `bunx pkg@ver`,
+ * `yarn dlx pkg@ver`; Yarn's own repeated `-p`/`--package` multi-package form,
+ * e.g. `yarn dlx -p a -p b@1.2.3 b`, is already handled correctly by the
+ * shared `extractPackageSpecs` below, same as it is for `npx`).
+ *
+ * KNOWN UNRESOLVED GAP (disclosed, not fixed here — see the 2026-09-28
+ * report/PR): this trigger match is exact-adjacent-token only. A global CLI
+ * flag placed *before* the subcommand — `yarn --cwd . dlx pkg`, `pnpm --silent
+ * dlx pkg`, or even the pre-existing `npm --loglevel=silent exec pkg` — is
+ * NOT detected, because `tokens[i + 1]` must literally be `dlx`/`exec`. This
+ * bypass already existed for `npm exec` before tonight's change; tonight
+ * extends the same weak pattern to `pnpm dlx`/`yarn dlx` without adding
+ * tolerance for it. Fixing it generally requires knowing which global flags
+ * take a value token (to skip correctly) versus which don't — a distinct,
+ * larger piece of work than this trigger-set extension, left for a dedicated
+ * follow-up rather than bolted on under time pressure.
+ */
+function matchTrigger(tokens: string[], i: number): number | undefined {
+  if (tokens[i] === 'npx' || tokens[i] === 'bunx') return 1;
+  if (tokens[i] === 'npm' && tokens[i + 1] === 'exec') return 2;
+  if ((tokens[i] === 'pnpm' || tokens[i] === 'yarn') && tokens[i + 1] === 'dlx') return 2;
+  return undefined;
+}
+
+/**
  * Scan `controlPlaneProbes` and `evaluatorEntrypoints` command strings for
- * `npx <pkg>` / `npm exec <pkg>` invocations lacking an exact `major.minor.patch`
- * version pin (see `isUnpinned` for what counts as exact).
+ * `npx`/`npm exec`/`pnpm dlx`/`yarn dlx`/`bunx` invocations lacking an exact
+ * `major.minor.patch` version pin (see `isUnpinned` for what counts as exact;
+ * see `matchTrigger` for the full trigger set and its scope).
  * Pure — no I/O, no network. Local paths (`npx ./script.js`) and direct
  * git/URL specs are never flagged — they don't resolve against the registry's
  * floating `latest`, so the risk this function detects doesn't apply to them.
@@ -141,10 +174,9 @@ export function findUnpinnedNpxInvocations(
   for (const [source, command] of sources) {
     const tokens = command.split(/\s+/).filter(Boolean);
     for (let i = 0; i < tokens.length; i++) {
-      const isNpx = tokens[i] === 'npx';
-      const isNpmExec = tokens[i] === 'npm' && tokens[i + 1] === 'exec';
-      if (!isNpx && !isNpmExec) continue;
-      for (const packageSpec of extractPackageSpecs(tokens, i + (isNpmExec ? 2 : 1))) {
+      const skip = matchTrigger(tokens, i);
+      if (skip === undefined) continue;
+      for (const packageSpec of extractPackageSpecs(tokens, i + skip)) {
         if (!isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
           findings.push({ source, command, packageSpec });
         }
