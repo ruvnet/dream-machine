@@ -83,6 +83,37 @@ describe('evaluateHarnessCandidate', () => {
     expect(decision.verdict).toBe('REJECT');
     expect(decision.reasons.join(' ')).toMatch(/slice regression/);
   });
+
+  it('rejects a patch with zero declared surfaces even when it also lacks holdout evidence (issue: structural invalidity must not be masked as inconclusive)', () => {
+    const base = candidate();
+    const decision = evaluateHarnessCandidate(candidate({
+      patch: { ...base.patch, surfaces: [] },
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.5, candidate: 0.9, sampleSize: 50 }],
+    }));
+    // Pre-fix this returned INCONCLUSIVE (the 'no holdout evidence' branch won
+    // because 'no declared harness surface' was absent from hardReject), despite
+    // a near-passing score (0.4) for a candidate that is not a borderline call.
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons).toContain('patch has no declared harness surface');
+    expect(decision.reasons).toContain('no holdout evidence');
+  });
+
+  it('still rejects a zero-surface patch when holdout evidence is present (unaffected by the fix, already worked via the generic fallback)', () => {
+    const base = candidate();
+    const decision = evaluateHarnessCandidate(candidate({
+      patch: { ...base.patch, surfaces: [] },
+    }));
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons).toContain('patch has no declared harness surface');
+  });
+
+  it('still marks a well-formed patch inconclusive without holdout evidence (regression check: the fix is scoped to the zero-surface reason only)', () => {
+    const decision = evaluateHarnessCandidate(candidate({
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.60, candidate: 0.70, sampleSize: 100 }],
+    }));
+    expect(decision.verdict).toBe('INCONCLUSIVE');
+    expect(decision.reasons).not.toContain('patch has no declared harness surface');
+  });
 });
 
 describe('selectHarnessUpdate', () => {
