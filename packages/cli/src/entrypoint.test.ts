@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand } from './entrypoint.js';
+import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, invokesShellInterpreter } from './entrypoint.js';
 
 describe('tokenizeCommand', () => {
   it('splits a plain command on whitespace', () => {
@@ -66,6 +66,113 @@ describe('looksLikeCompoundCommand', () => {
     // Only a standalone `&&`/`;`/`|`/`||`/`&` token counts — a package name or
     // flag that happens to contain one of these characters mid-string does not.
     expect(looksLikeCompoundCommand(['echo', 'a&b'])).toBe(false);
+  });
+
+  it('does NOT flag a shell-interpreter escape hiding behind -c (the gap invokesShellInterpreter exists for)', () => {
+    // tokenizeCommand's double-quote handling correctly folds the whole -c payload
+    // into one token, so `&&`/`;`/`|` never appear as a standalone argv entry here —
+    // this check alone is blind to the live-reproduced bypass below.
+    expect(looksLikeCompoundCommand(tokenizeCommand('sh -c "echo a && echo b"'))).toBe(false);
+  });
+});
+
+describe('invokesShellInterpreter', () => {
+  it('flags sh/bash/zsh/dash/ash/ksh given -c', () => {
+    for (const shell of ['sh', 'bash', 'zsh', 'dash', 'ash', 'ksh']) {
+      expect(invokesShellInterpreter([shell, '-c', 'echo a && echo b'])).toBe(true);
+    }
+  });
+
+  it('flags a path to an interpreter, not just a bare basename', () => {
+    expect(invokesShellInterpreter(['/bin/bash', '-c', 'echo a && echo b'])).toBe(true);
+    expect(invokesShellInterpreter(['/usr/bin/sh', '-c', 'echo hi'])).toBe(true);
+  });
+
+  it('flags -c anywhere in the remaining args, not only immediately after the interpreter', () => {
+    expect(invokesShellInterpreter(['sh', '-x', '-c', 'echo hi'])).toBe(true);
+  });
+
+  it('reproduces the live finding: wrapping darwin\'s entrypoint in sh -c hides && from looksLikeCompoundCommand', () => {
+    const argv = tokenizeCommand('sh -c "echo PWNED > out.txt && npx @metaharness/darwin@latest evolve"');
+    expect(looksLikeCompoundCommand(argv)).toBe(false);
+    expect(invokesShellInterpreter(argv)).toBe(true);
+  });
+
+  it('does not flag a plain, non-shell command', () => {
+    expect(invokesShellInterpreter(tokenizeCommand('npm test'))).toBe(false);
+    expect(invokesShellInterpreter(tokenizeCommand('npx @metaharness/darwin evolve . --sandbox mock'))).toBe(false);
+  });
+
+  it('does not flag a shell interpreter invoked without -c (e.g. an interactive/login shell)', () => {
+    expect(invokesShellInterpreter(['bash', '-i'])).toBe(false);
+    expect(invokesShellInterpreter(['bash'])).toBe(false);
+  });
+
+  it('does not flag a package or argument that merely contains "sh" or "-c" as a substring', () => {
+    expect(invokesShellInterpreter(['npx', 'cowsay-cli', '-config', 'x'])).toBe(false);
+    expect(invokesShellInterpreter(['bash-completion-helper', '-c', 'x'])).toBe(false);
+  });
+
+  it('returns false for an empty argv', () => {
+    expect(invokesShellInterpreter([])).toBe(false);
+  });
+
+  // Widened same night after an independent critic live-reproduced a bypass of the
+  // first (argv[0]-only) draft: a wrapper command whose OWN semantics spawn `sh -c`
+  // internally, with the shell buried deeper in argv, not at argv[0].
+
+  it('flags a shell buried in argv via find -exec (the critic\'s live-reproduced bypass)', () => {
+    const argv = tokenizeCommand('find . -maxdepth 0 -exec sh -c "touch PWNED && echo pwned" {} +');
+    expect(argv[0]).toBe('find'); // confirms this is NOT caught by an argv[0]-only check
+    expect(invokesShellInterpreter(argv)).toBe(true);
+  });
+
+  it('flags the same pattern via xargs/parallel-style wrapping', () => {
+    expect(invokesShellInterpreter(tokenizeCommand('xargs -I{} sh -c "touch PWNED" --'))).toBe(true);
+  });
+
+  it('accepted, disclosed false-positive trade-off: inert "sh"/"-c" strings passed as literal arguments to an unrelated program also block', () => {
+    // No shell is actually invoked here — echo just prints its argv — but the wider
+    // scan cannot distinguish this from a real sh -c wrapper without knowing what each
+    // program does with its own arguments. Fail-closed, same posture as
+    // looksLikeCompoundCommand; not a shape any real entrypoint in this repo uses.
+    expect(invokesShellInterpreter(['echo', 'sh', '-c'])).toBe(true);
+  });
+
+  // Widened a second time same night: a fresh, independent round-3 critic (no
+  // context from round 2) live-reproduced two more real bypasses of the round-2 fix.
+
+  it('flags su -c (round-3 critic finding: not a shell basename, but its own -c spawns one)', () => {
+    expect(invokesShellInterpreter(['su', '-c', 'touch PWNED && echo pwned'])).toBe(true);
+    expect(invokesShellInterpreter(['su', 'alice', '-c', 'touch PWNED && echo pwned'])).toBe(true);
+  });
+
+  it('does not flag su without -c', () => {
+    expect(invokesShellInterpreter(['su', 'alice'])).toBe(false);
+  });
+
+  it('flags env -S hiding a nested "sh -c" inside one quoted argument (round-3 critic finding)', () => {
+    // tokenizeCommand folds env -S's whole argument into ONE token — the same
+    // quoting trick the original bug used, one level of indirection deeper. GNU
+    // coreutils' env -S/--split-string word-splits that token into a fresh argv and
+    // re-execs it, so it must be recursively re-tokenized and re-scanned.
+    const argv = tokenizeCommand('env -S "sh -c \'touch PWNED && echo pwned\'"');
+    expect(invokesShellInterpreter(argv)).toBe(true);
+  });
+
+  it('disclosed, not-fixed gap: the glued --split-string=<value> form is not detected (tokenizeCommand itself mis-splits it)', () => {
+    // tokenizeCommand's own doc comment already discloses that a quote embedded
+    // mid-token (not at the very start of a whitespace-delimited chunk) is not
+    // special — confirmed here: this does not come out as a clean nested command
+    // token at all, so there is nothing reliable for invokesShellInterpreter to
+    // recurse into. Documented as a known gap, not silently assumed safe.
+    const argv = tokenizeCommand('env --split-string="sh -c \'touch PWNED\'"');
+    expect(argv).not.toContain('sh');
+    expect(invokesShellInterpreter(argv)).toBe(false);
+  });
+
+  it('does not flag env used for its ordinary purpose (no split-string flag)', () => {
+    expect(invokesShellInterpreter(['env', 'FOO=bar', 'npm', 'test'])).toBe(false);
   });
 });
 

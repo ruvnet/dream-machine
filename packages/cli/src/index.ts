@@ -35,7 +35,13 @@ import {
 } from '@dream-machine/witness';
 import { serializeRoutine, scheduleInstructions } from '@dream-machine/schedule';
 import { renderDashboard } from './tui.js';
-import { classifyEntrypointResult, tokenizeCommand, looksLikeCompoundCommand, type ExecResult } from './entrypoint.js';
+import {
+  classifyEntrypointResult,
+  tokenizeCommand,
+  looksLikeCompoundCommand,
+  invokesShellInterpreter,
+  type ExecResult,
+} from './entrypoint.js';
 import { classifyAuditGate } from './auditgate.js';
 import {
   evaluateDocuments,
@@ -544,7 +550,11 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         // #17/#40 already established for this exact entrypoint automation. execFile
         // (never a shell) still applies regardless, so a config value containing shell
         // metacharacters can't act as a shell operator even if that boundary were ever
-        // wrong. Not proven shell-safe on Windows: `execFile('npm'|'npx', …)` resolves
+        // wrong — corrected 2026-10-18: that was true only up to invokesShellInterpreter's
+        // own gate below, which exists precisely because naming a shell itself as argv[0]
+        // with -c reproduces full shell semantics despite execFile never using one; see
+        // its doc comment in entrypoint.ts for the live reproduction. Not proven shell-safe
+        // on Windows: `execFile('npm'|'npx', …)` resolves
         // through the platform's `.cmd`/`.bat` shim, which Node internally re-spawns via
         // `cmd.exe` (see nodejs/node CVE-2024-27980) — this repo's nightly runner is
         // Linux-only, so out of scope tonight, flagged for anyone porting this command.
@@ -593,6 +603,18 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
                 `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
                 'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
                 'command, or verify its pieces individually via verify-entrypoint',
+            );
+            worst = Math.max(worst, 1);
+            continue;
+          }
+          if (invokesShellInterpreter(argv)) {
+            // Fail closed: argv[0] is itself a shell given -c, which reproduces full
+            // shell semantics (live-reproduced 2026-10-18) regardless of execFile never
+            // setting `shell: true` — see invokesShellInterpreter's own doc comment.
+            sink.log(
+              `${label}: blocked (exit 1) — invokes a shell interpreter directly (${JSON.stringify(argv)}); ` +
+                "execFile's \"never a shell\" guarantee does not hold once the executable itself is a shell " +
+                'given -c — verify-entrypoints refuses to run it',
             );
             worst = Math.max(worst, 1);
             continue;
