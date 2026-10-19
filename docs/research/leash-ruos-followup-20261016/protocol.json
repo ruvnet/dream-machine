@@ -1,0 +1,655 @@
+{
+  "schema": 2,
+  "training": [
+    {
+      "id": "ruos-v2-training-0",
+      "split": "training",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_651.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_651"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-training-1",
+      "split": "training",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate_training_1(a, b): return a - b",
+      "grading": {
+        "targetOperator": "+",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-training-2",
+      "split": "training",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_349.py.",
+      "grading": {
+        "tool": "read_file",
+        "args": {
+          "path": "src/module_349.py"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-training-3",
+      "split": "training",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate_training_3(a, b): return a - b",
+      "grading": {
+        "targetOperator": "*",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-training-4",
+      "split": "training",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_148.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_148"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-training-5",
+      "split": "training",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate_training_5(a, b): return a // b",
+      "grading": {
+        "targetOperator": "-",
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-training-6",
+      "split": "training",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_341.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_341"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-training-7",
+      "split": "training",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate_training_7(a, b): return a - b",
+      "grading": {
+        "targetOperator": "+",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    }
+  ],
+  "confirmation": [
+    {
+      "id": "ruos-v2-confirmation-0",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_922.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_922"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-1",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate_confirmation_1(a, b): return a - b",
+      "grading": {
+        "targetOperator": "*",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-2",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_760.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_760"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-3",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate_confirmation_3(a, b): return a + b",
+      "grading": {
+        "targetOperator": "-",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-4",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_836.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_836"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-5",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate_confirmation_5(a, b): return a + b",
+      "grading": {
+        "targetOperator": "//",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-6",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_952.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_952"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-7",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate_confirmation_7(a, b): return a * b",
+      "grading": {
+        "targetOperator": "-",
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-8",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_904.py.",
+      "grading": {
+        "tool": "read_file",
+        "args": {
+          "path": "src/module_904.py"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-9",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate_confirmation_9(a, b): return a + b",
+      "grading": {
+        "targetOperator": "-",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-10",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_557.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_557"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-11",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate_confirmation_11(a, b): return a * b",
+      "grading": {
+        "targetOperator": "//",
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-12",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_201.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_201"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-13",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate_confirmation_13(a, b): return a + b",
+      "grading": {
+        "targetOperator": "*",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-14",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_227.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_227"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-15",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate_confirmation_15(a, b): return a * b",
+      "grading": {
+        "targetOperator": "//",
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-16",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_879.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_879"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-17",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate_confirmation_17(a, b): return a + b",
+      "grading": {
+        "targetOperator": "-",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-18",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_238.py.",
+      "grading": {
+        "tool": "read_file",
+        "args": {
+          "path": "src/module_238.py"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-19",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate_confirmation_19(a, b): return a - b",
+      "grading": {
+        "targetOperator": "//",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-20",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_601.",
+      "grading": {
+        "tool": "list_directory",
+        "args": {
+          "path": "src/package_601"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-21",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate_confirmation_21(a, b): return a - b",
+      "grading": {
+        "targetOperator": "+",
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-22",
+      "split": "confirmation",
+      "family": "tool_json",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_713.py.",
+      "grading": {
+        "tool": "read_file",
+        "args": {
+          "path": "src/module_713.py"
+        }
+      }
+    },
+    {
+      "id": "ruos-v2-confirmation-23",
+      "split": "confirmation",
+      "family": "repository_repair",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate_confirmation_23(a, b): return a + b",
+      "grading": {
+        "targetOperator": "*",
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      }
+    }
+  ],
+  "templates": [
+    0,
+    1,
+    2
+  ],
+  "outputTokens": 32,
+  "activationSamples": 24,
+  "evidence": "PUBLIC_SYNTHETIC_FORMAT_COMPATIBILITY_ONLY"
+}

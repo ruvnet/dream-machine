@@ -1,0 +1,48 @@
+{
+  "samples": 24,
+  "warmups": 3,
+  "mode": "prefill_activation_only",
+  "requestMs": [
+    278.121376,
+    174.57721,
+    165.796242,
+    152.010951,
+    146.228894,
+    227.179666,
+    199.328902,
+    199.567225,
+    193.768658,
+    214.623597,
+    252.118285,
+    194.942485,
+    157.965939,
+    185.924254,
+    218.109143,
+    187.699619,
+    215.99426,
+    173.009667,
+    209.985746,
+    219.953442,
+    197.697183,
+    207.943707,
+    218.459069,
+    187.618748
+  ],
+  "p50RequestMs": 198.51304249999998,
+  "p95RequestMs": 248.37749214999994,
+  "includes": [
+    "artifact stat checks",
+    "chat formatting",
+    "tokenization",
+    "model forward",
+    "activation conversion"
+  ],
+  "excludes": [
+    "startup",
+    "JSONL transport",
+    "completion generation"
+  ],
+  "queue": "busy requests rejected, no internal backlog",
+  "cacheHits": 0,
+  "repeatActivationExact": true
+}
