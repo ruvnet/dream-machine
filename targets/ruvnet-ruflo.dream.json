@@ -1,0 +1,91 @@
+{
+  "repo": "ruvnet/ruflo",
+  "cron": "0 6 * * *",
+  "slots": [
+    {
+      "deep": "performance",
+      "scan": [
+        "security",
+        "hive-mind"
+      ]
+    },
+    {
+      "deep": "security",
+      "scan": [
+        "intelligence",
+        "swarm"
+      ]
+    },
+    {
+      "deep": "intelligence",
+      "scan": [
+        "capabilities",
+        "memory"
+      ]
+    },
+    {
+      "deep": "memory",
+      "scan": [
+        "plugins",
+        "automation"
+      ]
+    },
+    {
+      "deep": "swarm",
+      "scan": [
+        "ruview-integration",
+        "ruvector-integration"
+      ]
+    }
+  ],
+  "bonusModuli": {
+    "25": "vertical-applications",
+    "75": "capabilities"
+  },
+  "controlPlaneProbes": [
+    "node bin/cli.js metaharness --help || true",
+    "npx -y metaharness@0.4.17 --help || true",
+    "npx -y ruvector@0.3.3 harness doctor --json || true",
+    "npx -y ruvector@0.3.3 harness status --json || true"
+  ],
+  "evaluatorEntrypoints": {
+    "bench": "npm test",
+    "flywheel": "npx -y ruvector@0.3.3 harness flywheel --help",
+    "darwin": "node bin/cli.js metaharness darwin --help"
+  },
+  "adrConvention": {
+    "pad": 3,
+    "dir": "v3/docs/adr"
+  },
+  "competitors": [
+    "LangGraph",
+    "AutoGen",
+    "CrewAI",
+    "OpenAI Agents SDK",
+    "Qdrant",
+    "Weaviate",
+    "Milvus",
+    "LanceDB",
+    "Vespa"
+  ],
+  "extraDisciplines": [
+    "OWASP agentic and LLM guidance is one rubric for every security finding",
+    "MCP research agents get read-only profiles; no mutation authority",
+    "pi.ruv.io collective memory is read-only from this routine"
+  ],
+  "researchDepth": {
+    "minPrimarySources": 8,
+    "minRecentSources": 3,
+    "externalCandidates": 2
+  },
+  "implementationTrack": {
+    "reviewBacklogLimit": 6
+  },
+  "selfReview": {
+    "everyDays": 7,
+    "configSource": "ruvnet/dream-machine:targets/ruvnet-ruflo.dream.json"
+  },
+  "prMode": "ready-on-accept",
+  "scheduleContract": true,
+  "autoMerge": false
+}
