@@ -109,6 +109,74 @@ repro, restore, rebuild):
 # both: bare --no-color → 0 ANSI escapes (unchanged, already correct)
 ```
 
+## CONSOLIDATE Refresh (2026-10-20)
+
+Tonight's nightly cycle (DEEP=`compiler-parity`, SLOT=0) measured 19 open
+`dream/*` PRs (`gh pr list --state open --search 'head:dream/'` equivalent via
+GitHub MCP) — 16 real draft candidates (excluding #98/#101, cross-repo
+"portfolio" bookkeeping PRs with no Evaluation Receipt structure, and #137,
+not a draft). Live ground-truth PR-fate classification across every `dream/*`
+PR ever opened (git `merge-base --is-ancestor` plus `git log main`'s
+squash-merge `(#N)` suffixes, not the previously-documented-unreliable
+`list_pull_requests.merged` field): 39 merged / 7 closed-unmerged / 19 open
+(65 total). Fed as `--merged`/`--closed`/`--open`/`--open-count` into
+`dream-machine ledger outcomes` (which separately tracks only the PR numbers
+named in the ledger's own 47 historical rows): `pipelineMergeRate=0.596`,
+`reviewBacklogSize=19`, `ledgerStale=true` (`daysSinceLastRow=8`). `ledger
+backlog` returned exactly
+one unimplemented accept-closed-unmerged finding (2026-08-18, issue #18,
+unpinned-npx darwin entrypoint) — not acted on tonight: STEP 1.5 mode
+priority is CONSOLIDATE > RESEARCH-ONLY > IMPLEMENT > RESEARCH, and
+CONSOLIDATE's own precondition (≥6 open candidates, ≥1 eligible) already held.
+
+Selected **MODE=CONSOLIDATE**. Checked every one of the 16 draft candidates'
+own Evaluation Receipts for eligibility (draft + own-verdict ACCEPT + not
+routine-self-review + no `dream-consolidate` marker for tonight's SHA): #139
+(2026-09-28, oldest) is ineligible — its own receipt states verdict REJECT
+(unresolved critic finding, widen-detector candidate). **#141 (2026-09-29) is
+the oldest eligible PR** — draft, own-receipt ACCEPT, not self-review, no
+existing marker (`pull_request_read`'s comment list for #141 is empty). All
+15 other open candidates were also checked and are ACCEPT/eligible, but #141
+is oldest and only one candidate is refreshed per CONSOLIDATE night. Per STEP
+1.5, STEPS 2-9 and 17-24 are skipped (no new research, candidate, or PR);
+only STEPS 10-16 are re-run against the refreshed head, below.
+
+- Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into this PR's
+  own branch (`dream/2026-09-29-developer-experience`, tip `579d873`) with one
+  ordinary merge commit, `f84fa392` — never rebased, never force-pushed.
+  Clean merge, no conflicts. `git diff main HEAD -- packages/cli/src/index.ts
+  packages/cli/src/index.test.ts` shows the merged head differs from `main`
+  by exactly this candidate's own original diff (+9/−1 in `index.ts`, +10 in
+  `index.test.ts`) — nothing else touches either file.
+- Rebuilt clean (`npm ci && npm run build`, 8 packages, 0 wasm/NAPI
+  degradation). Re-ran the real evaluator on the exact merged head, and,
+  isolated in a separate `git worktree` of plain `main`, on the unmerged
+  baseline — both measured directly, not inferred from logs:
+
+  | | Baseline (`main@3fc3222`, isolated worktree) | Candidate (merged head, `f84fa392`) |
+  |---|---|---|
+  | vitest | 886 | 887 (+1 new, 0 regressions) |
+  | governance | 195 | 195 (unchanged) |
+  | `npm run lint` | clean | clean |
+  | `npm run typecheck` | clean | clean |
+
+  (An earlier in-session vitest run was contaminated by a background research
+  subagent concurrently checking out/merging this same working tree before
+  this measurement's own isolated-worktree baseline was taken — resolved by
+  re-measuring `main` from a clean `git worktree add`, not inferred.)
+- Live-reproduced the candidate's own behavior again on the merged head:
+  `tui --no-color extra` → 0 ANSI-bearing lines (fixed); bare `--no-color` →
+  0 (unchanged); no flag at all → 20 lines leak ANSI (expected baseline,
+  unaffected by anything merged into `main` since 2026-09-29).
+- **Fresh independent-critic adversarial review, tonight's refreshed diff**
+  (full detail in the amended Reward-Hack Check section below): dispatched
+  as a genuinely separate subagent with zero authorship context, given only
+  the diff and told to be adversarial — not a same-session self-review.
+  **Verdict: CLEAR.**
+- **Verdict: ACCEPT still holds.** No regression, no merge conflict, critic
+  CLEAR, required local checks (tests/lint/typecheck) all green on the exact
+  merged head. Marking this PR ready for human review.
+
 ## Darwin Lineage
 
 `DARWIN=not-applicable` — a one-line boolean-coercion widening has no
@@ -153,6 +221,27 @@ authoring state): **CLEAR**. Verified empirically, not on faith:
    benchmark corpus touched, and the new test is non-tautological (fails
    cleanly against pre-fix code, passes against the fix).
 5. No security-sensitive surface change.
+
+**2026-10-20 CONSOLIDATE refresh addendum** — a genuinely independent
+subagent critic (separate context, given only the diff
+`packages/cli/src/index.ts`/`index.test.ts` between `main` and the merged
+head, no authorship framing) re-reviewed the exact merged-head diff:
+**CLEAR**. Independently: (1) confirmed the bug mechanism live by reading
+`parseArgs` directly, not trusting the diff's own comment; (2) confirmed
+`flags.help`/`flags.version`/`flags.report` already use bare truthy checks
+elsewhere in the same file, so this fix is a consistency fix, not a new
+convention; (3) ran `packages/cli/src/index.test.ts` live, 106/106 green;
+(4) non-tautology proof — reverted only the fixed line, confirmed the new
+test fails with the real ANSI leak visible in the failure output, restored
+the file via `git checkout --` and confirmed `git status --porcelain` clean
+afterward; (5) confirmed no gold/benchmark/threshold file touched (diff is
+exactly 2 files); (6) confirmed no security-relevant surface change; (7)
+independently re-probed `--no-color=false` (still forces color off — a
+pre-existing truthy-string quirk shared with `--report=false`, not a new
+inconsistency, same conclusion as the original 2026-09-29 critic), `--no-color`
+twice, `--no-color` as the last argv token, and `--no-color` combined with
+`--merged` — no new bypass found. No fixture/threshold/gold-answer touched;
+no test weakened to pass a blocked case (none was blocked).
 
 ## Security Review
 
@@ -201,24 +290,35 @@ this one flag.
 
 ## Witness
 
+**Refreshed 2026-10-20** (CONSOLIDATE night; supersedes the original
+2026-09-29 triple — sha256 `abd3fe43b6a62dc33dd66eed369a21ed6a794b75d536c3de2ce5981c5acc169c`
+over the pre-refresh file, commit `9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c`,
+witness `b2886295a6f4c06fa75c9c91998d4f00d0e93c8767c5de51bbd9cc6e941edd52` —
+cited in prose here, not as a parseable block, so `verify-report`'s
+single-triple extraction finds only the current one below):
+
 ```
-report_sha256 : abd3fe43b6a62dc33dd66eed369a21ed6a794b75d536c3de2ce5981c5acc169c
-session_commit: 9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c
-witness       : b2886295a6f4c06fa75c9c91998d4f00d0e93c8767c5de51bbd9cc6e941edd52
+report_sha256 : b944777360b2e4260ec9a1f7322d944fbba81ea025b2d617ad63ab6e2f8e7339
+session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
+witness       : 48b99bd1dab42fb3f2c9d791ecf0c44f59fd4f2bb1b464ca8c516f36e78d867f
 ```
 
-Computed over this file's canonical bytes (everything above this heading,
-trailing whitespace collapsed to one newline) — reproducible from the
-committed file with no unavailable intermediate bytes. Verify:
+Computed over this file's canonical bytes (everything above the first
+`## Witness` heading, trailing whitespace collapsed to one newline) —
+reproducible from the committed file with no unavailable intermediate bytes.
+Reproduce:
 
 ```bash
-dream-machine witness verify-report docs/dream-cycle/2026-09-29-developer-experience-report.md --commit 9ebc9b66cfdd7f5d9f11ffafa5675239c58a456c
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-09-29-developer-experience-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8
 ```
 
 ## Recommendation
 
-`evaluated: accepted` — sufficient evidence to recommend human review. Draft
-PR to follow; this session never merges. **Next steps**:
+`evaluated: accepted` — sufficient evidence to recommend human review.
+**2026-10-20 update**: ACCEPT still holds after tonight's CONSOLIDATE
+refresh (merged `main`, re-evaluated, fresh independent critic CLEAR) — this
+PR is marked ready for human review tonight. This session never merges.
+**Next steps**:
 
 1. Consider a declared-boolean-flag list in `parseArgs` itself (`yargs`/
    `minimist`-style) so the whole `--flag=false`-is-still-truthy and
@@ -226,12 +326,11 @@ PR to follow; this session never merges. **Next steps**:
    boolean flag at once, not one call site at a time. Deliberately **not**
    done tonight — broader surface, higher review risk, not this candidate's
    one conceptual change.
-2. Get PR #137 (2026-09-27, `bin.ts` execFile diagnostics, ACCEPT, disjoint
-   file from tonight's candidate) and #139 (2026-09-28, supply-chain detector
-   widening, REJECT with a disclosed residual gap) reviewed or closed — both
-   remain open/draft, unrelated to tonight's fix, no conflict.
-3. `LEDGER.md` on `main` is 7 days stale (last row 2026-09-22) even though
-   `dream/*` branches exist through 2026-09-28 — rows just never merge
+2. 15 other open dream-cycle candidate PRs remain unreviewed as of
+   2026-10-20 (`reviewBacklogSize=19` across all open `dream/*` PRs,
+   `pipelineMergeRate≈0.596`); human review bandwidth, not evidence quality,
+   is the pipeline's bottleneck.
+3. `LEDGER.md` on `main` is 8 days stale (last row 2026-10-12) even though
+   `dream/*` branches exist through 2026-10-18 — rows just never merge
    because their PRs stay open. Not this slot's surface (ledger-signals is
-   slot 1), recorded for completeness only, consistent with how prior nights
-   handled the same observation.
+   slot 1), recorded for completeness only.
