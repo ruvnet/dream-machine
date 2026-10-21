@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "owner": "ruvnet",
+  "maxHnItems": 20,
+  "sources": ["hn", "papers", "arxiv", "ruflo", "metaharness", "autogenous", "producthunt"],
+  "limits": {"candidatesPerDay": 1, "optimizationRounds": 2, "runtimeMinutes": 45, "inferenceUsd": 10},
+  "publication": {"requiresProductRegistration": true, "registries": ["npm", "pypi"], "promotion": "draft-until-confirmed"}
+}

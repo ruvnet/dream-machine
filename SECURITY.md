@@ -64,3 +64,21 @@ regressions. Tests use synthetic GitHub responses, including a protected file
 on page two and stale PR metadata. They do not exercise a live merge or prove
 that remote branch protections are configured. A blocked eligibility result
 is informational and does not prevent a separately authorized human merge.
+
+## Explicitly authorized software factory coordinator
+
+On 2026-10-11 the repository owner authorized end-to-end automatic merging and
+publication for the software factory. This is a narrow exception to the default
+human-only routine above. Candidate workers still have no merge or publication
+credentials and their reports never grant authority. A separately acting factory
+coordinator may merge an exact reviewed head after independent review and passing
+required checks, without bypassing branch protection. It may publish only the
+verified `dream-machine` prerelease to `next` and its sanitized public gist.
+The default guard remains informational and does not itself grant merge rights.
+
+The ruOS publisher loads only NPM_TOKEN from its protected local binding, validates
+the exact package name, prerelease version, tarball allowlist and digest, disables
+lifecycle scripts, and verifies the registry integrity. It never moves the key to
+ChatGPT or GitHub. This token route does not provide OIDC provenance. Existing
+versions with different bytes fail closed. Stable releases and other package
+names remain outside the automatic publisher.

@@ -1,0 +1,93 @@
+{
+  "repo": "ruvnet/metaharness",
+  "cron": "0 8 * * *",
+  "slots": [
+    {
+      "deep": "generator-genome",
+      "scan": [
+        "router",
+        "turn-credit"
+      ]
+    },
+    {
+      "deep": "flywheel-promotion",
+      "scan": [
+        "evals-verticals",
+        "bench"
+      ]
+    },
+    {
+      "deep": "darwin-evolution",
+      "scan": [
+        "weight-eft",
+        "learn"
+      ]
+    },
+    {
+      "deep": "security-adversarial",
+      "scan": [
+        "sbom",
+        "policy"
+      ]
+    },
+    {
+      "deep": "host-adapters",
+      "scan": [
+        "kernel",
+        "sdk"
+      ]
+    }
+  ],
+  "bonusModuli": {
+    "25": "vertical-packs",
+    "75": "meta-proxy"
+  },
+  "buildStep": {
+    "cmd": "npm ci && npm run build",
+    "degradeOnWasmFailure": true
+  },
+  "controlPlaneProbes": [
+    "node packages/create-agent-harness/dist/bin.js --help || true",
+    "node packages/create-agent-harness/dist/bin.js doctor || true",
+    "node packages/create-agent-harness/dist/bin.js diag --json || true",
+    "ls experiments/ 2>/dev/null || true"
+  ],
+  "evaluatorEntrypoints": {
+    "bench": "npm test",
+    "flywheel": "experiments/*/run.mjs with assert.mjs and verify.mjs",
+    "redblue": "packages/redblue/dist"
+  },
+  "adrConvention": {
+    "pad": 3,
+    "dir": "docs/adrs"
+  },
+  "competitors": [
+    "LangGraph",
+    "AutoGen",
+    "CrewAI",
+    "OpenAI Agents SDK and Codex",
+    "Claude Agent SDK",
+    "DSPy/GEPA",
+    "SWE-bench derivatives"
+  ],
+  "extraDisciplines": [
+    "ADR-250 SOTA-proof ladder: never state a claim above the rung its evidence supports",
+    "an honest null is a shippable result; an overstated claim is a defect",
+    "LLM_EVAL=blocked nights select candidates testable without model calls"
+  ],
+  "researchDepth": {
+    "minPrimarySources": 8,
+    "minRecentSources": 3,
+    "externalCandidates": 2
+  },
+  "implementationTrack": {
+    "reviewBacklogLimit": 6
+  },
+  "selfReview": {
+    "everyDays": 7,
+    "configSource": "ruvnet/dream-machine:targets/ruvnet-metaharness.dream.json"
+  },
+  "prMode": "ready-on-accept",
+  "scheduleContract": true,
+  "autoMerge": false
+}

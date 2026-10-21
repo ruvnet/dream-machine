@@ -219,6 +219,29 @@ describe('ledger', () => {
     expect(JSON.parse(r.out).ACCEPT).toBe(1);
     expect(JSON.parse(r.out).REJECT).toBe(1);
   });
+  it('outcomes reports merge and ACCEPT-survival rate from --merged fates (one PR, re-appended rows count once)', async () => {
+    const r = await run(['ledger', 'outcomes', '--path', 'L.md', '--merged', '181'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).toBe(0);
+    const m = JSON.parse(r.out);
+    expect(m.fates.MERGED).toBe(1);
+    expect(m.prsTracked).toBe(1);
+    expect(m.mergeRate).toBe(1);
+  });
+  it('outcomes rejects a non-numeric PR in a fate flag', async () => {
+    const r = await run(['ledger', 'outcomes', '--path', 'L.md', '--closed', 'abc'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).not.toBe(0);
+    expect(r.err).toContain('is not a PR number');
+  });
+  it('outcomes rejects a PR listed under two fates', async () => {
+    const r = await run(['ledger', 'outcomes', '--path', 'L.md', '--merged', '181', '--closed', '181'], mockIO({ 'L.md': ledgerMd }));
+    expect(r.code).not.toBe(0);
+    expect(r.err).toContain('listed as both');
+  });
+  it('backlog lists an ACCEPT whose PR was closed unmerged', async () => {
+    const r = await run(['ledger', 'backlog', '--path', 'L.md', '--closed', '181'], mockIO({ 'L.md': ledgerMd }));
+    const items = JSON.parse(r.out);
+    expect(items.some((i: { reason: string }) => i.reason === 'accept-closed-unmerged')).toBe(true);
+  });
   it('signals', async () => {
     const r = await run(['ledger', 'signals', '--path', 'L.md'], mockIO({ 'L.md': ledgerMd }));
     expect(JSON.parse(r.out)).toHaveProperty('zeroMergeStreak');
