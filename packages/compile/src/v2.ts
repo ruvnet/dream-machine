@@ -210,7 +210,19 @@ export function v2SlotNote(sr: SelfReview | undefined): string {
     : '';
 }
 
-export function v2ScheduleContract(branchPrefix: string): string {
+export function v2ScheduleContract(branchPrefix: string, hasConsolidate: boolean): string {
+  const consolidateClause = hasConsolidate
+    ? `
+   That check cannot see a CONSOLIDATE night, which pushes to an existing
+   PR's own older-dated branch instead of creating one: before CONSOLIDATE
+   touches a PR, check that PR's own commits and comments for today's DATE
+   authored by, or posted by, this routine's own account (ignore commits and
+   comments from anyone else, same scoping as the \`${CONSOLIDATE_MARKER}\`
+   marker above). If either already shows one, treat it as an earlier run
+   today on that PR, make no remote side effects to it, and move to the next
+   oldest eligible PR under the same check (or end with
+   \`SKIP: already ran <DATE>\` if none remain).`
+    : '';
   return `# SCHEDULE CONTRACT
 
 From ruvnet/core-memory (AGENTS.md rule 5; issue #187). It binds every step below.
@@ -225,7 +237,7 @@ From ruvnet/core-memory (AGENTS.md rule 5; issue #187). It binds every step belo
    FINAL REPORT.
 2. **Duplicate firing.** If origin already has a \`${branchPrefix}<DATE>-*\`
    branch from an earlier run today, make no remote side effects and end with
-   \`SKIP: already ran <DATE>\`.
+   \`SKIP: already ran <DATE>\`.${consolidateClause}
 3. **Pinned tooling.** Run external packages only at the exact versions named
    in this prompt; never \`@latest\` or a bare package name. List every external
    tool and version actually used in the FINAL REPORT.`;
