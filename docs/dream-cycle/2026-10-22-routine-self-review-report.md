@@ -214,8 +214,11 @@ Re-ran the full suite after both fixes: vitest 887/887 (unchanged count — the
 test asserts clause substrings that still hold after the wording fix), governance
 195/195, lint/typecheck clean, `compile-targets.mjs` regenerated and reviewed
 again (same shape, same 5 targets, no surprises). **Verdict: CLEAR** on the
-semantic fix; the PR is marked ready for review per STEP 1.5/STEP 20-25's
-ready-on-ACCEPT predicate.
+semantic fix. This PR stays **draft** regardless: "a self-review PR always
+stays human-review-only, whatever `prMode` says" (STEP 1.6's constitution) —
+unlike an ordinary CONSOLIDATE/IMPLEMENT/RESEARCH candidate, a
+`routine-self-review` PR is never marked ready for review by this routine
+itself, even on ACCEPT with a clear critic. A human decides when to move it.
 
 ## Security Review
 
@@ -253,9 +256,9 @@ condition.
 ## Witness
 
 ```
-report_sha256 : 2919582943e09f50073fe8052d54016643f2bee666c1e072a78fa9b7528d437a
+report_sha256 : d322a9daae52a965672e085b8a505cadccb54b6a4f02d0dd8dbe6d518ef568eb
 session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
-witness       : cc68f7844b72e47be5597fa847e09bb71ba64d1e72a9ea07ff0ae9f48f9c9127
+witness       : 8ba9e7138cc91c8b0fe6933c0d8c0acb3f8aef0968e3cf7bba8798a612e88942
 ```
 
 Computed over this file's canonical bytes (everything above this heading,
