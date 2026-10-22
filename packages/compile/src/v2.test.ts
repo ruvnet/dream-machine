@@ -130,6 +130,23 @@ describe('v2 compile', () => {
     expect(pc).toContain('/tmp/schedule-receipts.jsonl');
   });
 
+  // 2026-10-22 self-review: the dated-branch duplicate-firing check cannot see
+  // a CONSOLIDATE night, which reuses an existing PR's own older-dated branch
+  // instead of creating `dream/<DATE>-*` (live evidence: PR #145, 2026-10-21,
+  // two concurrent sessions both selected it for consolidation). The schedule
+  // contract must only claim CONSOLIDATE coverage when CONSOLIDATE exists.
+  it('extends the duplicate-firing guard to CONSOLIDATE only when implementationTrack is configured', () => {
+    const withConsolidate = compile({ ...v2, scheduleContract: true });
+    expect(withConsolidate).toContain('cannot see a CONSOLIDATE night');
+    expect(withConsolidate).toContain("check that PR's own commits and comments for today's DATE");
+
+    const { implementationTrack: _implementationTrack, ...noTrack } = v2;
+    const withoutConsolidate = compile({ ...noTrack, scheduleContract: true });
+    expect(withoutConsolidate).toContain('# SCHEDULE CONTRACT');
+    expect(withoutConsolidate).not.toContain('cannot see a CONSOLIDATE night');
+    expect(withoutConsolidate).not.toContain("check that PR's own commits and comments for today's DATE");
+  });
+
   it('routes an external self-review to a proposal PR in the target repo', () => {
     const pe = compile({ ...v2, selfReview: { everyDays: 7, configSource: 'ruvnet/dream-machine:targets/a.dream.json' } });
     expect(pe).toContain('lives outside this checkout');
