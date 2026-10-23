@@ -264,6 +264,88 @@ confirmed merged via GitHub ground truth) — the tool's own default (no
 #98; `#146` is a dependabot PR, not a candidate). `ledgerStale=true`
 (`daysSinceLastRow=2`, last row 2026-09-30).
 
+## Consolidation Refresh — 2026-10-23
+
+STEP 1.5 MODE=CONSOLIDATE (`ruvnet/dream-machine`'s own `dream.config.json`,
+`implementationTrack.reviewBacklogLimit=6`; 20 open `dream/*` candidate PRs
+measured tonight, well over the limit). This PR (#148) was the oldest
+eligible candidate: still draft, verdict ACCEPT in its own Evaluation
+Receipt, not a `routine-self-review` PR, no `dream-consolidate` marker for
+today's default-branch SHA. No new research, candidate, or PR opened
+tonight (STEPS 2–9 and 17–24 skipped per the CONSOLIDATE branch of STEP
+1.5); only STEPS 10–16 (critique, Darwin applicability, evidence, gate,
+security, witness) were re-run below, then STEP 25 (ledger).
+
+**Merge.** `git merge origin/main` (merge commit, no rebase, no
+force-push) from parent `23a5770` forward to `main@3fc3222d2e5566a203331d3686c4d2eaf06713a8`
+— 21 days, ~70 commits of unrelated history (Dream Cycle v2 / ADR-0011,
+compiler prompt-injection hardening, software-factory additions, etc.).
+One textual conflict, in `docs/dream-cycle/LEDGER.md` only (both sides had
+appended rows after the same common ancestor row); resolved by keeping
+both sets of rows in chronological order — no content from either side
+dropped or altered. `packages/cli/src/entrypoint.ts` and
+`entrypoint.test.ts` (this candidate's only files) received **zero**
+competing changes on `main` since baseline (`git log 23a5770..main --
+packages/cli/src/entrypoint.ts packages/cli/src/entrypoint.test.ts` is
+empty) — the candidate diff is byte-identical to the one originally
+reviewed.
+
+**Re-run real evaluator on the exact new head** (merge commit
+`5d29d6384154e4540ce291c8bebfdf189e247fb9`):
+
+| | Baseline (`main@3fc3222`, fresh worktree) | Candidate (merged head) |
+| --- | --- | --- |
+| vitest | 886 | 890 (+4, the candidate's own tests; 0 regressions) |
+| governance | 195 | 195 (unchanged) |
+| Total | 1081 | 1085 |
+| `npm run typecheck` | clean | clean |
+| `npm run lint` | clean | clean |
+| `npm run check:edge-contracts` | clean | clean |
+
+(The baseline's own `scripts/benchmark-ticket-codec.test.mjs` pinned-commit
+oracle initially failed on this session's shallow checkout — the same
+environmental issue this report's original Baseline section already
+diagnosed on 2026-10-02; resolved identically with `git fetch --unshallow`,
+then both baseline and candidate measured clean.) Live real-CLI repro
+reproduced tonight on the rebuilt binary, byte-identical to the original:
+`verify-entrypoint stream-probe` on the same throwaway failing `node --test`
+file still reports `blocked (exit 1) — (stdout) TAP version 13 ...`
+(post-fix) vs. `blocked (exit 1) — exited 1 with no stderr` (pre-fix, i.e.
+on `classifyEntrypointResult` before this candidate's conditional).
+`verify-entrypoints dream.config.json` against the current, 21-days-newer
+self-hosted config still reports `bench: live (exit 0)` /
+`darwin: blocked (exit 1) — compound command`, matching the night-of
+receipt exactly — the surface this candidate touches is unaffected by
+everything that landed on `main` since.
+
+**Fresh independent critic + reward-hack check on the new diff** (this
+session, separate pass from the night-of critic): CLEAR. Confirmed via
+`grep` across `packages/cli/src` that no code outside
+`entrypoint.ts`/`entrypoint.test.ts` depends on the literal old string
+`"exited N with no stderr"` (one incidental, pre-existing, unrelated
+occurrence remains in the earlier stale-state branch of the same file, out
+of this candidate's scope); the two real call sites
+(`index.ts`'s `verify-entrypoint`/`verify-entrypoints`) still just log
+`check.reason` as an opaque string. `classifyEntrypointResult`'s call sites
+and signature are unchanged on `main` since baseline. No gold data,
+threshold, or benchmark corpus touched; no hidden cost; no undocumented
+cache. `reward_hack_clear` / `critic_clear` still hold.
+
+**Darwin.** `DARWIN=not-applicable` (unchanged from the night-of finding —
+a single-branch classifier fallback has no evolvable population).
+
+**Gate.** `evaluation_complete` ∧ `effect_positive` (+4 tests, the
+diagnostic the hypothesis predicted, live-reproduced) ∧
+`significance_sufficient` (deterministic unit-level repro, not statistical)
+∧ `no_material_regression` (0 regressions on 1081 baseline tests) ∧
+`tests_green` ∧ `reward_hack_clear` ∧ `critic_clear` ∧ `witness_valid`
+(below) ∧ `receipt_reproducible` (this section) all hold → **verdict ACCEPT
+still holds** on the refreshed head. Every required local check (test,
+typecheck, lint, edge-contracts, build) is green on the exact pushed head;
+no CI result to await beyond what this session itself reproduced.
+Promotion gate unchanged: this session never self-merges and never applies
+`automerge-safe`.
+
 ## Gist
 
 `GIST=LOCAL` — no `gh` CLI gist capability or MCP gist-creation tool
@@ -274,18 +356,28 @@ report is the durable artifact.
 
 ## Witness
 
+Current (consolidation refresh, 2026-10-23), computed over this file's
+canonical bytes as committed now (everything above this heading, trailing
+whitespace collapsed to one newline) at tonight's merge commit — this is
+the triple `witness verify-report` (no `--commit` override) checks against:
+
+```
+report_sha256 : f43bd1b9f4b86ec6b9c69a4cc22747bee99f366134ba2380034607885f650917
+session_commit: 5d29d6384154e4540ce291c8bebfdf189e247fb9
+witness       : f0fe18aef3864a2c428f80f2b1a9ee2de370a37ec41f06533f5d5e52be4701e7
+```
+
+Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-02-evaluation-adapters-report.md`
+
+Original night-of witness (2026-10-02), over this file's canonical bytes as
+they stood before tonight's Consolidation Refresh section existed —
+preserved for history, no longer the value `verify-report` checks against
+this file's current bytes:
+
 ```
 report_sha256 : 643ad95981d507ff636d8a14a0525dc59dcff80158f8d4a722414783cdd07272
 session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
 witness       : 29c998e2cef84d47a01469e871f3322d3dc5d7c0622128548b3f276b13c0a57b
-```
-
-Computed over this file's canonical bytes (everything above this heading,
-trailing whitespace collapsed to one newline) — reproducible from the
-committed file with no unavailable intermediate bytes. Verify:
-
-```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-02-evaluation-adapters-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf
 ```
 
 ## Recommendation
