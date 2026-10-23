@@ -131,10 +131,27 @@ export function classifyEntrypointResult(r: ExecResult): EntrypointCheck {
           'entrypoint or a candidate regression. Clear that state and re-run before recording a verdict.',
       };
     }
+    // Reproduced 2026-10-02 (evaluation-adapters night, SCAN=flywheel,darwin): this
+    // repo's own `bench` entrypoint (`npm test`) runs `node --test scripts/*.test.mjs`
+    // for its governance half, and Node's built-in test runner writes its entire TAP
+    // report — including every failure's assertion diff and stack trace — to stdout,
+    // leaving stderr empty even on a nonzero exit (live-confirmed: a deliberately
+    // failing `node --test` run produced 0 stderr bytes). Falling straight to `stderr
+    // || 'exited N with no stderr'` previously discarded that diagnostic and reported
+    // a technically-true but misleading "no stderr" — as if nothing explained the
+    // failure, when the real reason was sitting in stdout. A failure that truly has
+    // both streams empty is unchanged below; a failure with real stderr content is
+    // unaffected (same `reason` as before this fix).
+    if (!stderr) {
+      const stdout = r.stdout.trim();
+      if (stdout) {
+        return { verdict: 'blocked', code: r.code, reason: `(stdout) ${stdout}` };
+      }
+    }
     return {
       verdict: 'blocked',
       code: r.code,
-      reason: stderr || `exited ${r.code} with no stderr`,
+      reason: stderr || `exited ${r.code} with no output on either stream`,
     };
   }
   if (r.stdout.trim() === '' && r.stderr.trim() === '') {

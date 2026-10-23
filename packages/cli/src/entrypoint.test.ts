@@ -123,6 +123,44 @@ describe('classifyEntrypointResult', () => {
     expect(r.verdict).toBe('blocked');
   });
 
+  it('falls back to stdout when a nonzero exit has empty stderr (reproduces `bench`: node --test writes its entire TAP report, failures included, to stdout, never stderr)', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: "not ok 1 - widget renders\n  ---\n  error: 'expected 1 to equal 2'\n  ...\n1..1\n# fail 1",
+      stderr: '',
+    });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toContain('not ok 1 - widget renders');
+    expect(r.reason).toContain('(stdout)');
+  });
+
+  it('prefers stderr over stdout when both are present on a nonzero exit (unchanged precedent)', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: 'some informational progress output',
+      stderr: 'the real error',
+    });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toBe('the real error');
+    expect(r.reason).not.toContain('informational progress output');
+  });
+
+  it('reports a clear generic message when a nonzero exit has both streams empty', () => {
+    const r = classifyEntrypointResult({ code: 1, stdout: '', stderr: '' });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toBe('exited 1 with no output on either stream');
+  });
+
+  it('does not let a stale-state-shaped message in stdout alone override the stdout fallback into stale-state (scope: only stderr is checked for stale-state, matching all prior reproductions)', () => {
+    const r = classifyEntrypointResult({
+      code: 1,
+      stdout: 'Error: darwin: autonomous or generated child id already exists: g1_v0',
+      stderr: '',
+    });
+    expect(r.verdict).toBe('blocked');
+    expect(r.reason).toContain('(stdout)');
+  });
+
   it('does not flag an unrelated "already exists" failure from a non-darwin entrypoint as stale-state', () => {
     // classifyEntrypointResult is shared across every configured evaluatorEntrypoints
     // value (bench, flywheel, redblue, darwin, ...) — a real bench-test failure whose
