@@ -137,6 +137,69 @@ iteration count was touched; the 3 previously-failing assertions are
 untouched and now simply get to run (they were never reached before, not
 weakened). Confirmed by the independent critic above.
 
+## Consolidation refresh — 2026-10-24 (MODE=CONSOLIDATE)
+
+20 open `dream/*` candidate PRs tonight, well over
+`implementationTrack.reviewBacklogLimit=6`. The two nearer-the-front
+eligible drafts (#145, #148) already carry a `dream-consolidate` marker for
+today's exact default-branch SHA (`3fc3222`) from the two preceding nights,
+so this PR — oldest still-eligible draft with no prior consolidate marker
+at all — is tonight's pick.
+
+**Done:** merged `main@3fc3222d2e5566a203331d3686c4d2eaf06713a8` into this
+branch (merge commit `7807661`, ordinary merge, no rebase, no force-push).
+One textual conflict in `LEDGER.md` (both sides had appended rows since
+this branch's 2026-10-03 base), resolved by chronological concatenation —
+no row dropped either side. `scripts/benchmark-ticket-codec.mjs`/`.test.mjs`
+(this candidate's only files) carried no competing change on `main` since
+baseline — confirmed via `git diff 8fe3b8a..HEAD -- scripts/benchmark-ticket-codec.mjs scripts/benchmark-ticket-codec.test.mjs`
+(empty) — so the diff under review is byte-identical to what the original
+round reviewed.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+886/886 (unchanged from main's own baseline), governance 197/197 (+2, this
+candidate's own tests; main's own baseline on this exact head is 195/195 —
+confirmed by running `npm test` on bare `main@3fc3222` directly). 0
+regressions. `npm run typecheck` / `npm run lint` clean.
+
+**Fresh critic + reward-hack pass (this round).** Performed directly
+(independent of the original round, re-derived from the live diff and live
+commands, not a reread of the prior verdict): read the actual diff via
+`git show 8fe3b8a`; confirmed `tryFetchCommit` is called only with the
+hardcoded `BASELINE_COMMIT` literal (`grep -n "tryFetchCommit\|hasCommit("`
+shows exactly the two call sites inside `withReference`'s self-heal, no
+caller-supplied ref anywhere); ran a negative control by swapping in the
+pre-candidate file version and confirming the test file fails outright
+(missing `hasCommit` export) rather than passing vacuously, then restored
+the exact candidate bytes and re-confirmed `git diff`/`git status` show
+nothing residual; ran `scripts/benchmark-ticket-codec.test.mjs` in
+isolation, 5/5 pass (3 original + 2 new). No gold answer, threshold, seed,
+or iteration count touched; no file outside the two named is touched.
+Security surface unchanged from the original review: `git fetch --depth 1
+origin <fixed-sha>` is content-addressed to an already-hardcoded literal,
+fetched from `origin` only — **CLEAR**.
+
+**CI on the pushed head.** `test` (both Node versions), `software-evidence`,
+`dependency-security`, `no-optional-deps`, and the separate `guard`/CodeQL
+checks are green. Red: `dependency-audit` (`npm audit --audit-level=high`)
+— reproduced locally against this exact head's lockfile; `git diff
+origin/main -- package-lock.json` from this branch is empty, so the
+lockfile is byte-identical to `main`'s. Same pre-existing, already-tracked
+`vite`/`launch-editor` dev-toolchain advisory as issue #197 (opened
+2026-10-21 against PR #145, still open, no fix PR exists to port — a
+semver-range-breaking `vite` bump is out of scope for this single-function
+test-infrastructure fix). Not re-filing a duplicate issue; not fixing it
+from this PR.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but not
+every required check on the new head is green (`dependency-audit`, for the
+reason above) — per STEP 1.5, this PR **stays draft**. Ledger row appended
+to `docs/dream-cycle/LEDGER.md` for 2026-10-24.
+
+No merge, no close, no force-push, no self-promotion. (The
+`dream-consolidate` marker for tonight's SHA is posted as a PR comment, per
+STEP 1.5, not embedded in this committed report.)
+
 ## Witness
 
 Computed over this report's canonical bytes (everything above this
@@ -147,12 +210,12 @@ hash, and the triple below is reproducible from this exact committed file
 forever after).
 
 ```
-report_sha256 : ae3f612f711f83ee1035e49c6d5c03808b291a82bab03189e7239c5edf5a5522
-session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
-witness       : 3c3dc0728d1b327253b66d0021e80ffd0d5084056644f7f424baf31206ba416f
+report_sha256 : f0cae3e819e5fc4177dcff79c6d66605333ee784becbeeb46e224e1456159e5a
+session_commit: 7807661ae86aeadb9e1b6d122ba64ce8b69f5248
+witness       : e4b8f464dac872ad98b32bf1bf9db870099cdfdf5ec657efd2954c1b7d7f8b18
 ```
 
-Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-03-security-adversarial-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf`
+Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-03-security-adversarial-report.md --commit 7807661ae86aeadb9e1b6d122ba64ce8b69f5248`
 
 ## Next steps
 
