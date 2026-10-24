@@ -12,6 +12,38 @@ import ts from 'typescript';
 export const BASELINE_COMMIT = '35c9fd31ec0369f1c4b0ac7d5eda13d766bbb8cf';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
+
+/**
+ * True if `commit` is reachable in the local history. A shallow clone
+ * (this repo's own CI pins `fetch-depth: 0` for exactly this reason; an ad
+ * hoc dev or agent checkout usually does not) can be missing it. Exported
+ * only so the detection logic itself is unit-testable against a commit that
+ * can never resolve, without depending on real network conditions.
+ */
+export function hasCommit(commit) {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: ROOT, timeout: 10000, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Self-heal a shallow clone missing `commit` by fetching exactly that one
+ * value. Only ever called with the hardcoded BASELINE_COMMIT literal below —
+ * never a caller-supplied ref — so this cannot be used to smuggle in an
+ * arbitrary revision. Best-effort: a fetch failure (no network, no
+ * `origin`, or an unresolvable commit) is swallowed here and surfaced by the
+ * caller's own clear error instead.
+ */
+function tryFetchCommit(commit) {
+  try {
+    execFileSync('git', ['fetch', '--depth', '1', 'origin', commit], { cwd: ROOT, timeout: 20000, stdio: 'ignore' });
+  } catch {
+    // best-effort; hasCommit() below reports the final outcome
+  }
+}
 const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
 const intrinsic = (name, value) => Object.getOwnPropertyDescriptor(typedArrayPrototype, name).get.call(value);
 
@@ -31,6 +63,16 @@ function normalizeCorpus(corpus) {
 
 /** Only the fixed reviewed commit is executable; no arbitrary revision argument. */
 export async function withReference(run) {
+  if (!hasCommit(BASELINE_COMMIT)) {
+    tryFetchCommit(BASELINE_COMMIT);
+    assert(
+      hasCommit(BASELINE_COMMIT),
+      `BASELINE_COMMIT ${BASELINE_COMMIT} is not reachable in this checkout's history ` +
+        `(shallow clone?) and could not be fetched from origin. Run ` +
+        `"git fetch --depth 1 origin ${BASELINE_COMMIT}" or re-checkout with ` +
+        `"fetch-depth: 0" (see .github/workflows/ci.yml for the CI precedent).`,
+    );
+  }
   const directory = await mkdtemp(join(tmpdir(), 'dream-codec-reference-'));
   try {
     const sources = {}, candidateSources = {};
