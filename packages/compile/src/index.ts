@@ -16,9 +16,11 @@ import {
   adrPad,
 } from './config.js';
 import { findUnpinnedNpxInvocations } from './supplychain.js';
+import { v2Budget, v2ModeSelection, v2SelfReview, v2Research, v2DraftLine, v2SlotNote, v2ScheduleContract } from './v2.js';
 
 export * from './config.js';
 export * from './supplychain.js';
+export { SELF_REVIEW_SURFACE, ROUTINE_CONSTITUTION, CONSOLIDATE_MARKER } from './v2.js';
 
 const LEDGER_SCHEMA = '| Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |';
 
@@ -33,13 +35,16 @@ export function compile(config: DreamConfig): string {
 
   sections.push(header(c.repo, c.cron));
   sections.push(invariants(c.extraDisciplines));
-  sections.push(step0Context(c.slots, c.bonusModuli));
+  if (c.scheduleContract) sections.push(v2ScheduleContract(c.branchPrefix));
+  sections.push(step0Context(c.slots, c.bonusModuli) + v2SlotNote(c.selfReview));
   sections.push(step05Build(c.buildStep, c.controlPlaneProbes));
-  sections.push(step06Budget(c.ledgerPath));
+  sections.push(c.researchDepth ? v2Budget(c.ledgerPath) : step06Budget(c.ledgerPath));
   sections.push(step1Ledger(c.ledgerPath));
   sections.push(step11Signals());
+  if (c.implementationTrack) sections.push(v2ModeSelection(c.implementationTrack, c.branchPrefix));
+  if (c.selfReview) sections.push(v2SelfReview(c.selfReview, c.ledgerPath));
   sections.push(step2Evidence(adrDir(c.adrConvention)));
-  sections.push(step3Research(c.competitors));
+  sections.push(c.researchDepth ? v2Research(c.researchDepth, c.competitors) : step3Research(c.competitors));
   sections.push(step45Hypothesis());
   sections.push(step6to9Candidate(c.evaluatorEntrypoints, c.controlPlaneProbes));
   sections.push(step10to14Gates());
@@ -48,7 +53,7 @@ export function compile(config: DreamConfig): string {
   if (c.ruosEvaluation) sections.push(ruosEvaluationBoundary(c.ruosEvaluation));
   sections.push(step17to18Publish(c.labels));
   sections.push(step19Adr(adrDir(c.adrConvention), adrPad(c.adrConvention)));
-  sections.push(step20to25PublishFlow(c.branchPrefix, c.ledgerPath, c.autoMerge));
+  sections.push(step20to25PublishFlow(c.branchPrefix, c.ledgerPath, c.autoMerge, c.prMode));
   sections.push(step26SelfReview());
   sections.push(stopConditions());
   sections.push(finalReport());
@@ -238,6 +243,26 @@ hypothesis, benchmarks, evaluation, witness, 3 concrete next steps. No fabricate
 benchmarks; every quantitative claim carries its evidence grade.`;
 }
 
+/**
+ * Wrap `s` as a markdown inline code span that cannot be broken out of
+ * regardless of its content: picks a backtick-run delimiter one longer
+ * than the longest backtick run inside `s` (CommonMark's own rule for an
+ * unambiguous code span), and pads with a space if `s` starts or ends
+ * with a backtick. For ordinary content (no backticks) this is identical
+ * to a plain single-backtick wrap. Needed because `packageSpec` below is
+ * extracted from a `controlPlaneProbes` command, which -- unlike the
+ * identifier-like config fields `validateConfig()` rejects a lone
+ * backtick from outright -- is allowed to contain one (command
+ * substitution), so a plain `` `${s}` `` wrap is not safe here.
+ */
+function inlineCode(s: string): string {
+  const runs = s.match(/`+/g) ?? [];
+  const longest = runs.reduce((max, r) => Math.max(max, r.length), 0);
+  const fence = '`'.repeat(longest + 1);
+  const pad = s.startsWith('`') || s.endsWith('`') ? ' ' : '';
+  return `${fence}${pad}${s}${pad}${fence}`;
+}
+
 function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: string[]): string {
   const evLines = Object.entries(ev ?? {})
     .filter(([, val]) => val)
@@ -249,7 +274,7 @@ function step6to9Candidate(ev: DreamConfig['evaluatorEntrypoints'], probes: stri
       unpinned
         .map(
           (f) =>
-            `- \`${f.source}\` runs \`npx ${f.packageSpec}\` — not pinned to an exact version. \`npx\` resolves the ` +
+            `- ${inlineCode(f.source)} runs ${inlineCode(`npx ${f.packageSpec}`)} — not pinned to an exact version. \`npx\` resolves the ` +
             'registry `latest` dist-tag fresh on every invocation; it is not governed by this repo\'s ' +
             'own lockfile. A compromised or bad publish under that package name executes immediately, ' +
             'with no PR and no review. Treat a result from this entrypoint as evidence about "whatever ' +
@@ -352,7 +377,7 @@ assume). Path: \`${adrDir}/${example}-dream-cycle-<surface>-<slug>.md\` using ${
 Follow the repo's own ADR shape; Status starts \`Proposed\`; add the INDEX row.`;
 }
 
-function step20to25PublishFlow(branchPrefix: string, ledgerPath: string, autoMerge: boolean): string {
+function step20to25PublishFlow(branchPrefix: string, ledgerPath: string, autoMerge: boolean, prMode: 'draft' | 'ready-on-accept' = 'draft'): string {
   const mergePolicy = autoMerge
     ? `**Merge policy (guarded auto-merge ENABLED for this target).** Human review
 is still the default. Auto-merge may occur ONLY for a PR that (a) carries the
@@ -363,14 +388,14 @@ only, full stop. The session itself still never runs the merge — a separate,
 auditable CI job does, under those conditions.`
     : `**Merge policy.** Human review required. The session never self-merges and
 never autonomously promotes candidate state.`;
-  return `# STEP 20–25: BRANCH → VALIDATE → COMMIT → PUSH → DRAFT PR → LEDGER
+  return `# STEP 20–25: BRANCH → VALIDATE → COMMIT → PUSH → ${prMode === 'ready-on-accept' ? 'PR' : 'DRAFT PR'} → LEDGER
 
 Branch \`${branchPrefix}<DATE>-<surface>\` (deterministic suffix if it exists). Run
 the relevant validation (candidate tests, affected tests, benchmark verify, lint/
 typecheck); never weaken failing tests; classify failures caused-by-candidate /
 preexisting / environmental. Commit the candidate diff + any new corpus +
 evidence + ADR + ledger (exclude secrets/temp/credentials). Push if authenticated.
-Open a **draft** PR (even a significant result stays draft) with body:
+${prMode === 'ready-on-accept' ? v2DraftLine() : 'Open a **draft** PR (even a significant result stays draft) with body:'}
 Hypothesis, Candidate, Evaluation Receipt, Baseline, Darwin Lineage, Evidence,
 Reward-Hack Check, Security Review, Regression Analysis, ADR, Gist, Issue,
 Witness, Merge Policy.
