@@ -187,6 +187,78 @@ with its own pre-existing doc comment, not a new architectural decision.
    standing human pinning decision (flagged again this run; not this
    candidate's to fix).
 
+## Consolidation refresh — 2026-10-25
+
+MODE=CONSOLIDATE (STEP 1.5, ADR-0011): 20 open `dream/*` candidate PRs
+tonight, well over `implementationTrack.reviewBacklogLimit=6`. The three
+nearer-the-front eligible drafts (#145, #148, #150) each already carry a
+`dream-consolidate` marker for today's exact default-branch SHA
+(`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) from the three preceding
+nights — `main` has not advanced since 2026-10-19 (`#196`), so there is no
+new SHA for them to re-consolidate against. This PR was the next-oldest
+still-eligible draft (still draft, ACCEPT in its own Evaluation Receipt,
+not a `routine-self-review` PR) carrying no prior consolidate marker.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`9110482`, never rebase, never
+force-push). One textual conflict in `docs/dream-cycle/LEDGER.md` (both
+sides had appended rows since this branch's 2026-10-06 base) — resolved by
+chronological concatenation (this row first, then `main`'s later rows), no
+row lost either side. `packages/ledger/src/index.ts` auto-merged clean
+against substantial intervening `main` history on the same file (the Dream
+Cycle v2 engine landing in `#196`, plus PR `#167`'s `duplicateDirections`
+de-dup) — confirmed by grep that `blockedCount`/`blockedEvalStreak`'s
+majority conjunct is present, unaltered, in the merged file.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+886→889 (+3, this candidate's own tests, 0 regressions vs. `main`'s own
+886), governance 195/195 unchanged, 0 regressions. `npm run
+typecheck`/`npm run lint` clean; `npm run build` clean (8 packages, no
+wasm/NAPI degradation). `node packages/cli/dist/bin.js ledger verify --path
+docs/dream-cycle/LEDGER.md --since-row 38 --legacy-digest
+23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`: OK, 54
+rows. Live repro re-run against the rebuilt
+`packages/ledger/dist/index.js` on the new head: minority tail (3/14) →
+`false`; genuine majority (8/14) → `true`; all-blocked (14/14) → `true`;
+exact 50/50 (7/14) → `false` — all unchanged from the original round.
+
+**Fresh critic + reward-hack pass (this round).** No separate subagent
+context was available tonight (nested-agent spawning was denied at depth
+1), so this pass was run directly by the consolidating session rather than
+a fully isolated subagent — disclosed as a real limitation, not papered
+over. Diffed the candidate's two files from the PR's original base
+(`23a5770`) to the new head: byte-identical to the originally reviewed
+diff (`packages/ledger/src/index.ts` +11/−1 candidate lines, test file
+pure-additive) — no competing change landed on `blockedEvalStreak` itself
+since baseline. Ran 7 of my own adversarial probes beyond the shipped
+3 tests directly against the rebuilt dist: empty window (`false`, no
+crash), `n=1` blocked (`false`), minimum `n=3` all-blocked (`true`),
+custom `window=3/5/6` options correctly rescaling the majority threshold
+(`true`/`true`/`false`), and an alternating pattern where majority is
+blocked but the tail isn't contiguous (`false`, last-3-consecutive still
+enforced). No counter-example found; no gold data, threshold, or test
+weakened. **CLEAR.**
+
+**CI on the pushed head.** Green: `guard`, `CodeQL`, `test` (both Node
+versions), `no-optional-deps`, `software-evidence`, `dependency-security`.
+Red: `dependency-audit` (`npm audit --audit-level=high`) — reproduced
+locally against this exact head's lockfile; `git diff main --
+package-lock.json` from this branch is empty, so the lockfile is
+byte-identical to `main`'s. Same pre-existing, already-tracked `vite`
+8.3.0–8.3.2 → `launch-editor` dev-toolchain advisory as issue `#197`
+(opened 2026-10-21 by this same consolidation pattern on PR #145, still
+open, no fix PR exists yet to port — a semver-range-breaking `vite`/`vitest`
+major bump is out of scope for this single-boolean-expression fix). Not
+re-filing a duplicate issue; not fixing it from this PR.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but not
+every required check on the new head is green (`dependency-audit`, for the
+reason above) — per STEP 1.5, this PR **stays draft**. Ledger row appended:
+`docs/dream-cycle/LEDGER.md` (2026-10-25). Witness below refreshed against
+the new session commit.
+
+No merge, no close, no force-push, no self-promotion.
+
 ## Gist
 `GIST=LOCAL` — no `gh` CLI (`GH_TOKEN` invalid: `gh auth status` fails) and
 no gist-creation MCP tool available this session (GitHub MCP access itself
@@ -199,6 +271,17 @@ specifically a gist-API gap). Full report committed at
 
 ## Witness
 
+Refreshed 2026-10-25 (consolidation round; supersedes the original-round
+triple below, same report file, now bound to tonight's session commit):
+
+```
+report_sha256 : 426ff8a119c4df2fefd96e11333e4042818ecb177d5064d7b7336ba370d9b2cf
+session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
+witness       : 1ed38f45b8ca7e7d59d1e3345a5978fd18614248e6f830e17c29e2bc5f6af163
+```
+
+Original round (2026-10-06), for the record:
+
 ```
 report_sha256 : 274687e0e453001e7c9fb554a4da77d258a9c3608005f43fb43630618e631305
 session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
@@ -207,8 +290,9 @@ witness       : 907bbf1fb1279c979dca95414c95a12e19e58e4dd6c05070f81f33483ecfdc44
 
 Computed over this file's canonical bytes (everything above this heading,
 trailing whitespace collapsed to one newline) — reproducible from the
-committed file with no unavailable intermediate bytes. Verify:
+committed file with no unavailable intermediate bytes. Verify the current
+round:
 
 ```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-06-ledger-signals-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf
+dream-machine witness verify-report docs/dream-cycle/2026-10-06-ledger-signals-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8
 ```
