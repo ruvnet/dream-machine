@@ -370,12 +370,93 @@ session start despite 61 merged PRs) — a `ledger-signals`-surface finding,
 out of scope for tonight's `compiler-parity` slot, carried forward for
 that rotation.
 
+## Consolidation refresh — 2026-10-26 (MODE=CONSOLIDATE)
+
+17 open `dream/*` candidate PRs tonight, well over
+`implementationTrack.reviewBacklogLimit=6`. The three nearer-the-front
+eligible drafts (#145, #148, #150) already carry a `dream-consolidate`
+marker for today's exact default-branch SHA (`3fc3222`) from the three
+preceding nights (2026-10-21, 2026-10-23, 2026-10-24 respectively; main has
+not advanced since — no dream-cycle candidate has merged). This PR — the
+next-oldest still-eligible draft (still draft, ACCEPT in its own Evaluation
+Receipt above, not a `routine-self-review` PR) carrying no prior
+consolidate marker at all — is tonight's pick. (#139 is REJECT; #141/#137
+are already out of draft, not eligible.)
+
+**Done.** Merged `main@3fc3222d2e5566a203331d3686c4d2eaf06713a8` into this
+branch with an ordinary merge commit (`a1da03b821aa7ff83f018fb25901a525cd3019c8`,
+never rebase, never force-push). Two textual conflicts, both resolved
+without dropping either side's content:
+- `docs/dream-cycle/LEDGER.md` — both sides had appended rows since this
+  branch's 2026-10-05 base; resolved by chronological concatenation.
+- `packages/compile/src/config.ts` — `main` had independently added a
+  *different*, non-overlapping check in the same function since this
+  branch's base: a `checkNoFenceBreak` prompt-injection guard over
+  `evaluatorEntrypoints` keys/values (added with a comment explicitly
+  anticipating this PR's own validation landing alongside it), plus the
+  same guard newly applied to `ledgerPath`. Kept both: this PR's own
+  type/non-empty-string + unknown-key-warning block, and `main`'s newer
+  fence-break guard block and `ledgerPath` call. `git diff
+  3fc3222d..a1da03b -- packages/compile/src/config.ts` confirms the merge
+  adds exactly this PR's 21-line block and touches nothing else.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+913/913 (886 on bare `main@3fc3222` + this candidate's own +27, confirmed
+by running `npm test` on bare `main` directly before merging), governance
+195/195 (unchanged — this candidate never touched governance-suite files).
+0 regressions. `npm run typecheck` / `npm run lint` clean.
+`node packages/cli/dist/bin.js ledger verify --path docs/dream-cycle/LEDGER.md
+--since-row 38 --legacy-digest 23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`
+(the exact CI gate): OK on the pre-append ledger (54 rows). Self-hosted
+`dream.config.json` compile output confirmed byte-identical to this
+session's own `/tmp/tonight-prompt.md`.
+
+**Fresh critic + reward-hack pass (this round, independently re-derived
+from the live diff and live commands, not a reread of the prior verdict).**
+Dispatched a separate-context critic subagent: confirmed both validation
+blocks in the merged `config.ts` are coherent, non-overlapping, and that
+neither side's check was dropped or weakened by the merge; confirmed via
+`git diff 3fc3222d..a1da03b` that the merge adds only this PR's own block;
+confirmed the merged code is the final *widened* validation (every
+`evaluatorEntrypoints` key via `Object.entries`), not a regression to the
+original BLOCKED narrow draft; confirmed no fixture/gold-answer/threshold/
+seed/iteration-count touched by either the merge or the original candidate;
+confirmed the validation remains pure in-memory (no new filesystem/
+network/credential/tool-authority surface); independently re-ran `npm
+test` on this exact head and observed the same 913/195 pass, 0 fail.
+**CLEAR.**
+
+**CI on the pushed head.** Expect `test` (both Node versions),
+`software-evidence`, `dependency-security`, `no-optional-deps`, `guard`,
+and CodeQL green (reproduced the equivalent checks locally above). Expect
+`dependency-audit` (`npm audit --audit-level=high`, dev-toolchain included)
+red: reproduced locally against this exact head's lockfile — same
+pre-existing `vite@8.3.0`/`launch-editor` high-severity advisory as issue
+#197 (opened 2026-10-21 against PR #145, still open, no fix PR exists to
+port). `npm audit --omit=dev --audit-level=high` (the actual
+production-scoped `dependency-security`/`audit-gate` CI gate): 0
+vulnerabilities. `git diff origin/main -- package-lock.json` from this
+branch is empty — the lockfile is byte-identical to `main`'s, so this is
+not a regression introduced by this PR or its merge. Not re-filing a
+duplicate issue; not fixing it from this PR (a semver-range-breaking `vite`
+bump is its own dependency-version decision, out of scope here, per issue
+#197's own standing-down note).
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but not
+every required check on the new head is expected green (`dependency-audit`,
+for the pre-existing reason above) — per STEP 1.5, this PR **stays draft**.
+Ledger row appended to `docs/dream-cycle/LEDGER.md` for 2026-10-26. The
+`dream-consolidate` marker for tonight's SHA is posted as a PR comment, per
+STEP 1.5, not embedded in this committed report.
+
+No merge, no close, no force-push, no self-promotion.
+
 ## Witness
 
 ```
-report_sha256 : f206535c9a57b9355bbf6a9d12b0a2d06527baa7f5973f9a5fe868320b2479b8
-session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
-witness       : 2f38e6094efeba0476a78b0aa5582003856e1d8a8f1744320966517f17c78aea
+report_sha256 : 53b4b420ee8ae53302dc44f51450961511e297ce7a54edcb2a1cfc9bc5306c4e
+session_commit: a1da03b821aa7ff83f018fb25901a525cd3019c8
+witness       : f029f9eb214efee586eb1e8314c8d4e6cc76ac75f14cdd709ec275718c3a3c25
 ```
 
 Computed over this file's canonical bytes (everything above this heading,
@@ -389,5 +470,5 @@ committed into the PR at
 artifact instead. Self-verify the committed copy once landed:
 
 ```bash
-node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-05-compiler-parity-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-05-compiler-parity-report.md --commit a1da03b821aa7ff83f018fb25901a525cd3019c8
 ```
