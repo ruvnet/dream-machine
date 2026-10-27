@@ -117,6 +117,45 @@ export function looksLikeCompoundCommand(argv: string[]): boolean {
   return argv.some((t) => SHELL_CONTROL_OPERATORS.has(t));
 }
 
+/**
+ * Split a compound command's tokenized argv into ordered segments on literal
+ * `&&` tokens, but only when `&&` is the *only* control operator present and
+ * no segment comes out empty (a leading/trailing/doubled `&&`). Returns
+ * `null` for anything outside that narrow shape, so a caller can fail closed
+ * into the existing all-or-nothing refusal rather than guess: `;`/`|`/`&`
+ * don't share `&&`'s "run the next segment only if the previous exited 0"
+ * semantics (sequential regardless of exit code, inter-process piping, and
+ * background execution, respectively), and this module reimplements none of
+ * them.
+ *
+ * Reproduced 2026-10-07 (evaluation-adapters night, SCAN=flywheel,darwin):
+ * this repo's own real `evaluatorEntrypoints.darwin` is exactly an `&&`-chain
+ * (`rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox
+ * mock`), and `looksLikeCompoundCommand` refusing every compound command
+ * outright (the prior, more conservative behavior) means `verify-entrypoints`
+ * could never report anything but a fixed "blocked: compound command" for
+ * it — the SCAN=darwin liveness probe this command exists to automate was
+ * permanently unreachable for this repo's own configured entrypoint. Each
+ * returned segment is still dispatched individually via `execFile`, never a
+ * shell; only the literal `&&` token is interpreted, and only in this
+ * process.
+ */
+export function splitAndChain(argv: string[]): string[][] | null {
+  if (argv.some((t) => t !== '&&' && SHELL_CONTROL_OPERATORS.has(t))) return null;
+  if (!argv.includes('&&')) return null;
+  const segments: string[][] = [[]];
+  for (const t of argv) {
+    if (t === '&&') segments.push([]);
+    else segments[segments.length - 1].push(t);
+  }
+  // `!s[0]` rejects both an empty segment (`s.length === 0`, from a leading/trailing/
+  // doubled `&&`) and a segment whose first token is an empty string (`s[0] === ''`,
+  // from a quoted empty token, e.g. `a && "" && b` tokenizes to `[['a'], [''], ['b']]`)
+  // — the latter would otherwise reach the caller as a falsy executable name, the same
+  // shape the single-command path already guards against via its own `if (!file)` check.
+  return segments.some((s) => !s[0]) ? null : segments;
+}
+
 /** Classify a completed entrypoint invocation. Pure — no I/O. */
 export function classifyEntrypointResult(r: ExecResult): EntrypointCheck {
   if (r.code !== 0) {
