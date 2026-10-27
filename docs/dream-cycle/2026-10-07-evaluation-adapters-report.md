@@ -127,20 +127,95 @@ change with a fixed input/output contract, no evolvable population to fitness-se
 exercised live via the real `verify-entrypoints` run above, which is the direct
 subject of tonight's finding.
 
+## Consolidate Refresh — 2026-10-27
+
+Mode: CONSOLIDATE (STEP 1.5, ADR-0011). Selected as the oldest eligible open draft
+PR out of 20 open `dream/*` candidate PRs (review queue well over the 6-PR limit;
+`pipelineMergeRate` ≈ 0.591, 39 merged / 66 candidate). Eligibility: draft, own
+Evaluation Receipt already ACCEPT, surface ≠ `routine-self-review`, no
+`dream-consolidate` marker for tonight's SHA. The original 2026-10-07 ACCEPT verdict
+is unchanged by this refresh — this section adds evidence, it does not re-litigate
+the hypothesis.
+
+**Merge.** `main`@`3fc3222d2e5566a203331d3686c4d2eaf06713a8` merged into
+`dream/2026-10-07-evaluation-adapters`@`d5ecc971cda16474e2b1b494e4dc8652bc7314ce`
+via merge commit (never rebased, never force-pushed). One textual conflict:
+`docs/dream-cycle/LEDGER.md` (append-only; resolved by concatenating both sides'
+rows in date order — no row content changed). `packages/cli/src/entrypoint.ts` and
+its test file: zero independent changes on `main` since this PR's original base
+(`23a5770`). `packages/cli/src/index.ts`/`index.test.ts`: ~65 unrelated lines (the
+`ledger outcomes`/`ledger backlog` subcommands from ADR-0011) — confirmed by direct
+diff, not inference, to share no function, import, or code path with
+`verify-entrypoints`/`splitAndChain`/`tokenizeCommand`.
+
+**Re-evaluation.** Real evaluator (`npm test` = `vitest run && npm run
+test:governance`), fresh `npm ci && npm run build` (0 wasm/NAPI degradation), then
+`git fetch --unshallow` to clear the known environmental shallow-clone
+`git show <sha>` oracle failure in `benchmark-ticket-codec.test.mjs` (same class as
+issue #149/PR #150 — confirmed via `git rev-parse --is-shallow-repository`, not
+assumed) which otherwise fails 3 unrelated governance tests on any fresh checkout:
+
+| | Baseline (`main`@`3fc3222`) | Candidate (merged head) |
+|---|---|---|
+| vitest | 886 | 895 (+9 new, 0 regressions) |
+| governance | 195 | 195 (unchanged) |
+| Total | 1081 | 1090 |
+| lint / typecheck | clean | clean |
+
+Baseline measured in an isolated `git worktree` on bare `main`@`3fc3222`, same
+fresh-checkout procedure, to avoid any cross-contamination with the candidate
+branch's build artifacts.
+
+Live re-repro against the real, now-drifted `dream.config.json` (its
+`evaluatorEntrypoints.darwin` is now version-pinned and carries `-y`:
+`rm -rf .metaharness && npx -y @metaharness/darwin@0.12.0 evolve . --sandbox mock`
+— a different literal string than this PR was originally authored and tested
+against on 2026-10-07):
+
+```
+$ node packages/cli/dist/bin.js verify-entrypoints dream.config.json
+bench: live (exit 0) — produced output
+darwin: live (exit 0) — &&-chain, all 2 segments ran: produced output
+```
+
+Identical on a second run (idempotent); `git status --porcelain` clean after both.
+
+**Fresh independent critic.** Separate subagent, no shared authoring context,
+instructed to try to break this exact diff against the drifted config. Verdict:
+**CLEAR**. Hand-traced and live-executed `splitAndChain` against the pinned/`-y`
+darwin string and confirmed it segments correctly; confirmed every
+`verify-entrypoints` dispatch path is `execFile` with no `shell: true` (the one real
+shell wrapper, `io.exec`, is reachable only from the separate, human-typed
+`verify-entrypoint --cmd` command, never from `dream.config.json`); re-confirmed the
+reward-hack check (the two "updated" pre-existing tests are a legitimate behavior
+change, net +9 tests, no narrowed coverage); re-confirmed the merge-drift analysis
+above independently rather than trusting this section's claim. One disclosed,
+non-blocking, pre-existing gap: no single test feeds the exact current pinned/`-y`
+darwin string through `splitAndChain` end-to-end (existing coverage uses the
+pre-pin string); the live CLI repro above exercises it instead. Not fixed in this
+refresh — CONSOLIDATE mode re-evaluates and re-critiques, it does not add new
+functional commits beyond the merge itself.
+
+**Promotion gate**, re-applied: evaluation_complete ∧ effect_positive ∧
+significance_sufficient ∧ no_material_regression ∧ tests_green ∧ reward_hack_clear
+∧ critic_clear ∧ witness_valid ∧ receipt_reproducible — all hold.
+**ACCEPT confirmed, unchanged.**
+
 ## Witness
 
 ```
-report_sha256 : bcbd53b851ce2e213ddf71215d4b62e9199a7b2d7b12fdf023fa090c277eb752
-session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
-witness       : 3e529171e74805a9a2d22e03a1513a7e01880772355cf7ad939d2a902afb24e5
+report_sha256 : 4164eaf662c7199b6569509d7a84da638ef52aa8b651a9724d1aff742b9d1ef5
+session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
+witness       : ad8436fe77bad1e33cb79900889e689ef7e4d04e0716f5d2aa08105afa8cfa56
 ```
 
 Computed over this file's canonical bytes (everything above this heading, trailing
 whitespace collapsed to one newline) — reproducible from the committed file with no
-unavailable intermediate bytes. Verify:
+unavailable intermediate bytes. Supersedes the 2026-10-07 triple (superseded, not
+deleted, per the Consolidate Refresh section above). Verify:
 
 ```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-07-evaluation-adapters-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf
+dream-machine witness verify-report docs/dream-cycle/2026-10-07-evaluation-adapters-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8
 ```
 
 ## Next steps
