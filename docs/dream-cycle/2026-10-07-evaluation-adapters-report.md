@@ -193,8 +193,23 @@ above independently rather than trusting this section's claim. One disclosed,
 non-blocking, pre-existing gap: no single test feeds the exact current pinned/`-y`
 darwin string through `splitAndChain` end-to-end (existing coverage uses the
 pre-pin string); the live CLI repro above exercises it instead. Not fixed in this
-refresh — CONSOLIDATE mode re-evaluates and re-critiques, it does not add new
-functional commits beyond the merge itself.
+refresh — CONSOLIDATE mode re-evaluates and re-critiques the candidate itself, it
+does not add new functional commits to it beyond the merge.
+
+**CI (post-push).** The pushed merge head's `dependency-audit` job went red:
+`npm audit --audit-level=high` found a newly disclosed high-severity advisory
+(`GHSA-r825-w8mm-5pxw` and 4 related launch-editor/Vite CVEs) in the locked `vite`
+8.3.0-8.3.2. Confirmed unrelated to this PR's diff — reproduces identically on the
+unmodified merged lockfile, `vite` is a transitive dev-toolchain dependency this
+candidate never touches, and the sibling `dependency-security` job (the
+production-reachable gate) stayed green throughout. Same minimal, dev-toolchain-only
+repair as this PR's own prior commit (`source-map-js`, 2026-10-07) and #143's
+precedent: bumped the direct, exact-pinned `vite` devDependency 8.3.0 → 8.3.5 (same
+8.3.x patch line, no manifest range semantics or override). `npm test` 1090/1090
+unchanged post-bump (895 vitest + 195 governance), lint/typecheck clean. All 8
+required checks (`test (22)`, `test (24)`, `dependency-security`, `no-optional-deps`,
+`software-evidence`, `CodeQL`/`analyze`, `Human merge policy guard`/`guard`) were
+green on the pre-fix head already; this closes the one holdout.
 
 **Promotion gate**, re-applied: evaluation_complete ∧ effect_positive ∧
 significance_sufficient ∧ no_material_regression ∧ tests_green ∧ reward_hack_clear
@@ -204,9 +219,9 @@ significance_sufficient ∧ no_material_regression ∧ tests_green ∧ reward_ha
 ## Witness
 
 ```
-report_sha256 : 4164eaf662c7199b6569509d7a84da638ef52aa8b651a9724d1aff742b9d1ef5
+report_sha256 : e477233d5bdae1afa333d0954aab771c427be599c081b6cf7c37c80ffc339619
 session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
-witness       : ad8436fe77bad1e33cb79900889e689ef7e4d04e0716f5d2aa08105afa8cfa56
+witness       : a55d4d59d2662343dd9ac1ab6fbaaae642ae1289bd51ed7b208f812a9d653cfc
 ```
 
 Computed over this file's canonical bytes (everything above this heading, trailing
