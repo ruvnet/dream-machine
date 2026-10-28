@@ -119,6 +119,26 @@ function extractPackageSpecs(tokens: string[], start: number): string[] {
 }
 
 /**
+ * Index of the `exec` token for an `npm ... exec` invocation starting at
+ * `tokens[afterNpm]`, or null if this isn't one. A global npm flag
+ * (`--loglevel=silent`, `-s`, `--yes`) may appear between `npm` and `exec`;
+ * those are skipped. Only flag tokens with their value folded into the same
+ * token (`--flag=value`) or no value at all are tolerated — a flag whose
+ * value is a separate following token (e.g. `--prefix /tmp`) is a disclosed,
+ * unfixed gap (see supplychain.test.ts), not silently assumed safe: it is
+ * never treated as a hidden `exec`, so it can only cause a missed detection,
+ * never a false one. The converse, a separate-token flag value that is
+ * itself the literal string `exec` (e.g. `--registry exec`), can misread
+ * that value as the subcommand — a disclosed, non-blocking mislabeling risk
+ * (spurious finding, never a missed one), also covered in supplychain.test.ts.
+ */
+function findNpmExecIndex(tokens: string[], afterNpm: number): number | null {
+  let j = afterNpm;
+  while (j < tokens.length && tokens[j].startsWith('-')) j++;
+  return tokens[j] === 'exec' ? j : null;
+}
+
+/**
  * Scan `controlPlaneProbes` and `evaluatorEntrypoints` command strings for
  * `npx <pkg>` / `npm exec <pkg>` invocations lacking an exact `major.minor.patch`
  * version pin (see `isUnpinned` for what counts as exact).
@@ -142,9 +162,9 @@ export function findUnpinnedNpxInvocations(
     const tokens = command.split(/\s+/).filter(Boolean);
     for (let i = 0; i < tokens.length; i++) {
       const isNpx = tokens[i] === 'npx';
-      const isNpmExec = tokens[i] === 'npm' && tokens[i + 1] === 'exec';
-      if (!isNpx && !isNpmExec) continue;
-      for (const packageSpec of extractPackageSpecs(tokens, i + (isNpmExec ? 2 : 1))) {
+      const npmExecIndex = tokens[i] === 'npm' ? findNpmExecIndex(tokens, i + 1) : null;
+      if (!isNpx && npmExecIndex === null) continue;
+      for (const packageSpec of extractPackageSpecs(tokens, isNpx ? i + 1 : npmExecIndex! + 1)) {
         if (!isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
           findings.push({ source, command, packageSpec });
         }
