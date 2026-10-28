@@ -242,13 +242,30 @@ describe('learning signals', () => {
     expect(s.zeroMergeStreak).toBe(false);
   });
 
-  it('detects duplicate directions repeated >= 3 times', () => {
+  it('detects duplicate directions repeated >= 3 distinct nights', () => {
     let l = emptyLedger();
-    for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
-    l = appendRow(l, row({ finding: 'totally different thing here' }));
+    const dates = ['2026-08-13', '2026-08-14', '2026-08-15'];
+    for (const date of dates) l = appendRow(l, row({ date, finding: 'improve router calibration loop' }));
+    l = appendRow(l, row({ date: '2026-08-16', finding: 'totally different thing here' }));
     const { rows } = parseLedger(l);
     const s = learningSignals(rows);
     expect(s.duplicateDirections.some((d) => d.includes('router'))).toBe(true);
+  });
+
+  it('does not flag a duplicate direction from one night re-appended multiple times', () => {
+    // Observed on the real committed ledger: a single night's row was
+    // re-appended 3x on the same date as its PR/issue numbers firmed up
+    // (e.g. the 2026-08-28 "harden anchored replay JSON evidence" rows).
+    // That is one night's finding, not three nights independently converging
+    // on the same direction, so it must not cross the >= 3 "prior nights"
+    // rotate-away threshold (STEP 1.1).
+    let l = emptyLedger();
+    for (let i = 0; i < 3; i++) {
+      l = appendRow(l, row({ date: '2026-08-28', finding: 'harden anchored replay JSON evidence' }));
+    }
+    const { rows } = parseLedger(l);
+    const s = learningSignals(rows);
+    expect(s.duplicateDirections.some((d) => d.includes('harden anchored replay'))).toBe(false);
   });
 
   it('detects a low-score streak (last 3 < 5)', () => {
@@ -331,9 +348,11 @@ describe('learning signals', () => {
 
   it('omitting pendingFindings leaves duplicateDirections unchanged (default behavior)', () => {
     let l = emptyLedger();
-    for (let i = 0; i < 3; i++) l = appendRow(l, row({ finding: 'improve router calibration loop' }));
+    const dates = ['2026-08-13', '2026-08-14', '2026-08-15'];
+    for (const date of dates) l = appendRow(l, row({ date, finding: 'improve router calibration loop' }));
     const { rows } = parseLedger(l);
     expect(learningSignals(rows).duplicateDirections).toEqual(learningSignals(rows, {}).duplicateDirections);
+    expect(learningSignals(rows).duplicateDirections.some((d) => d.includes('router'))).toBe(true);
   });
 
   it('reviewBacklogSize is null when openCandidateCount is omitted (default behavior)', () => {

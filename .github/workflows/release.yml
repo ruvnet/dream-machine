@@ -1,54 +1,78 @@
 name: Release
-
-# Publish all @dream-machine/* packages + the dream-machine CLI to npm when a
-# semver tag is pushed. Requires the NPM_TOKEN repo secret (an npm automation
-# token with publish rights to the @dream-machine scope and the dream-machine
-# package). Uses OIDC provenance.
-
 on:
   push:
+    # Stable tags deliberately fail the helper policy until manually dispatched.
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Pack only, do not publish'
+        description: 'Pack and test only (publishing requires selecting a matching version tag)'
         type: boolean
         default: true
-
 permissions:
   contents: read
-  id-token: write # npm provenance
-
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      digest: ${{ steps.pack.outputs.digest }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npx vitest run
-      # The @dream-machine/* engine modules are bundled into the CLI (no npm org
-      # scope), so we publish a single self-contained `dream-machine` package.
-      - name: Prepare standalone CLI (bundle deps, rewrite manifest)
-        run: node scripts/prepare-cli-publish.mjs
-      - name: Publish dream-machine
-        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
-        working-directory: packages/cli
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: npm }
+      - run: git merge-base --is-ancestor HEAD origin/main
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm audit --audit-level=high
+      - run: node scripts/prepare-cli-publish.mjs
+      - name: Inspect and install exact release tarball
+        id: pack
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # Tolerant: no token, or a version already on npm (e.g. released
-        # manually), is a skip — not a failed release.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN not set — skipping publish (release notes only)."; exit 0
-          fi
-          npm publish --provenance --access public || echo "publish skipped (version already on npm)"
-      - name: Dry-run pack (no token needed)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
-        working-directory: packages/cli
-        run: npm pack --dry-run
+          digest=$(node scripts/factory-release.mjs stage)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: upload
+        with:
+          name: npm-release-${{ github.sha }}
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 14
+  publish:
+    needs: build
+    if: github.event_name == 'push' || inputs.dry_run == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Maintainers MUST configure required reviewers and tag restrictions here,
+    # protect main with review/check requirements, and configure the matching
+    # npm trusted publisher. Declaring an environment alone adds no protection.
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/factory-release.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: release-artifact
+          merge-multiple: true
+      - name: Publish exact verified bytes using npm trusted publishing
+        env:
+          EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
+        run: node scripts/factory-release.mjs publish "$EXPECTED_DIGEST"
