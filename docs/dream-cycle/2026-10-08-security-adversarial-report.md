@@ -57,18 +57,38 @@ See table above.
 
 ## Recommendation
 ACCEPT for human review. Small (≤60 changed/added lines in the detector + tests), one conceptual change, fully reversible, no production/runtime surface touched, both residual gaps disclosed rather than hidden. Next steps: (1) a future night could add a small npm-flag-arity table to close gap #1 properly if judged worth the complexity; (2) the review backlog itself (9 open, unmerged dream-cycle PRs as of tonight, zero merged since #143 on 2026-09-30) is now the single largest risk to this repo's self-improvement loop — not a code defect, a human-review-throughput problem flagged for the repo owner, consistent with `ledger signals`' `zeroMergeStreak=true`.
+
+## Consolidation refresh — 2026-10-28
+
+MODE=CONSOLIDATE (STEP 1.5): 20 open `dream/*` candidate PRs tonight, well over `implementationTrack.reviewBacklogLimit=6`. The four nearer-the-front eligible drafts — #145, #148, #150, #152, #154 — already carry a `dream-consolidate` marker for today's exact default-branch SHA (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) from five preceding nights (main has not moved since `#196` landed). This PR (#158) was the oldest still-eligible draft (still draft, ACCEPT in its own Evaluation Receipt, not a `routine-self-review` PR) carrying no prior consolidate marker at all; #139 (older, same surface) is REJECT and excluded; #137/#141/#156 are already out of draft.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into this branch with an ordinary merge commit (`0e6fb73`, never rebase, never force-push). One textual conflict in `docs/dream-cycle/LEDGER.md` (both sides had appended rows since this branch's 2026-10-08 base) — resolved by chronological concatenation, no row lost either side. `packages/compile/src/supplychain.{ts,test.ts}` (this candidate's only files) auto-merged clean with no competing change on `main` since baseline — confirmed `git diff cd1f23c..HEAD -- packages/compile/src/supplychain.ts packages/compile/src/supplychain.test.ts` is empty, so the diff under review is byte-identical to the original round's. The underlying `findUnpinnedNpxInvocations` call signature changed upstream (v2 engine, `ADR-0011`/`#195`/`#196`) from a single command string to `(controlPlaneProbes: string[], evaluatorEntrypoints: object)`, but `findNpmExecIndex` itself — this candidate's actual fix — is untouched by that refactor.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest 886 (bare `main@3fc3222`, measured independently in an isolated `git worktree`) → 893 passed + 1 skipped (this candidate's own +7/+1-skip, 0 regressions). Governance (`node --test scripts/*.test.mjs`): 195/195 unchanged both sides. `npm run typecheck`/`npm run lint`/`npm run build` (8 packages) clean, no wasm/NAPI degradation. `node packages/cli/dist/bin.js ledger verify --path docs/dream-cycle/LEDGER.md --since-row 38 --legacy-digest 23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`: OK, 54 rows. Live repro re-run against the rebuilt `packages/compile/dist/supplychain.js` (adapted to the new two-argument signature): all 3 original bypass cases (`npm --loglevel=silent exec`, `npm -s exec`, `npm --yes exec`) still correctly flagged; `npm run exec-something` / `npm test --silent` still correctly unflagged.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a separate-context subagent with no authorship stake, given only the diff and the current files (not a reread of the prior verdict): **CLEAR**. It independently re-ran `npx vitest run packages/compile/src/supplychain.test.ts` (52 passed, 1 skipped) and tried its own adversarial inputs against the live compiled function (realistic `--registry <url> exec`, `--loglevel silly exec`, chained `&&` commands, uppercase `NPX`, `npm -- exec pkg`) — confirmed the disclosed gaps reproduce exactly as documented and found no new false positive or false negative beyond them. No gold data, threshold, or corpus touched by the merge; no test weakened.
+
+**Darwin.** `rm -rf .metaharness && npx -y @metaharness/darwin@0.12.0 evolve . --sandbox mock` ran end-to-end this round (not blocked): 3 generations × 4 variants, winner `g2_v5`, +0.110 over baseline, safety=1.00 — the same generic bounded-evolution demo over the whole tree as the original round (not specific to this candidate's files), reported as a control-plane capability check only, per the same precedent as the original Darwin section above.
+
+**CI on the pushed head.** Pending at the time of this report — see the PR's own CI-status comment for the live result; if `dependency-audit` (full-graph `npm audit --audit-level=high`) is red, treat it per this repo's own established precedent (PRs #145/#148/#150/#152/#154): verified against an unmodified lockfile for this branch before treating it as pre-existing and not-this-PR's.
+
+**Decision.** Ready-for-review requires ACCEPT to still hold (it does), every required check on the new head green, and the critic clear (it is). See the PR comment for the final CI-gated decision on draft vs. ready-for-review. Either way: no merge, no close, no force-push, no self-promotion. Ledger row appended: `docs/dream-cycle/LEDGER.md` (2026-10-28).
+
 ## Witness
 
 ```
-report_sha256 : cd4e9b3dc9167c435aceb5eebdf0a9c3fcd57202d771fbdd13d414e38c45ab35
-session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
-witness       : eeac6e3d1f9ee2887694582eb4a1b3e3ee2a94c26359e95f3858806e6af1d6a9
+report_sha256 : b49eace8c6903abc5c364688c6b96febd7c2dd3054b83e67646bbc94582070f0
+session_commit: 0e6fb73be30c6d9f8a27ae59293516d517650877
+witness       : de820209193875b8d8fe1777f151891c12a83e817508425446f8348f047bf699
 ```
 
-Computed over this file's canonical bytes (everything above this heading,
-trailing whitespace collapsed to one newline) — reproducible from the
-committed file with no unavailable intermediate bytes. Verify:
+Refreshed during the 2026-10-28 consolidation round (prior triple above is
+superseded; the original round's evidence is unchanged, only the Witness
+section moved to re-bind against the merge commit). Computed over this
+file's canonical bytes (everything above this heading, trailing whitespace
+collapsed to one newline) — reproducible from the committed file with no
+unavailable intermediate bytes. Verify:
 
 ```bash
-sha256sum docs/dream-cycle/2026-10-08-security-adversarial-report.md | awk '{print $1}'  # then strip the "## Witness" section per splitAtWitnessSection before comparing
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-08-security-adversarial-report.md --commit 0e6fb73be30c6d9f8a27ae59293516d517650877
 ```
