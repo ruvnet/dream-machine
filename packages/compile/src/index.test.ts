@@ -473,6 +473,14 @@ describe('compile', () => {
     expect(prompt).not.toMatch(/Otherwise `gh gist create --public` the report/);
   });
 
+  it('treats one broken GitHub path as non-fatal while another still works', () => {
+    expect(prompt).toContain('GitHub is reachable whenever');
+    expect(prompt).toContain('EITHER `gh` is authenticated OR a GitHub MCP tool is connected and');
+    expect(prompt).toMatch(/one path breaking\s+is not a reason to stop publishing while the other still works/);
+    expect(prompt).toMatch(/one path\s+breaking while another still works is not a GitHub-auth failure at all/);
+    expect(prompt).not.toMatch(/If `gh` is unavailable, set\s*\n`FALLBACK=true`/);
+  });
+
   it('describes human-review-only merge policy by default', () => {
     expect(prompt).toContain('Human review required');
     expect(prompt).not.toContain('guarded auto-merge ENABLED');
