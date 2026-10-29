@@ -149,10 +149,14 @@ Read `docs/research/nightly/LEDGER.md`. If missing, create it with:
 ```
 
 The ledger is the durable memory across nights. Inspect the last 14 rows; for
-the last 7, when `gh` is authenticated, re-check the fate of associated issues
-and PRs (`MERGED | CLOSED | OPEN | STALE`). If `gh` is unavailable, set
-`FALLBACK=true`, continue local work, skip remote publication, never fabricate
-GitHub state.
+the last 7, when GitHub is reachable, re-check the fate of associated issues
+and PRs (`MERGED | CLOSED | OPEN | STALE`). GitHub is reachable whenever
+EITHER `gh` is authenticated OR a GitHub MCP tool is connected and
+authenticated (e.g. a `get_me`-equivalent call succeeds) — one path breaking
+is not a reason to stop publishing while the other still works; use whichever
+path is reachable for every remote side effect tonight and name it in the
+FINAL REPORT. Only when NEITHER path is reachable, set `FALLBACK=true`,
+continue local work, skip remote publication, never fabricate GitHub state.
 
 # STEP 1.1: LEARNING SIGNALS
 
@@ -462,9 +466,11 @@ updated? Any "no" is corrected or explicitly reported.
 Halt publication but retain local evidence on: unresolvable merge conflict; all
 research sources fail; selected AND substitute surfaces exhausted; the evaluator
 cannot run; corpus corrupted beyond safe repair; candidate would break fair
-comparison; unresolved reward-hacking; witness generation fails. GitHub-auth
-failure is NOT fatal (`FALLBACK=true`). Missing model credentials are NOT fatal
-(`LLM_EVAL=blocked`).
+comparison; unresolved reward-hacking; witness generation fails. Every GitHub
+path unreachable (see STEP 1) is NOT fatal (`FALLBACK=true`); one path
+breaking while another still works is not a GitHub-auth failure at all — use
+the reachable path instead of entering FALLBACK. Missing model credentials
+are NOT fatal (`LLM_EVAL=blocked`).
 
 # FINAL REPORT
 
