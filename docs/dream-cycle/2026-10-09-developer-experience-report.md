@@ -243,15 +243,101 @@ parses to `true` and `renderDashboard`'s header interpolates it verbatim
 (`☾ DREAM MACHINE  ·  true`), a cosmetic-only display bug (confirmed via
 `tui --path L2.md --no-color --repo`), not a data-correctness issue.
 
+## Consolidation refresh — 2026-10-30
+
+MODE=CONSOLIDATE (STEP 1.5): 21 open `dream/*` candidate PRs tonight, well
+over `implementationTrack.reviewBacklogLimit=6`. The six nearer-the-front
+eligible drafts — #145, #148, #150, #152, #154, #158 — each already carry a
+`dream-consolidate` marker for today's exact default-branch SHA (`3fc3222`)
+from six preceding nights (`main` has not moved since `#196`). This PR was
+the oldest still-eligible draft (still draft, ACCEPT in its own Evaluation
+Receipt, not a `routine-self-review` PR) carrying no prior consolidate
+marker at all. #139 (older, same-era) is REJECT and excluded; #98/#101 are
+multi-repo portfolio branches with no single-surface Evaluation Receipt,
+not candidate PRs in the sense this mode means; #137/#141/#156 are already
+out of draft.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`4af4332`, never rebase, never
+force-push). One textual conflict in `docs/dream-cycle/LEDGER.md` (both
+sides had appended rows since this branch's 2026-09-30 base) — resolved by
+chronological concatenation, no row lost either side. `packages/cli/src/index.ts`
+and `index.test.ts` (this candidate's own files) auto-merged clean against
+substantial intervening `main` history on the same file (ledger
+outcomes/backlog subcommands, `parseFateFlags`, version bump) — confirmed
+`git diff 23a5770..4af4332 -- packages/cli/src/index.ts packages/cli/src/index.test.ts`
+is content-identical to the originally-reviewed diff modulo line-number
+shift from main's unrelated intervening additions (no hunk's `+`/`-` content
+differs).
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+886 (bare `main@3fc3222`) → 901 (+15, this candidate's own tests, 0
+regressions). Governance (`node --test scripts/*.test.mjs`): 195/195
+unchanged. `npm run typecheck`/`npm run lint`/`npm run build` (8 packages)
+clean, no wasm/NAPI degradation. `node packages/cli/dist/bin.js ledger verify
+--path docs/dream-cycle/LEDGER.md --since-row 38 --legacy-digest
+23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`: OK, 54
+rows. Live repro re-run against the rebuilt `packages/cli/dist/bin.js`: the
+four originally-fixed call sites (`init --repo`, `ledger append --date`,
+`ledger verify --path`/`tui --path`, `freshness stamp --id`) all still
+produce a clear `--X requires a value` exit-1 error, no state written —
+unchanged from the original round.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the merged
+diff and the live repository: **NOT CLEAR**. The candidate's own fix is
+confirmed correct, non-regressive, and purely additive (12 new test blocks,
+0 pre-existing assertions weakened); live pre/post-fix repro reconfirmed for
+3 of the original call sites. But the critic found the bug class this PR's
+own title and hypothesis describe generically ("bare value-less CLI flags
+silently corrupt ledger/config state") is **not actually closed** for this
+file: ~12 further call sites (`schedule --env` ×2, `ledger-signals --pending`,
+`witness verify --commit`, `verify-entrypoint --cmd`, `freshness stamp
+--path`/`--paths`, `freshness verify --out`/`--policy`/`--head`, `init
+--repo`'s own second cast at line 818) use the sibling idiom `flags.X as
+string | undefined` with **no** `stringFlag()` call and **no** `||`
+fallback at all — a bare flag there assigns the boolean `true` directly,
+with zero validation. Independently re-confirmed live by this session
+(`schedule dream.config.json --env --out /tmp/schedule-repro.json` → exit 0,
+output literally states "environment_id is pre-filled: true" and bakes
+`"environment_id": true` into the generated JSON). This is the same
+corruption class as the one this PR already discloses for
+`verify-entrypoint --cmd`, just at a larger, previously-unscanned set of
+sites the original two review passes (and the critic's own original round)
+both missed. Not fixed tonight: CONSOLIDATE mode does not produce or widen a
+candidate diff (STEPS 5–9 are skipped), only re-evaluates the existing one.
+No gold/benchmark/threshold/evaluator file touched by the merge or by this
+disclosure.
+
+**CI on the pushed head.** See PR comment for the live check-run results at
+push time.
+
+**Decision.** The original-scope `ACCEPT` is reconfirmed — the 10 call sites
+this PR actually converts are correctly, non-regressively fixed. But this
+round's fresh critic is **not clear** (new, larger instance of the disclosed
+bug class, live-confirmed), so per STEP 1.5 this PR **stays draft**
+regardless of CI. Ledger row appended: `docs/dream-cycle/LEDGER.md`
+(2026-10-30).
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
+Refreshed 2026-10-30 (CONSOLIDATE); supersedes the original round's triple,
+which was bound to commit 23a5770 and is preserved below for history only
+(not machine-parsed).
+
 ```
-report_sha256 : ef457ff97dd17817f1f1351031c35f923e3edec5dc4dc69b439606287d7973e0
-session_commit: 23a577082aad39750051dc7ef0ec9d0d72900adf
-witness       : c76e4b1238ea13ac44549c3b1c3af0351c5f75572bb37a405f477533c05c877a
+report_sha256 : 8d92a26a9aee8e440416c9c32725b9cacfce788659ccd51286420c7add27568b
+session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
+witness       : bf9d98621d80165be922da0dc7fde0c8a75d2fc10ac98a33d34ff70e78c8df62
 ```
 
-Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-09-developer-experience-report.md --commit 23a577082aad39750051dc7ef0ec9d0d72900adf`
+Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-09-developer-experience-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8`
+
+Original round's triple (2026-10-09, bound to commit 23a5770), for history:
+hash ef457ff9...7973e0, witness c76e4b12...98c877a.
 
 `GIST=LOCAL` — no `gh` CLI (`GH_TOKEN` invalid this session) and no
 gist-creation MCP tool available. Per the best-effort gist-publication
