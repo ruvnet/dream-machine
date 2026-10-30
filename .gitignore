@@ -9,6 +9,9 @@ coverage/
 .claude-flow/
 .swarm/
 .claude/memory.db*
+ruvector.db
+agentdb.rvf
+agentdb.rvf.idmap.json
 .claude/proven-config.json
 .claude/.proven-config-version
 
