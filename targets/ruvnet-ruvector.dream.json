@@ -1,0 +1,98 @@
+{
+  "repo": "ruvnet/ruvector",
+  "cron": "0 7 * * *",
+  "slots": [
+    {
+      "deep": "ann-indexing",
+      "scan": [
+        "quantization",
+        "filtered-ann"
+      ]
+    },
+    {
+      "deep": "agent-memory",
+      "scan": [
+        "temporal-memory",
+        "graph-retrieval"
+      ]
+    },
+    {
+      "deep": "edge-wasm",
+      "scan": [
+        "binary-size",
+        "startup-latency"
+      ]
+    },
+    {
+      "deep": "provenance-security",
+      "scan": [
+        "rag-security",
+        "witness"
+      ]
+    },
+    {
+      "deep": "hybrid-retrieval",
+      "scan": [
+        "gnn-retrieval",
+        "sparse-dense"
+      ]
+    }
+  ],
+  "bonusModuli": {
+    "25": "rvf-rvm-integration"
+  },
+  "buildStep": {
+    "cmd": "cargo build --release",
+    "degradeOnWasmFailure": true
+  },
+  "controlPlaneProbes": [
+    "cargo --version && rustc --version",
+    "npx -y metaharness@0.4.17 --help || true",
+    "npx -y ruvector@0.3.3 harness doctor --json || true"
+  ],
+  "evaluatorEntrypoints": {
+    "bench": "cargo test --workspace --release",
+    "flywheel": "npx -y ruvector@0.3.3 harness flywheel --help",
+    "darwin": "npx -y ruvector@0.3.3 harness darwin --help"
+  },
+  "adrConvention": {
+    "pad": 3,
+    "dir": "docs/adr"
+  },
+  "competitors": [
+    "Milvus",
+    "Qdrant",
+    "Weaviate",
+    "Pinecone",
+    "LanceDB",
+    "FAISS",
+    "pgvector",
+    "Vespa",
+    "DiskANN"
+  ],
+  "extraDisciplines": [
+    "production implementation is Rust only; npx and npm are orchestration only, never committed implementation",
+    "no mocks in the measured path; no TODO implementations; no fabricated benchmark numbers",
+    "the baseline is a reasonable implementation, never a straw man",
+    "report index build and preprocessing separately from query latency; release builds only",
+    "external benchmark numbers are not comparable unless methodology is demonstrably equivalent",
+    "research write-ups go under docs/research/nightly/DATE-slug/"
+  ],
+  "ledgerPath": "docs/research/nightly/LEDGER.md",
+  "branchPrefix": "research/nightly/",
+  "researchDepth": {
+    "minPrimarySources": 10,
+    "minRecentSources": 4,
+    "externalCandidates": 3
+  },
+  "implementationTrack": {
+    "reviewBacklogLimit": 6
+  },
+  "selfReview": {
+    "everyDays": 7,
+    "configSource": "ruvnet/dream-machine:targets/ruvnet-ruvector.dream.json"
+  },
+  "prMode": "ready-on-accept",
+  "scheduleContract": true,
+  "autoMerge": false
+}
