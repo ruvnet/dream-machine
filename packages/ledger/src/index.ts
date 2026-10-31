@@ -362,7 +362,10 @@ function prNumber(pr: string): string | null {
 
 /** Normalize a finding string to the same first-6-words key used for duplicate-direction detection. */
 function directionKey(finding: string): string {
-  return finding.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
+  // Mode tags such as "[implement 2026-09-01]" or "[consolidate #12]" are
+  // bookkeeping, not direction: strip leading ones so an implemented finding
+  // keys the same as the research row it implements.
+  return finding.replace(/^(\s*\[[^\]]*\])+/, '').trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 6).join(' ').trim();
 }
 
 /** Compute the STEP 1.1 learning signals from parsed rows. */
@@ -448,4 +451,152 @@ export function verdictStats(rows: LedgerRow[]): Record<string, number> {
     else stats.other += 1;
   }
   return stats;
+}
+
+// --- outcome metrics + implementation backlog (Dream Cycle v2) --------------
+
+/** Live fate of a candidate PR, as observed by the caller (e.g. via `gh`). */
+export type PrFate = 'MERGED' | 'CLOSED' | 'OPEN' | 'STALE';
+
+/**
+ * Aggregate outcome metrics over the whole ledger: whether nights turn into
+ * merged improvements, and how often an ACCEPT verdict survives human review.
+ * This is the evidence base for the periodic routine self-review night; it is
+ * computed from the committed ledger plus caller-supplied live PR fates and
+ * never consults the network itself.
+ */
+export interface OutcomeMetrics {
+  /** Distinct valid calendar dates (re-appended rows count once). */
+  nights: number;
+  verdicts: Record<string, number>;
+  /** Distinct PR numbers referenced by rows. */
+  prsTracked: number;
+  /** PR count by supplied fate; PRs with no supplied fate count as UNKNOWN. */
+  fates: Record<PrFate | 'UNKNOWN', number>;
+  /** merged / (merged + closed); null when nothing is resolved yet. */
+  mergeRate: number | null;
+  /** Of ACCEPT PRs that are resolved, the fraction a human merged. */
+  acceptMergeRate: number | null;
+  /** Of ACCEPT PRs that are resolved, the fraction closed unmerged (verdict overturned by review). */
+  falseAcceptRate: number | null;
+  /** Nights whose PR is NONE: research-only nights that produced no code. */
+  researchOnlyNights: number;
+  /**
+   * Open, unmerged candidate PRs supplied by the caller (null when omitted).
+   * A night's ledger row reaches `main` only when its PR merges, so a ledger
+   * read from `main` is survivorship-biased: it never sees the drafts still
+   * awaiting review. This count restores them.
+   */
+  reviewBacklog: number | null;
+  /**
+   * merged / (merged + closed + reviewBacklog): the fraction of all candidate
+   * PRs that actually landed, correcting `mergeRate`'s survivorship bias.
+   * Null when `reviewBacklog` was not supplied or nothing is countable.
+   */
+  pipelineMergeRate: number | null;
+}
+
+/** One unimplemented research finding the implementation track may pick up. */
+export interface BacklogItem {
+  date: string;
+  deep: string;
+  finding: string;
+  issue: string;
+  /** Why it is in the backlog. */
+  reason: 'not-evaluated' | 'evaluation-blocked' | 'accept-closed-unmerged';
+}
+
+function ratio(num: number, den: number): number | null {
+  return den === 0 ? null : Math.round((num / den) * 1000) / 1000;
+}
+
+/** Map of PR number (no '#') to its observed fate. */
+export type FateMap = ReadonlyMap<string, PrFate>;
+
+/**
+ * Compute ledger-wide outcome metrics. Rows sharing a PR number are counted
+ * once per PR. Both merge rates are optimistic: a PR closed without its row
+ * ever reaching the ledger is invisible here.
+ */
+export function outcomeMetrics(
+  rows: LedgerRow[],
+  fates: FateMap = new Map(),
+  opts: { openCandidateCount?: number } = {},
+): OutcomeMetrics {
+  const nights = new Set(rows.map((r) => r.date).filter(isValidCalendarDate)).size;
+  const verdicts = verdictStats(rows);
+
+  // Last row wins per PR: re-appended rows carry the most recent verdict.
+  const verdictByPr = new Map<string, string>();
+  const researchOnlyNightDates = new Set<string>();
+  for (const r of rows) {
+    const n = prNumber(r.pr);
+    if (n) verdictByPr.set(n, r.verdict);
+    else if (isValidCalendarDate(r.date)) researchOnlyNightDates.add(r.date);
+  }
+  // A night that eventually produced a PR is not research-only.
+  for (const r of rows) if (prNumber(r.pr)) researchOnlyNightDates.delete(r.date);
+
+  const counts: Record<PrFate | 'UNKNOWN', number> = { MERGED: 0, CLOSED: 0, OPEN: 0, STALE: 0, UNKNOWN: 0 };
+  let acceptMerged = 0;
+  let acceptClosed = 0;
+  for (const [n, verdict] of verdictByPr) {
+    const fate = fates.get(n);
+    counts[fate ?? 'UNKNOWN'] += 1;
+    if (verdict === 'ACCEPT' && fate === 'MERGED') acceptMerged += 1;
+    if (verdict === 'ACCEPT' && fate === 'CLOSED') acceptClosed += 1;
+  }
+
+  return {
+    nights,
+    verdicts,
+    prsTracked: verdictByPr.size,
+    fates: counts,
+    mergeRate: ratio(counts.MERGED, counts.MERGED + counts.CLOSED),
+    acceptMergeRate: ratio(acceptMerged, acceptMerged + acceptClosed),
+    falseAcceptRate: ratio(acceptClosed, acceptMerged + acceptClosed),
+    researchOnlyNights: researchOnlyNightDates.size,
+    reviewBacklog: opts.openCandidateCount ?? null,
+    pipelineMergeRate:
+      opts.openCandidateCount === undefined
+        ? null
+        : ratio(counts.MERGED, counts.MERGED + counts.CLOSED + opts.openCandidateCount),
+  };
+}
+
+/**
+ * Research findings that never became merged code: nights that were not
+ * evaluated, whose evaluation was blocked, or whose ACCEPT PR was closed
+ * unmerged. Oldest first. A finding whose direction later reappears on a
+ * merged PR is considered implemented and dropped, so the backlog shrinks as
+ * the implementation track lands work. Rows for the same direction on the
+ * same night collapse to one item.
+ */
+export function implementationBacklog(rows: LedgerRow[], fates: FateMap = new Map()): BacklogItem[] {
+  const implemented = new Set<string>();
+  for (const r of rows) {
+    const n = prNumber(r.pr);
+    if (n && fates.get(n) === 'MERGED') implemented.add(directionKey(r.finding));
+  }
+  const seen = new Set<string>();
+  const items: BacklogItem[] = [];
+  for (const r of rows) {
+    if (!isValidCalendarDate(r.date)) continue;
+    const key = directionKey(r.finding);
+    if (!key || implemented.has(key)) continue;
+    const n = prNumber(r.pr);
+    const fate = n ? fates.get(n) : undefined;
+    // In flight: its PR is still open, so picking it again would duplicate work.
+    if (fate === 'OPEN' || fate === 'STALE') continue;
+    let reason: BacklogItem['reason'] | null = null;
+    if (r.verdict === 'ACCEPT' && fate === 'CLOSED') reason = 'accept-closed-unmerged';
+    else if (r.evaluated === 'blocked') reason = 'evaluation-blocked';
+    else if (r.evaluated === 'no') reason = 'not-evaluated';
+    if (!reason) continue;
+    const dedupe = `${key}\u0000${r.date}`;
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    items.push({ date: r.date, deep: r.deep, finding: r.finding, issue: r.issue, reason });
+  }
+  return items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
