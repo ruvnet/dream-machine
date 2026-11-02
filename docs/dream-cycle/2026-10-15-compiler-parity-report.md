@@ -259,17 +259,111 @@ dream-cycle PRs (e.g. #165, #177) are in fact hand-applied and landed on
 established pattern), so the true recent cadence is non-zero, but a
 precise count was not computed tonight (out of scope for this candidate).
 
+## Consolidation refresh — 2026-11-02
+
+MODE=CONSOLIDATE (STEP 1.5, ADR-0011): 21 open `dream/*` candidate PRs
+tonight, well over `implementationTrack.reviewBacklogLimit=6`. The nine
+nearer-the-front eligible drafts — #145, #148, #150, #152, #154, #158,
+#161, #180, #182 — each already carry a `dream-consolidate` marker for
+today's exact default-branch SHA (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`)
+from the nine preceding consolidation nights (`main` has not moved since
+`#196`, landed 2026-10-19). This PR was the oldest still-eligible draft
+(still draft, ACCEPT in its own Evaluation Receipt, not a
+`routine-self-review` PR) carrying no prior consolidate marker at all.
+#139 is REJECT and excluded; #98/#101 are multi-repo portfolio branches,
+not single-surface dream-cycle candidates in the sense this mode means;
+#137/#141/#156 are already out of draft.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`f51e51ac530647d0916867d09fe
+79848d2d8e84a`, never rebase, never force-push). **Zero textual
+conflicts** — including in `docs/dream-cycle/LEDGER.md` (both this
+branch's base and `main`'s tip end at the same 2026-10-15 row, since
+nothing has merged to `main` since) and in `packages/compile/src/config.ts`
+(`main`'s intervening v2-engine history — `researchDepth`,
+`implementationTrack`, `selfReview`, `prMode`, `scheduleContract`, a
+`branchPrefix` charset check — adds new, non-overlapping fields; this
+candidate's `autoMerge` check is untouched, same lines, same context).
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+886 (bare `main@3fc3222`) → 897 (+11, this candidate's own tests,
+**0 regressions**), governance 195/195 unchanged. `npm run
+typecheck`/`npm run lint` clean. `npm run build` clean (8 packages, no
+wasm/NAPI degradation). `node packages/cli/dist/bin.js ledger verify
+--path docs/dream-cycle/LEDGER.md --since-row 38 --legacy-digest
+23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`: OK, 54
+rows. Self-hosted `dream.config.json` compile output byte-identical to
+this session's own `/tmp/tonight-prompt.md`. Live repro re-run against
+the rebuilt `packages/compile/dist/config.js`/`index.js`:
+`autoMerge: "no"`/`null`/`"false"`/`0`/`1` all still rejected with
+`"autoMerge must be a boolean"`; `true`/`false`/omitted all still produce
+byte-identical compiled policy text.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the
+candidate's hypothesis and the live merged repository (not a reread of
+the prior verdict): **CLEAR**. Independently confirmed the check is
+present and unweakened on the merged head; grepped the whole repo and
+confirmed `scripts/automerge-guard.mjs` (the only other `autoMerge`
+consumer) already uses strict `=== true`/`!== true` equality, immune by
+construction; live-reproduced rejection of `"no"`, `null`, `"false"`, `0`,
+`1` and acceptance of `true`/`false`/omitted against the built dist; ran
+`npm test` itself (897 vitest + 195 governance, 0 fail) and
+`lint`/`typecheck` (both clean); confirmed via `git diff
+2d6f2af7ae36e4fed8e069ae9307cb87efa6649d..HEAD` that this candidate's own
+two files are byte-identical to the originally reviewed diff (the merge
+added zero lines to either); reviewed all 7 original tests individually
+and found none tautological; confirmed the self-hosted
+`dream.config.json` (`autoMerge: false`, explicit boolean) still compiles
+byte-identical. No gold data, threshold, or corpus touched by the merge;
+no test weakened.
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from the original round;
+still a single validation-shape fix with no evolvable population.
+
+**CI on the pushed head.** Expect `guard`, `test` (both Node versions),
+`no-optional-deps`, `software-evidence`, `dependency-security`
+(production-scoped `npm audit --omit=dev --audit-level=high`: reproduced
+locally, 0 vulnerabilities), and CodeQL green (all reproduced equivalently
+above). **Red, pre-existing, not this PR's:** `dependency-audit` (full
+dev-inclusive `npm audit --audit-level=high`) — reproduced locally against
+this exact head's lockfile: `git diff origin/main -- package.json
+package-lock.json` from this branch is empty (0 lines), so the lockfile is
+byte-identical to `main`'s. Same pre-existing, already-tracked
+`vite@8.3.0-8.3.2`/`launch-editor` high-severity advisory family as issue
+#197 (opened 2026-10-21 against PR #145, still open, no fix PR exists yet
+to port — a semver-range-breaking `vite` bump is out of scope for this
+single-validation-check fix). Not re-filing a duplicate issue; not fixing
+it from this PR.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but not
+every required check on the new head is expected green (`dependency-audit`,
+for the pre-existing reason above) — per STEP 1.5, this PR **stays draft**.
+Ledger row appended on this branch: `docs/dream-cycle/LEDGER.md`
+(2026-11-02) — also stated in issue #183, since it reaches `main` only if
+this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
+Refreshed 2026-11-02 (consolidation round), superseding the original pair
+below — bound to the merge commit, not the original parent, per this
+repo's own witness convention for a CONSOLIDATE re-evaluation:
+
 ```
-report_sha256 : 3169cdad4ee28c9b2fd78f98e1ced4ffd5ff918ca72b3729dc4724aef26cef9a
-session_commit: b2abcc14a632d7e0948962065a7c6c8920cf306c
-witness       : 316c77d1902ce2bcbe5eab6f13165e41c2385df39279ada2d25fd705e7cec886
+report_sha256 : a4cdfcb78a90ccf586de113d5fe7e2cb01b42fc0202791f04ed402ac7c85cfad
+session_commit: f51e51ac530647d0916867d09fe79848d2d8e84a
+witness       : 1f5e593a698683156c8c3a7ed5d9089695cd8542cc95ac458fa14e0325f91dab
 ```
+
+Original round's pair (parent `b2abcc1`, pre-consolidation), retained for
+history: `report_sha256 3169cdad...c36cc`, `witness 316c77d1...c886`.
 
 Computed over this file's canonical bytes (everything above this heading,
 trailing whitespace collapsed to one newline). Self-verify:
 
 ```bash
-node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-15-compiler-parity-report.md --commit b2abcc14a632d7e0948962065a7c6c8920cf306c
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-15-compiler-parity-report.md --commit f51e51ac530647d0916867d09fe79848d2d8e84a
 ```
