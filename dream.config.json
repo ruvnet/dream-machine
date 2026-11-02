@@ -52,7 +52,7 @@
   },
   "evaluatorEntrypoints": {
     "bench": "npm test",
-    "darwin": "rm -rf .metaharness && npx @metaharness/darwin evolve . --sandbox mock"
+    "darwin": "rm -rf .metaharness && npx -y @metaharness/darwin@0.12.0 evolve . --sandbox mock"
   },
   "adrConvention": "4-digit",
   "competitors": [
@@ -72,5 +72,18 @@
     "dream-cycle",
     "research"
   ],
-  "autoMerge": false
+  "autoMerge": false,
+  "researchDepth": {
+    "minPrimarySources": 8,
+    "minRecentSources": 3,
+    "externalCandidates": 2
+  },
+  "implementationTrack": {
+    "reviewBacklogLimit": 6
+  },
+  "selfReview": {
+    "everyDays": 7
+  },
+  "prMode": "ready-on-accept",
+  "scheduleContract": true
 }
