@@ -107,19 +107,137 @@ No prompt-injection, MCP-authority, or credential surface touched. No new filesy
 
 `GIST=LOCAL` — no `gh` CLI gist capability this session (`GH_TOKEN` invalid; `gh auth status` confirms) and no gist-creation MCP tool available. GitHub MCP access itself works fine (`get_me`, issue/PR tools all succeeded) — `FALLBACK=false`. Full report committed at this file.
 
+## Consolidation Refresh — 2026-11-03
+
+MODE=CONSOLIDATE (STEP 1.5, ADR-0011): 21 open `dream/*` candidate PRs
+tonight, well over `implementationTrack.reviewBacklogLimit=6`. Ten
+nearer-the-front eligible drafts (#145, #148, #150, #152, #154, #158, #161,
+#180, #182, #184) each already carry a `dream-consolidate` marker for
+today's exact default-branch SHA (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`)
+from preceding consolidation nights (`main` has not moved since `#196`,
+landed 2026-10-19). This PR (#189) was the oldest still-eligible draft —
+still draft, ACCEPT in its own Evaluation Receipt, not a
+`routine-self-review` PR — carrying no prior consolidate marker at all.
+#139 is REJECT and excluded; #98/#101 are multi-repo portfolio branches, not
+single-surface dream-cycle candidates in the sense this mode means; #137,
+#141, #156 are already out of draft.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`7e19136451…`, never rebase, never
+force-push). Zero textual conflicts. The merge brings in 25 files unrelated
+to this candidate (ADR-0011, compiled-prompt outputs for other repos,
+`dream.config.json`'s `scheduleContract` field, `packages/compile`/`ledger`
+v2-engine changes) — none touch `docs/dream-cycle/*.md` report content or
+the `@dream-machine/witness` module, confirmed orthogonal by the fresh
+critic below.
+
+**Re-evaluation on the new head.** Fresh checkout was shallow
+(`git rev-parse --is-shallow-repository` → `true`); unshallowed via
+`git fetch --unshallow` before measuring (3 governance tests otherwise fail
+opaquely on the unrelated, already-tracked shallow-clone `BASELINE_COMMIT`
+oracle gap, issue #149/PR #150 — resolved the same way as prior nights, not
+conflated with this candidate's own count). Real evaluator (`npm test`):
+vitest 886 (unchanged by this candidate, merge included), governance 198
+(195 pre-candidate + 3 this candidate added, unchanged by the merge, **0
+regressions**). `npm run lint` / `npm run typecheck` clean. `npm run build`
+clean (8 packages, no wasm/NAPI degradation). `node packages/cli/dist/bin.js
+ledger verify --path docs/dream-cycle/LEDGER.md --since-row 56
+--legacy-digest 3f88c113ad64c8c77ca4f7195552d477beb2dad7cdbbb1e53a33291dd36c7df1`:
+OK, 54 rows (no new row appended to `main` since this PR's base).
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the
+candidate's hypothesis and the live merged repository: **CLEAR**, with 4
+disclosed non-blocking notes. Independently re-derived
+`2026-09-10-compiler-parity-report.md`'s grandfathered hash by hand
+(matches `1c9ec554…bec2b` exactly) and by re-running the real test (198/198
+governance pass). Confirmed the PR's single commit (`ab28a25`) touches only
+the 2 files it always did, untouched by the merge. Verified non-tautology
+live, in an isolated `/tmp` sandbox (not inside the tracked corpus):
+a synthetic 2nd-heading file not on the grandfather map trips test 1; a
+stripped-to-1-heading grandfathered file trips test 2 (stale-entry); a
+1-byte-tampered grandfathered file trips test 3 (hash mismatch) — then
+cleaned up, `git status --porcelain` clean. Confirmed the merge's 25
+unrelated files (in particular `dream.config.json`'s only change,
+`scheduleContract: true`) don't touch `reportFiles()`'s non-recursive
+`readdirSync` scan or anything else this candidate reads. Security: no
+regex in the new file (pure `===`/`split`/`lastIndexOf`, no ReDoS surface);
+all paths are `join(REPORTS_DIR, name)` with `name` from that same
+directory listing or the hardcoded map — no traversal surface.
+
+Disclosed, non-blocking (not fixed tonight — a CONSOLIDATE round refreshes
+and re-evaluates the existing candidate, it does not open a new one):
+(1) the CLI's `witness verify-report` still throws "ambiguous... expected
+exactly one" on this exact file, since `splitAtWitnessSection` itself is
+deliberately untouched — issue #188's underlying CLI-UX symptom remains
+open, only a governance-test paper trail was added, as the original report
+and issue already disclosed, not a new finding; (2) the test's own
+heading-count logic is a bespoke reimplementation rather than a call into
+`splitAtWitnessSection`, so it never exercises the real code path, a
+reasonable choice since that function throws on this exact input; (3) both
+matchers do exact-line `'\n'`-split matching, so a CRLF line ending or a
+`## Witness`-shaped line inside a fenced code block would be mis-counted by
+both — a pre-existing shared blind spot, not introduced here; (4) the
+grandfather map still requires honest human review for any future entry (a
+crafted-to-match bad entry would mechanically pass) — the same limitation
+`@dream-machine/ledger`'s `legacyPrefixDigest` already discloses by
+analogy.
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from the original round;
+still a single new regression test with no evolvable population.
+
+**CI on the pushed head.** Green: `guard`, `test` (both Node versions),
+`no-optional-deps`, `software-evidence`, `dependency-security`
+(production-scoped `npm audit --omit=dev --audit-level=high`: 0
+vulnerabilities), CodeQL. **Red, pre-existing, not this PR's:**
+`dependency-audit` (full dev-inclusive `npm audit --audit-level=high`) —
+reproduced locally against this exact head's lockfile:
+`git diff origin/main -- package.json package-lock.json` from this branch
+is empty, so the lockfile is byte-identical to `main`'s. Same
+already-tracked `vite@8.3.0-8.3.2`/`launch-editor` high-severity advisory
+family as issue #197 (open since 2026-10-21, no fix PR yet; a
+semver-range-breaking `vite` bump is out of scope for a corpus-witness
+regression test). Not re-filed; not fixed from this PR. This is the exact
+same root cause and precedent already recorded on PR #184's own
+2026-11-02 consolidation.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but not
+every required check on the new head is green (`dependency-audit`, for the
+pre-existing reason above) — per STEP 1.5, this PR **stays draft**. Ledger
+row appended on this branch (`docs/dream-cycle/LEDGER.md`), also stated in
+issue #188, since it reaches `main` only if this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
+Refreshed 2026-11-03 (consolidation round), superseding the original pair
+below — bound to the merge commit, per this repo's own witness convention
+for a CONSOLIDATE re-evaluation (see PR #184's 2026-11-02 precedent):
+
 ```
-report_sha256 : 34e07d7b29706b44ece0b62e5843a32c7bf1b4ee8848b1cb7027ccbf20a13238
-session_commit: b2abcc14a632d7e0948962065a7c6c8920cf306c
-witness       : 3fc2fa96d63069b3d20d36e1ce3a519c0cee9c1b24bb99e5694eadbb40291bb3
+report_sha256 : e1ba4db680528b727c182e45edd6e027e96079cd67776c971ae3a3c02cd8b71c
+session_commit: 7e19136451b508ab93f38b94ce9f400d4f162207
+witness       : 1cd492c6f9404521905d63761745f5120d1b2bc5139421b712120ccf0be09eee
 ```
 
-Computed over this file's canonical bytes (everything above this heading,
-trailing whitespace collapsed to one newline) via
-`dream-machine witness stamp docs/dream-cycle/2026-10-16-ledger-signals-report.md b2abcc14a632d7e0948962065a7c6c8920cf306c --report`
+Computed over this file's canonical bytes as of this commit (everything
+above this heading, trailing whitespace collapsed to one newline) via
+`dream-machine witness stamp docs/dream-cycle/2026-10-16-ledger-signals-report.md 7e19136451b508ab93f38b94ce9f400d4f162207 --report`
 — reproducible from the committed file with no unavailable intermediate
-bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-16-ledger-signals-report.md --commit b2abcc14a632d7e0948962065a7c6c8920cf306c`
+bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-16-ledger-signals-report.md --commit 7e19136451b508ab93f38b94ce9f400d4f162207`
+
+Original round's pair (parent `b2abcc1`, pre-consolidation, computed as of
+commit `ab28a25`), retained for history, deliberately not fenced as a
+`report_sha256 :`/`session_commit:`/`witness :` block above so it cannot be
+mistaken by tooling for the published triple: report hash
+`34e07d7b29706b44ece0b62e5843a32c7bf1b4ee8848b1cb7027ccbf20a13238`, session
+commit `b2abcc14a632d7e0948962065a7c6c8920cf306c`, witness
+`3fc2fa96d63069b3d20d36e1ce3a519c0cee9c1b24bb99e5694eadbb40291bb3` — no
+longer reproducible via its original command against the current file,
+since the Consolidation Refresh section above was inserted before this
+heading (the canonical byte range it covers necessarily changed).
 
 ## Recommendation
 
