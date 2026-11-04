@@ -39,6 +39,38 @@ export interface RuosEvaluation {
   maxReceiptAgeSeconds: number;
 }
 
+/** Dream Cycle v2: research-depth floors for STEP 3. */
+export interface ResearchDepth {
+  /** Minimum distinct primary sources cited (1-50). */
+  minPrimarySources: number;
+  /** Of those, minimum dated within 12 months of the run (0-minPrimarySources). */
+  minRecentSources: number;
+  /** Of the 5 candidates, minimum that import an external technique (0-5). */
+  externalCandidates: number;
+}
+
+/** Dream Cycle v2: research vs implement vs consolidate mode selection. */
+export interface ImplementationTrack {
+  /** Open candidate PRs at or above which a night consolidates instead of opening a new PR (1-100). */
+  reviewBacklogLimit: number;
+}
+
+/** Dream Cycle v2: periodic routine self-review night. */
+export interface SelfReview {
+  /** Run when EPOCHDAY % everyDays == 0 (2-60). */
+  everyDays: number;
+  /**
+   * Where this target's dream.config lives when it is NOT in the target's own
+   * checkout, as "owner/repo:path" (e.g. "ruvnet/dream-machine:targets/x.dream.json").
+   * The self-review night then delivers its candidate as a proposed config
+   * diff for a human to apply, since it cannot edit the config directly.
+   */
+  configSource?: string;
+}
+
+/** How the candidate PR is opened. */
+export type PrMode = 'draft' | 'ready-on-accept';
+
 export interface DreamConfig {
   /** Target repo, "owner/name". */
   repo: string;
@@ -70,6 +102,19 @@ export interface DreamConfig {
   autoMerge?: boolean;
   /** Optional independent desktop evaluation; never grants promotion authority. */
   ruosEvaluation?: RuosEvaluation;
+  /** v2: research-depth floors. Omit for v1 behavior. */
+  researchDepth?: ResearchDepth;
+  /** v2: research/implement/consolidate mode selection. Omit for v1 behavior. */
+  implementationTrack?: ImplementationTrack;
+  /** v2: periodic routine self-review. Omit for v1 behavior. */
+  selfReview?: SelfReview;
+  /** v2: PR opening mode. Default 'draft' (v1 behavior). */
+  prMode?: PrMode;
+  /**
+   * v2: render the schedule contract (side-effect receipts, duplicate-firing
+   * skip) from ruvnet/core-memory issue #187. Omit for v1 behavior.
+   */
+  scheduleContract?: boolean;
 }
 
 export interface ValidationResult {
@@ -282,6 +327,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       errors.push('branchPrefix must be a non-empty string');
     } else {
       checkNoFenceBreak(config.branchPrefix, 'branchPrefix', errors);
+      // Rendered inside shell commands (e.g. a quoted gh --search argument), so
+      // restrict it to git-ref-safe characters: no quotes, $, ;, spaces or globs.
+      if (!/^[A-Za-z0-9._/-]+$/.test(config.branchPrefix)) {
+        errors.push('branchPrefix may contain only letters, digits, ".", "_", "/" and "-"');
+      }
     }
   }
   if (config.ruosEvaluation !== undefined) {
@@ -301,12 +351,55 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       }
     }
   }
+  validateV2(config, errors);
   return { ok: errors.length === 0, errors, warnings };
 }
 
+function isIntIn(v: unknown, lo: number, hi: number): v is number {
+  return Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
+}
+
+/** Shape-check an optional object field, rejecting non-objects and unknown keys. */
+function checkObjectShape(v: unknown, field: string, allowed: string[], errors: string[]): v is Record<string, unknown> {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    errors.push(`${field} must be an object`);
+    return false;
+  }
+  const unknown = Object.keys(v).filter((k) => !allowed.includes(k));
+  if (unknown.length) errors.push(`${field} contains unknown fields: ${unknown.join(', ')}`);
+  return true;
+}
+
+function validateV2(config: Partial<DreamConfig>, errors: string[]): void {
+  const rd = config.researchDepth as unknown;
+  if (rd !== undefined && checkObjectShape(rd, 'researchDepth', ['minPrimarySources', 'minRecentSources', 'externalCandidates'], errors)) {
+    if (!isIntIn(rd.minPrimarySources, 1, 50)) errors.push('researchDepth.minPrimarySources must be an integer from 1 to 50');
+    const max = isIntIn(rd.minPrimarySources, 1, 50) ? rd.minPrimarySources : 50;
+    if (!isIntIn(rd.minRecentSources, 0, max)) errors.push('researchDepth.minRecentSources must be an integer from 0 to minPrimarySources');
+    if (!isIntIn(rd.externalCandidates, 0, 5)) errors.push('researchDepth.externalCandidates must be an integer from 0 to 5');
+  }
+  const it = config.implementationTrack as unknown;
+  if (it !== undefined && checkObjectShape(it, 'implementationTrack', ['reviewBacklogLimit'], errors)) {
+    if (!isIntIn(it.reviewBacklogLimit, 1, 100)) errors.push('implementationTrack.reviewBacklogLimit must be an integer from 1 to 100');
+  }
+  const sr = config.selfReview as unknown;
+  if (sr !== undefined && checkObjectShape(sr, 'selfReview', ['everyDays', 'configSource'], errors)) {
+    if (!isIntIn(sr.everyDays, 2, 60)) errors.push('selfReview.everyDays must be an integer from 2 to 60');
+    if (sr.configSource !== undefined && (typeof sr.configSource !== 'string' || !/^[\w.-]+\/[\w.-]+:[\w./-]+$/.test(sr.configSource))) {
+      errors.push('selfReview.configSource must look like "owner/repo:path/to/config.json"');
+    }
+  }
+  if (config.scheduleContract !== undefined && typeof config.scheduleContract !== 'boolean') {
+    errors.push('scheduleContract must be a boolean');
+  }
+  if (config.prMode !== undefined && config.prMode !== 'draft' && config.prMode !== 'ready-on-accept') {
+    errors.push('prMode must be "draft" or "ready-on-accept"');
+  }
+}
+
 /** Fill defaults over a partial config after validation passes. */
-export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'>> &
-  Pick<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'> {
+type OptionalKeys = 'buildStep' | 'bonusModuli' | 'ruosEvaluation' | 'researchDepth' | 'implementationTrack' | 'selfReview';
+export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, OptionalKeys>> & Pick<DreamConfig, OptionalKeys> {
   return {
     repo: config.repo,
     cron: config.cron.trim(),
@@ -323,6 +416,11 @@ export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'b
     labels: config.labels ?? ['dream-cycle', 'research'],
     autoMerge: config.autoMerge ?? false,
     ...(config.ruosEvaluation === undefined ? {} : { ruosEvaluation: { ...config.ruosEvaluation } }),
+    prMode: config.prMode ?? 'draft',
+    scheduleContract: config.scheduleContract ?? false,
+    ...(config.researchDepth === undefined ? {} : { researchDepth: { ...config.researchDepth } }),
+    ...(config.implementationTrack === undefined ? {} : { implementationTrack: { ...config.implementationTrack } }),
+    ...(config.selfReview === undefined ? {} : { selfReview: { ...config.selfReview } }),
   };
 }
 

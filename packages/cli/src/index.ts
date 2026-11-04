@@ -14,9 +14,12 @@ import {
   learningSignals,
   verdictStats,
   legacyPrefixDigest,
+  outcomeMetrics,
+  implementationBacklog,
   VERDICTS,
   EVALS,
   type LedgerRow,
+  type PrFate,
 } from '@dream-machine/ledger';
 import {
   stamp,
@@ -157,6 +160,14 @@ Commands:
                                                          --open-count: live count of open,
                                                          unmerged candidate PRs → reviewBacklogSize)
   ledger stats    [--path LEDGER.md]                   Verdict distribution
+  ledger outcomes [--path L] [--merged "7,12"] [--closed "9"] [--open ".."] [--stale ".."] [--open-count N]
+                                                       Ledger-wide outcome metrics (merge rate,
+                                                         ACCEPT survival under review); PR fates
+                                                         come from a live gh check by the caller;
+                                                         --open-count corrects survivorship bias
+  ledger backlog  [--path L] [--merged ..] [--closed ..] [--open ..] [--stale ..]
+                                                       Unimplemented findings, oldest first
+                                                         (open/stale PRs are in flight, excluded)
   ledger append   --path L --date .. --deep .. ...     Append one row
   witness stamp   <report-file> <commit>               Compute the witness triple
   witness verify  <report-file> <commit> <witness>     Verify a claimed witness
@@ -195,6 +206,24 @@ function parseMergedPrNumbers(flag: string | boolean | undefined): Set<string> |
     .map((s) => s.trim().replace(/^#/, ''))
     .filter(Boolean);
   return new Set(nums);
+}
+
+/** Build a PR-number → fate map from the --merged/--closed/--open/--stale flags; a PR in two groups is an error. */
+function parseFateFlags(flags: Record<string, string | boolean | undefined>): Map<string, PrFate> {
+  const map = new Map<string, PrFate>();
+  const groups: Array<[string, PrFate]> = [['stale', 'STALE'], ['open', 'OPEN'], ['closed', 'CLOSED'], ['merged', 'MERGED']];
+  for (const [flag, fate] of groups) {
+    const v = flags[flag];
+    if (v === undefined) continue;
+    if (typeof v !== 'string') throw new Error(`--${flag} expects a comma-separated PR number list, e.g. --${flag} "7,12"`);
+    for (const n of v.split(',').map((x) => x.trim().replace(/^#/, '')).filter(Boolean)) {
+      if (!/^\d+$/.test(n)) throw new Error(`--${flag}: "${n}" is not a PR number`);
+      const prior = map.get(n);
+      if (prior && prior !== fate) throw new Error(`PR ${n} is listed as both ${prior} and ${fate}`);
+      map.set(n, fate);
+    }
+  }
+  return map;
 }
 
 /**
@@ -361,6 +390,17 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           );
           return { code: 0, out: sink.out, err: sink.err };
         }
+        if (sub === 'outcomes' || sub === 'backlog') {
+          const { rows } = parseLedger(md);
+          const fates = parseFateFlags(flags as Record<string, string | boolean | undefined>);
+          const openCandidateCount = parseOpenCandidateCount(flags['open-count']);
+          const result =
+            sub === 'outcomes'
+              ? outcomeMetrics(rows, fates, { openCandidateCount })
+              : implementationBacklog(rows, fates);
+          sink.log(JSON.stringify(result, null, 2));
+          return { code: 0, out: sink.out, err: sink.err };
+        }
         if (sub === 'stats') {
           const { rows } = parseLedger(md);
           sink.log(JSON.stringify(verdictStats(rows), null, 2));
@@ -392,7 +432,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
           sink.log(`appended row to ${path} (verdict=${row.verdict})`);
           return { code: 0, out: sink.out, err: sink.err };
         }
-        sink.error('ledger: expected sub-command verify|signals|stats|append|legacy-digest');
+        sink.error('ledger: expected sub-command verify|signals|stats|outcomes|backlog|append|legacy-digest');
         return { code: 1, out: sink.out, err: sink.err };
       }
 
