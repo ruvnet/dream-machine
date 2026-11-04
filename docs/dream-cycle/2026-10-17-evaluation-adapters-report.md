@@ -338,21 +338,139 @@ invalid `GH_TOKEN`) and no gist-creation MCP tool available this session
 which expose no Gist API). Per STEP 17-18 this is not `FALLBACK` — this
 committed report is the durable artifact.
 
+## Consolidation Refresh — 2026-11-04
+
+MODE=CONSOLIDATE (STEP 1.5, ADR-0011): 21 open `dream/*`-prefixed candidate
+PRs tonight, well over `implementationTrack.reviewBacklogLimit=6`. Eleven
+eligible drafts (#145, #148, #150, #152, #154, #158, #161, #180, #182, #184,
+and #189 as of tonight's own bookkeeping fix) already carry a
+`dream-consolidate` marker for today's exact default-branch SHA
+(`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) from preceding consolidation
+nights (`main` has not moved since `#196`, landed 2026-10-19). This PR
+(#192) was the oldest remaining eligible draft — still draft, ACCEPT in its
+own Evaluation Receipt, not a `routine-self-review` PR, never previously
+touched since its 2026-10-17 creation (base still the pre-#196 `b2abcc1`,
+zero comments). #139 is REJECT and excluded; #98/#101 are multi-repo
+portfolio branches, not single-surface dream-cycle candidates in the sense
+this mode means; #137, #141, #156 are already out of draft. #194 remains
+the next-oldest untouched eligible draft for a future night.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`71041793f50c1c92c77b648cbf9079a9da43dcba`,
+never rebase, never force-push). Zero textual conflicts (`git merge
+origin/main --no-edit`, "Merge made by the 'ort' strategy"). The merge
+brings in 25 files unrelated to this candidate (ADR-0011, compiled-prompt
+outputs for other repos, `dream.config.json`'s `scheduleContract` field,
+`packages/compile`/`ledger` v2-engine changes) — `git diff
+origin/main...HEAD` confirms this branch's own contribution is exactly the
+original 4-file candidate diff (`harness-optimizer.ts` +15/-1,
+`harness-optimizer.test.ts` +25, its own prior report, its own prior ledger
+row), nothing else.
+
+**Re-evaluation on the new head.** Fresh checkout was shallow
+(`git rev-parse --is-shallow-repository` → `true`); unshallowed via `git
+fetch --unshallow` before measuring (3 governance-adjacent vitest tests
+otherwise fail opaquely on the unrelated, already-tracked shallow-clone
+`BASELINE_COMMIT`/`git show` oracle gap, issue #149/PR #150 — resolved the
+same way as prior nights, not conflated with this candidate). Real
+evaluator (`npm test` = `vitest run && npm run test:governance`): vitest
+888 (up from the original round's 811 — main's own commits since
+2026-10-17 added tests independently of this candidate), governance 195
+(unchanged), **0 regressions**, 1083 total. `npm run lint` / `npm run
+typecheck` clean. `npm run build` clean (8 packages, no wasm/NAPI
+degradation). The candidate's own 2 tests
+(`harness-optimizer.test.ts`'s hardReject slice-regression-keyword cases)
+re-verified individually: both pass on the merged head
+(`npx vitest run packages/compile/src/harness-optimizer.test.ts`, 12/12).
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, instructed to try to
+break the candidate: **CLEAR**. Independently confirmed (1) the merge's own
+diff contributes nothing beyond the original candidate — no gold data, no
+threshold, no unrelated test file touched by the merge; (2)
+`evaluateHarnessCandidate`/`selectHarnessUpdate` still have zero call sites
+outside `harness-optimizer.ts` itself — the new `packages/compile/src/v2.ts`
+and `config.ts` changes that landed via PR #196 do not reference this
+module, so the original Reward-Hack Check's "zero blast radius" claim still
+holds unchanged; (3) `.github/workflows/ci.yml` has no diff in the merge
+range, so required checks are structurally unchanged; (4) the PR body's live
+repro reproduces byte-identical output post-merge (`REJECT` via the explicit
+`slice regression` reason string, same score/weightedImprovement).
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from the original round;
+still a one-line keyword-hardening fix with a fixed input/output contract,
+no evolvable population, consistent with unbroken precedent on this surface.
+
+**CI on the pushed head (`71041793`).**
+Green: `CodeQL`, `test (22)`, `test (24)`, `software-evidence`,
+`dependency-security` (production-reachability-gated audit, `npm audit
+--omit=dev --audit-level=high`: 0 vulnerabilities), `no-optional-deps`,
+`guard`, `analyze`. **Red, pre-existing, not this PR's:** `dependency-audit`
+(full dev-inclusive `npm audit --audit-level=high`) — reproduced locally
+against this exact head's lockfile: `git diff origin/main -- package.json
+package-lock.json` from this branch is empty, so the lockfile is
+byte-identical to `main`'s. 16 findings (15 moderate, 1 high): the high one
+is `vite`'s `launch-editor`/cross-origin/`server.fs` advisory family
+(GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm,
+GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg) — the same
+root cause already tracked by issue #197 (open since 2026-10-21), now grown
+to 3 more Vite advisories since that issue was filed; the 15 moderate ones
+are a newly-surfaced eslint/@typescript-eslint toolchain advisory cluster,
+not yet filed anywhere, time-based advisory-database drift against an
+unchanged lockfile (same already-tracked class as issue #37, open since
+2026-08-27, for the original vitest/vite file-access advisories). Not
+building a Vitest+Vite+ESLint major-version bump here — a substantial,
+unrelated dependency upgrade decision that would widen this PR well beyond
+its one conceptual change, same precedent as every prior consolidation
+night on this backlog (#184 2026-11-02, #189 2026-11-03). The 15 moderate
+eslint/@typescript-eslint findings are not yet tracked by any open issue
+(distinct from #37's vitest/vite set and #197's vite/launch-editor set) —
+disclosed here, not filed as a new issue tonight: STEP 1.5 CONSOLIDATE
+explicitly skips STEPS 2-9 and 17-24 (no new research, candidate, or
+issue), and a dependency-triage issue is better opened with full context
+on a research night for this surface, not as a side effect of refreshing
+an unrelated one-line candidate.
+
+**Decision.**
+ACCEPT still holds and the fresh critic is clear, but not every required
+check on the new head is green (`dependency-audit`, for the pre-existing
+reason above) — per STEP 1.5, this PR **stays draft**.
+
+Ledger row appended on this branch (`docs/dream-cycle/LEDGER.md`), also
+stated in issue #191, since it reaches `main` only if this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
+Refreshed 2026-11-04 (consolidation round), superseding the original pair
+below — bound to the merge commit, per this repo's own witness convention
+for a CONSOLIDATE re-evaluation (PR #184 2026-11-02 / PR #189 2026-11-03
+precedent):
+
 ```
-report_sha256 : 3cfa03a2af0b2ea74fb2155232f12f658332860a9cfda28dca94ba3652eac42e
-session_commit: b2abcc14a632d7e0948962065a7c6c8920cf306c
-witness       : bec36db70ec71023a349c098ce16fce745023a075a9d781e2f4399c4365bd1bd
+report_sha256 : 4f5ab847c832613f6b569114fa264857eafff32e9e56843c3f07ff62073fd685
+session_commit: 71041793f50c1c92c77b648cbf9079a9da43dcba
+witness       : 584436f9dbf02dda7e5d6b9fdcbb554202325e2dd73acec57de4c110da420455
 ```
 
-Computed over this file's canonical bytes (everything above this heading,
-trailing whitespace collapsed to one newline) — reproducible from the
-committed file with no unavailable intermediate bytes. Verify:
+Computed over this file's canonical bytes as of this commit (everything
+above this heading, trailing whitespace collapsed to one newline) via
+`dream-machine witness stamp docs/dream-cycle/2026-10-17-evaluation-adapters-report.md 71041793f50c1c92c77b648cbf9079a9da43dcba --report`
+— reproducible from the committed file with no unavailable intermediate
+bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit 71041793f50c1c92c77b648cbf9079a9da43dcba`
 
-```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit b2abcc14a632d7e0948962065a7c6c8920cf306c
-```
+Original round's pair (parent `b2abcc1`, pre-consolidation, computed as of
+commit `ceac5c1`), retained for history, deliberately not fenced as a
+`report_sha256 :`/`session_commit:`/`witness :` block above so it cannot be
+mistaken by tooling for the published triple: report hash
+`3cfa03a2af0b2ea74fb2155232f12f658332860a9cfda28dca94ba3652eac42e`, session
+commit `b2abcc14a632d7e0948962065a7c6c8920cf306c`, witness
+`bec36db70ec71023a349c098ce16fce745023a075a9d781e2f4399c4365bd1bd` — no
+longer reproducible via its original command against the current file,
+since the Consolidation Refresh section above was inserted before this
+heading.
 
 ## Recommendation
 
