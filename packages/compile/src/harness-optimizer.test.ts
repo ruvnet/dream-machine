@@ -114,6 +114,31 @@ describe('evaluateHarnessCandidate', () => {
     expect(decision.verdict).toBe('INCONCLUSIVE');
     expect(decision.reasons).not.toContain('patch has no declared harness surface');
   });
+
+  it('rejects a slice regression beyond the threshold even when holdout evidence is also missing (issue: hardReject coverage must not depend on an accidental substring collision with the unrelated changed-lines message)', () => {
+    const decision = evaluateHarnessCandidate(candidate({
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.60, candidate: 0.50, sampleSize: 100 }],
+    }));
+    // Pre-fix this already returned REJECT, but only because the slice-regression
+    // message's text happens to contain 'exceeds', which hardReject already matches
+    // for the unrelated changedLines-threshold reason. Asserting the explicit reason
+    // string (not just the verdict) pins the behavior to the new, independent
+    // 'slice regression' keyword rather than that coincidence.
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons).toContain('no holdout evidence');
+    expect(decision.reasons.some((reason) => reason.includes('slice regression'))).toBe(true);
+  });
+
+  it('still rejects an oversized patch via the unrelated changed-lines keyword, unaffected by the new slice-regression keyword', () => {
+    const base = candidate();
+    const decision = evaluateHarnessCandidate(candidate({
+      patch: { ...base.patch, changedLines: 350 },
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.60, candidate: 0.70, sampleSize: 100 }],
+    }));
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons.join(' ')).toMatch(/changed lines/);
+    expect(decision.reasons.some((reason) => reason.includes('slice regression'))).toBe(false);
+  });
 });
 
 describe('selectHarnessUpdate', () => {

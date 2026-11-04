@@ -183,6 +183,18 @@ export function evaluateHarnessCandidate(
   // `maxSurfaces: 2` (so `touches more than` is never pushed) plus no holdout
   // evidence and got REJECT via `'duplicate'` alone. Zero surfaces had no reason
   // string of its own in that list at all, which is the actual gap this closes.
+  //
+  // Audited 2026-10-17 (next-night follow-up to the fix above): every other
+  // `reasons.push(...)` site in this function was already correctly classified,
+  // except the slice-regression-beyond-threshold reason below, which only
+  // hard-rejected by accident — its interpolated message happens to contain the
+  // substring `'exceeds'`, which this list already matches for the unrelated
+  // changed-lines-threshold reason. That coupling was never declared anywhere;
+  // a future wording change to either message could silently reopen the same
+  // masking defect fixed above. `'slice regression'` is now its own explicit,
+  // independent keyword — today's observable behavior is unchanged (`'exceeds'`
+  // already covered this case), but the protection no longer rides on a
+  // coincidence.
   const hardReject = reasons.some((reason) =>
     reason.includes('modifies evaluator') ||
     reason.includes('expands runtime authority') ||
@@ -191,7 +203,8 @@ export function evaluateHarnessCandidate(
     reason.includes('exceeds') ||
     reason.includes('touches more than') ||
     reason.includes('duplicate') ||
-    reason.includes('no declared harness surface'),
+    reason.includes('no declared harness surface') ||
+    reason.includes('slice regression'),
   );
   const inconclusive = reasons.includes('no holdout evidence');
   const complexity = patch.changedLines / Math.max(1, policy.maxChangedLines);
