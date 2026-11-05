@@ -20,7 +20,7 @@ import { v2Budget, v2ModeSelection, v2SelfReview, v2Research, v2DraftLine, v2Slo
 
 export * from './config.js';
 export * from './supplychain.js';
-export { SELF_REVIEW_SURFACE, ROUTINE_CONSTITUTION, CONSOLIDATE_MARKER } from './v2.js';
+export { SELF_REVIEW_SURFACE, ROUTINE_CONSTITUTION, CONSOLIDATE_MARKER, CONSOLIDATE_STREAK_CAP } from './v2.js';
 
 const LEDGER_SCHEMA = '| Date | Deep | Finding | Issue | PR | Evaluated? | Verdict | Effect | Witness | Prior-night fates |';
 

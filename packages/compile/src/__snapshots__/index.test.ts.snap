@@ -493,15 +493,27 @@ If the \`dream-machine\` CLI is not installed in this checkout, compute the
 same numbers by hand from \`gh\` and the ledger: the open candidate count, and
 merged / (merged + closed-unmerged + open) over candidate PRs. Never estimate.
 
+Also count \`CONSOLIDATE_STREAK\`: consecutive non-\`routine-self-review\`
+calendar nights, counted back from last night, in which neither a new
+\`dream/<DATE>-<surface>\` branch nor a new \`[Dream Cycle <DATE>]\`
+issue was created (the same live branch/PR/issue check above makes this
+free) — i.e. nights whose only visible action was CONSOLIDATE's
+refresh-and-comment, with STEPS 2–9 and 17–24 skipped as designed. A
+RESEARCH-ONLY, IMPLEMENT or RESEARCH night always files one of those two and
+so always breaks the streak; stop counting at the first one found. A
+\`routine-self-review\` night neither extends nor breaks the streak, it is
+simply skipped.
+
 Pick exactly one MODE, in this order:
 
-1. **CONSOLIDATE** when open candidate PRs ≥ 6 and at least
+1. **CONSOLIDATE** when open candidate PRs ≥ 6, at least
    one is *eligible*: still a draft, verdict ACCEPT in the PR's own Evaluation
    Receipt (not \`main\`'s ledger, which cannot see it), not a
    \`routine-self-review\` PR, and carrying no
    \`<!-- dream-consolidate: <default-branch SHA> -->\` comment for the
    current default-branch SHA posted by this routine's own account (ignore
-   markers from anyone else). Open no new candidate. Take the oldest eligible
+   markers from anyone else), AND \`CONSOLIDATE_STREAK\` < 7.
+   Open no new candidate. Take the oldest eligible
    PR. Merge the default branch into it (merge commit; never rebase, never
    force-push), re-run the real evaluator on the exact new head, run a fresh
    independent critic and reward-hack check on the new diff, and refresh its
@@ -512,11 +524,12 @@ Pick exactly one MODE, in this order:
    default-branch SHA, so the next night moves on. Never close and never merge.
    Skip STEPS 2–9 and 17–24 (no new research, candidate or PR); run 10–16 on the
    refreshed PR, then STEP 25.
-2. **RESEARCH-ONLY** when open candidate PRs ≥ 6 and none
-   is eligible. The review queue is full and every draft is already current, so
-   opening anything else only adds to it. Run STEPS 2–4 and 15–18 (full deep
-   research, gist and issue), open no PR, and record the finding with
-   \`evaluated=no\` so it enters the implementation backlog.
+2. **RESEARCH-ONLY** when (open candidate PRs ≥ 6 and none
+   is eligible) OR \`CONSOLIDATE_STREAK\` ≥ 7 (an eligible
+   draft may still be waiting; a backlog only a human merge can clear is not a
+   reason to withhold new evidence indefinitely). Either way, run STEPS 2–4 and
+   15–18 (full deep research, gist and issue), open no PR, and record the
+   finding with \`evaluated=no\` so it enters the implementation backlog.
 3. **IMPLEMENT** when \`ledger backlog\` is non-empty: tonight's candidate is the
    oldest backlog finding. STEP 3 becomes a SOTA refresh of that finding: confirm
    the technique is still current against at least 3 primary sources, then
@@ -524,9 +537,10 @@ Pick exactly one MODE, in this order:
 4. **RESEARCH** otherwise: the full pipeline.
 
 Print \`MODE=<CONSOLIDATE|RESEARCH-ONLY|IMPLEMENT|RESEARCH>\` with the measured
-open count, \`pipelineMergeRate\` and backlog size. Prefix the ledger Finding
-with \`[consolidate #N]\`, \`[research-only]\` or \`[implement <date>]\` when not
-RESEARCH, and report MODE in the FINAL REPORT. The STEP 25 ledger row is always
+open count, \`pipelineMergeRate\`, backlog size and \`CONSOLIDATE_STREAK\`. Prefix
+the ledger Finding with \`[consolidate #N]\`, \`[research-only]\` or
+\`[implement <date>]\` when not RESEARCH, and report MODE in the FINAL REPORT.
+The STEP 25 ledger row is always
 written: a CONSOLIDATE night commits it on the refreshed PR's branch (it reaches
 the default branch only if that PR merges, so also state it in the issue); a
 RESEARCH-ONLY night commits it on a \`dream/<DATE>-ledger\` branch and
