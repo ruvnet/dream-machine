@@ -8,6 +8,7 @@ import {
   ROUTINE_CONSTITUTION,
   SELF_REVIEW_SURFACE,
   CONSOLIDATE_MARKER,
+  CONSOLIDATE_STREAK_CAP,
   type DreamConfig,
 } from './index.js';
 
@@ -95,6 +96,20 @@ describe('v2 compile', () => {
     expect(p).toContain('Never close and never merge.');
     expect(p).toContain('open no PR');
     expect(p).not.toContain('fall through to IMPLEMENT');
+  });
+
+  // Self-review finding (2026-11-05): CONSOLIDATE's own entry condition can
+  // hold indefinitely while only a human merge clears the backlog, so a
+  // streak cap forces RESEARCH-ONLY after CONSOLIDATE_STREAK_CAP consecutive
+  // non-self-review nights, even with an eligible draft still waiting.
+  it('caps consecutive CONSOLIDATE nights and forces RESEARCH-ONLY past the cap', () => {
+    expect(CONSOLIDATE_STREAK_CAP).toBe(7);
+    expect(p).toContain('CONSOLIDATE_STREAK');
+    expect(p).toContain(`CONSOLIDATE_STREAK\` < ${CONSOLIDATE_STREAK_CAP}`);
+    expect(p).toContain(`CONSOLIDATE_STREAK\` ≥ ${CONSOLIDATE_STREAK_CAP}`);
+    expect(p).toContain('a backlog only a human merge can clear is not a\n   reason to withhold new evidence indefinitely');
+    expect(p).not.toContain(`CONSOLIDATE_STREAK_CAP\` <`); // the constant's own name never leaks into the prompt
+    expect(p.indexOf('**CONSOLIDATE**')).toBeLessThan(p.indexOf('**RESEARCH-ONLY**'));
   });
 
   it('single-quotes the branch prefix in the gh search', () => {

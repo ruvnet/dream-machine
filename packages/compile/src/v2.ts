@@ -45,6 +45,21 @@ happens. A forced stop is recorded as \`HALT: budget\` in \`${ledgerPath}\`.`;
 /** The marker a CONSOLIDATE night leaves so the same PR is not re-picked at the same base. */
 export const CONSOLIDATE_MARKER = 'dream-consolidate';
 
+/**
+ * Consecutive non-self-review nights CONSOLIDATE may run, while the backlog
+ * stays at/above the limit and an eligible draft keeps existing, before a
+ * night is forced to RESEARCH-ONLY instead. Without this cap, CONSOLIDATE's
+ * own entry condition (backlog over the limit AND at least one eligible
+ * draft) can hold indefinitely while the backlog itself only a human merge
+ * can clear — observed live: 2026-10-19 through 2026-11-04, every
+ * non-self-review night resolved to CONSOLIDATE and zero new findings were
+ * produced for 16 nights running. The cap does not change the limit itself
+ * (`implementationTrack.reviewBacklogLimit`, off-limits to self-review) or
+ * CONSOLIDATE's never-merge/never-close/never-force-push limits; it only
+ * bounds how long new research may be withheld in its favor.
+ */
+export const CONSOLIDATE_STREAK_CAP = 7;
+
 export function v2ModeSelection(track: ImplementationTrack, branchPrefix: string): string {
   return `# STEP 1.5: MODE SELECTION — CONSOLIDATE, RESEARCH-ONLY, IMPLEMENT OR RESEARCH
 
@@ -62,15 +77,27 @@ If the \`dream-machine\` CLI is not installed in this checkout, compute the
 same numbers by hand from \`gh\` and the ledger: the open candidate count, and
 merged / (merged + closed-unmerged + open) over candidate PRs. Never estimate.
 
+Also count \`CONSOLIDATE_STREAK\`: consecutive non-\`${SELF_REVIEW_SURFACE}\`
+calendar nights, counted back from last night, in which neither a new
+\`${branchPrefix}<DATE>-<surface>\` branch nor a new \`[Dream Cycle <DATE>]\`
+issue was created (the same live branch/PR/issue check above makes this
+free) — i.e. nights whose only visible action was CONSOLIDATE's
+refresh-and-comment, with STEPS 2–9 and 17–24 skipped as designed. A
+RESEARCH-ONLY, IMPLEMENT or RESEARCH night always files one of those two and
+so always breaks the streak; stop counting at the first one found. A
+\`${SELF_REVIEW_SURFACE}\` night neither extends nor breaks the streak, it is
+simply skipped.
+
 Pick exactly one MODE, in this order:
 
-1. **CONSOLIDATE** when open candidate PRs ≥ ${track.reviewBacklogLimit} and at least
+1. **CONSOLIDATE** when open candidate PRs ≥ ${track.reviewBacklogLimit}, at least
    one is *eligible*: still a draft, verdict ACCEPT in the PR's own Evaluation
    Receipt (not \`main\`'s ledger, which cannot see it), not a
    \`${SELF_REVIEW_SURFACE}\` PR, and carrying no
    \`<!-- ${CONSOLIDATE_MARKER}: <default-branch SHA> -->\` comment for the
    current default-branch SHA posted by this routine's own account (ignore
-   markers from anyone else). Open no new candidate. Take the oldest eligible
+   markers from anyone else), AND \`CONSOLIDATE_STREAK\` < ${CONSOLIDATE_STREAK_CAP}.
+   Open no new candidate. Take the oldest eligible
    PR. Merge the default branch into it (merge commit; never rebase, never
    force-push), re-run the real evaluator on the exact new head, run a fresh
    independent critic and reward-hack check on the new diff, and refresh its
@@ -81,11 +108,12 @@ Pick exactly one MODE, in this order:
    default-branch SHA, so the next night moves on. Never close and never merge.
    Skip STEPS 2–9 and 17–24 (no new research, candidate or PR); run 10–16 on the
    refreshed PR, then STEP 25.
-2. **RESEARCH-ONLY** when open candidate PRs ≥ ${track.reviewBacklogLimit} and none
-   is eligible. The review queue is full and every draft is already current, so
-   opening anything else only adds to it. Run STEPS 2–4 and 15–18 (full deep
-   research, gist and issue), open no PR, and record the finding with
-   \`evaluated=no\` so it enters the implementation backlog.
+2. **RESEARCH-ONLY** when (open candidate PRs ≥ ${track.reviewBacklogLimit} and none
+   is eligible) OR \`CONSOLIDATE_STREAK\` ≥ ${CONSOLIDATE_STREAK_CAP} (an eligible
+   draft may still be waiting; a backlog only a human merge can clear is not a
+   reason to withhold new evidence indefinitely). Either way, run STEPS 2–4 and
+   15–18 (full deep research, gist and issue), open no PR, and record the
+   finding with \`evaluated=no\` so it enters the implementation backlog.
 3. **IMPLEMENT** when \`ledger backlog\` is non-empty: tonight's candidate is the
    oldest backlog finding. STEP 3 becomes a SOTA refresh of that finding: confirm
    the technique is still current against at least 3 primary sources, then
@@ -93,9 +121,10 @@ Pick exactly one MODE, in this order:
 4. **RESEARCH** otherwise: the full pipeline.
 
 Print \`MODE=<CONSOLIDATE|RESEARCH-ONLY|IMPLEMENT|RESEARCH>\` with the measured
-open count, \`pipelineMergeRate\` and backlog size. Prefix the ledger Finding
-with \`[consolidate #N]\`, \`[research-only]\` or \`[implement <date>]\` when not
-RESEARCH, and report MODE in the FINAL REPORT. The STEP 25 ledger row is always
+open count, \`pipelineMergeRate\`, backlog size and \`CONSOLIDATE_STREAK\`. Prefix
+the ledger Finding with \`[consolidate #N]\`, \`[research-only]\` or
+\`[implement <date>]\` when not RESEARCH, and report MODE in the FINAL REPORT.
+The STEP 25 ledger row is always
 written: a CONSOLIDATE night commits it on the refreshed PR's branch (it reaches
 the default branch only if that PR merges, so also state it in the issue); a
 RESEARCH-ONLY night commits it on a \`${branchPrefix}<DATE>-ledger\` branch and
