@@ -42,9 +42,9 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "esbuild": "0.28.2",
-    "eslint": "10.11.0",
+    "eslint": "10.14.0",
     "typescript": "^5.6.0",
-    "typescript-eslint": "8.70.0",
+    "typescript-eslint": "8.72.1",
     "vite": "8.3.6",
     "vitest": "5.1.0"
   }
