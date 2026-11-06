@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://ruvnet.github.io/dream-machine/" title="Open the live site — interactive 4D hero"><img src="docs/media/hero.jpg" alt="Dream Machine — one honest cycle, every single night" width="100%"></a>
+<a href="https://ruvnet.github.io/dream-machine/" title="Open the live site — interactive 4D hero"><img src="https://raw.githubusercontent.com/ruvnet/dream-machine/main/docs/media/hero.jpg" alt="Dream Machine — one honest cycle, every single night" width="100%"></a>
 
 # ☾ Dream Machine
 
@@ -17,7 +17,8 @@
 </div>
 
 > Freeze the model. Evolve the harness. **Evaluation is not promotion** — the
-> machine never merges; a human does.
+> candidate worker never merges. An explicitly authorized factory coordinator may
+> merge independently reviewed changes after required checks pass.
 
 ```bash
 npx dream-machine init --repo owner/name --out dream.config.json
@@ -42,9 +43,56 @@ prompts running the same 26-step pipeline; they differ only in a small,
 well-defined per-repo delta. The Dream Machine factors the shared spine into an
 engine and the differences into a `dream.config`.
 
+## Software factory
+
+![Software factory: research, implement, measure, review and release](https://raw.githubusercontent.com/ruvnet/dream-machine/main/docs/media/software-factory.svg)
+
+The factory adds bounded primary research intake, a compiled implementation contract,
+README and ADR generation, accessible animated SVG explainers, evidence checks, and
+public gist publication with exact content and identity verification. A scheduled
+host agent executes the implementation and optimization work. The CLI is support
+tooling, not a background daemon or a provider billing controller.
+
+```bash
+npm run build
+node scripts/software-factory.mjs research factory.config.json --out /tmp/factory-research
+node scripts/software-factory.mjs compile factory.config.json --research /tmp/factory-research/research.json --out /tmp/factory-prompt.md
+node packages/cli/dist/bin.js compile dream.config.json --out /tmp/dream-pipeline.md
+# The authorized host agent executes both instruction files.
+node scripts/software-factory.mjs render candidate-artifacts.json --out /tmp/candidate-docs
+node scripts/software-factory.mjs verify candidate-evidence.json factory.config.json
+```
+
+After this revision is released, `dream-machine-factory` is included in the
+`dream-machine` npm package. These commands work from a source checkout now;
+do not assume an older published package includes the new binary.
+
+Each cycle allows one candidate, two optimization rounds and 45 minutes.
+The configured $10 inference ceiling is a maximum within existing authorization,
+not a new spending allowance. Missing pricing or budget blocks paid execution.
+Evidence must preserve raw baseline and candidate samples, dataset and environment
+hashes, regression results and independent review. A structural pass never grants
+publication authority. Retain negative results and unchanged-input reuse.
+
+The isolated release workflow checks reviewed main ancestry, package version,
+all repository checks, dependency audit, exact tarball contents and installed CLI
+behavior. A separate job publishes the tested bytes through npm trusted publishing
+and verifies registry integrity. A separately authorized coordinator can merge
+verified factory changes and publish with the ruOS npm key through the bounded
+`ruos-npm-publish.py` adapter when OIDC is unavailable. The key stays on ruOS;
+this path records package integrity but does not claim OIDC provenance.
+Prereleases use `next`; stable publication requires
+an explicit manual release. It fails on errors instead of reporting a skipped
+publication as success. Required repository/environment protections and npm trust
+must be configured and verified before live releases.
+
+[Operator runbook](docs/runbooks/software-factory.md) ·
+[Architecture decision](docs/adrs/ADR-0200-software-factory.md) ·
+[Factory configuration](factory.config.json)
+
 ## The nightly pipeline
 
-<div align="center"><a href="https://ruvnet.github.io/dream-machine/#pipeline" title="See it animate on the live site"><img src="docs/media/pipeline.jpg" alt="The 13-stage nightly pipeline, rendered as an orbital scrollytelling narrative" width="100%"></a></div>
+<div align="center"><a href="https://ruvnet.github.io/dream-machine/#pipeline" title="See it animate on the live site"><img src="https://raw.githubusercontent.com/ruvnet/dream-machine/main/docs/media/pipeline.jpg" alt="The 13-stage nightly pipeline, rendered as an orbital scrollytelling narrative" width="100%"></a></div>
 
 ```
 ledger → research → frozen hypothesis → concrete candidate → baseline
@@ -74,14 +122,14 @@ dream-machine tui --path docs/dream-cycle/LEDGER.md            # the dashboard, 
 
 ### The TUI
 
-<div align="center"><img src="docs/media/tui.svg" alt="dream-machine tui — the nightly dashboard" width="720"></div>
+<div align="center"><img src="https://raw.githubusercontent.com/ruvnet/dream-machine/main/docs/media/tui.svg" alt="dream-machine tui — the nightly dashboard" width="720"></div>
 
 ### The management console
 
 A browser dashboard renders the ledger as recent nights, verdict distribution,
 and per-night evidence — the same data the TUI shows.
 
-<div align="center"><a href="https://ruvnet.github.io/dream-machine/dashboard.html" title="Open the live management dashboard"><img src="docs/media/dashboard.jpg" alt="The Dream Machine management console" width="100%"></a></div>
+<div align="center"><a href="https://ruvnet.github.io/dream-machine/dashboard.html" title="Open the live management dashboard"><img src="https://raw.githubusercontent.com/ruvnet/dream-machine/main/docs/media/dashboard.jpg" alt="The Dream Machine management console" width="100%"></a></div>
 
 ## Schedule it — nightly, autonomous, always improving
 

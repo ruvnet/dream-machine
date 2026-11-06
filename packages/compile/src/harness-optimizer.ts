@@ -169,6 +169,20 @@ export function evaluateHarnessCandidate(
     reasons.push('weighted validation improvement is not positive enough');
   }
 
+  // Reproduced 2026-10-12 (evaluation-adapters night, SCAN=flywheel,darwin): a patch
+  // declaring zero harness surfaces is the symmetric opposite of one declaring too
+  // many (`touches more than`, already hard-rejected below) — both are structural
+  // defects in the patch itself, independent of how much evidence was collected for
+  // it. Before `'no declared harness surface'` was added here, a zero-surface patch
+  // that also lacked holdout evidence fell through to `inconclusive` (checked next)
+  // instead of `hardReject`, reporting INCONCLUSIVE — "need more evidence" — for a
+  // patch that is invalid regardless of evidence. The duplicate-surfaces case was
+  // never exposed to this gap: `'duplicate'` was already its own hardReject keyword
+  // (independent of `maxSurfaces`) before tonight's fix — confirmed by an adversarial
+  // critic subagent, who constructed `surfaces: ['tool','tool']` with
+  // `maxSurfaces: 2` (so `touches more than` is never pushed) plus no holdout
+  // evidence and got REJECT via `'duplicate'` alone. Zero surfaces had no reason
+  // string of its own in that list at all, which is the actual gap this closes.
   const hardReject = reasons.some((reason) =>
     reason.includes('modifies evaluator') ||
     reason.includes('expands runtime authority') ||
@@ -176,7 +190,8 @@ export function evaluateHarnessCandidate(
     reason.includes('security review') ||
     reason.includes('exceeds') ||
     reason.includes('touches more than') ||
-    reason.includes('duplicate'),
+    reason.includes('duplicate') ||
+    reason.includes('no declared harness surface'),
   );
   const inconclusive = reasons.includes('no holdout evidence');
   const complexity = patch.changedLines / Math.max(1, policy.maxChangedLines);

@@ -39,6 +39,38 @@ export interface RuosEvaluation {
   maxReceiptAgeSeconds: number;
 }
 
+/** Dream Cycle v2: research-depth floors for STEP 3. */
+export interface ResearchDepth {
+  /** Minimum distinct primary sources cited (1-50). */
+  minPrimarySources: number;
+  /** Of those, minimum dated within 12 months of the run (0-minPrimarySources). */
+  minRecentSources: number;
+  /** Of the 5 candidates, minimum that import an external technique (0-5). */
+  externalCandidates: number;
+}
+
+/** Dream Cycle v2: research vs implement vs consolidate mode selection. */
+export interface ImplementationTrack {
+  /** Open candidate PRs at or above which a night consolidates instead of opening a new PR (1-100). */
+  reviewBacklogLimit: number;
+}
+
+/** Dream Cycle v2: periodic routine self-review night. */
+export interface SelfReview {
+  /** Run when EPOCHDAY % everyDays == 0 (2-60). */
+  everyDays: number;
+  /**
+   * Where this target's dream.config lives when it is NOT in the target's own
+   * checkout, as "owner/repo:path" (e.g. "ruvnet/dream-machine:targets/x.dream.json").
+   * The self-review night then delivers its candidate as a proposed config
+   * diff for a human to apply, since it cannot edit the config directly.
+   */
+  configSource?: string;
+}
+
+/** How the candidate PR is opened. */
+export type PrMode = 'draft' | 'ready-on-accept';
+
 export interface DreamConfig {
   /** Target repo, "owner/name". */
   repo: string;
@@ -70,6 +102,19 @@ export interface DreamConfig {
   autoMerge?: boolean;
   /** Optional independent desktop evaluation; never grants promotion authority. */
   ruosEvaluation?: RuosEvaluation;
+  /** v2: research-depth floors. Omit for v1 behavior. */
+  researchDepth?: ResearchDepth;
+  /** v2: research/implement/consolidate mode selection. Omit for v1 behavior. */
+  implementationTrack?: ImplementationTrack;
+  /** v2: periodic routine self-review. Omit for v1 behavior. */
+  selfReview?: SelfReview;
+  /** v2: PR opening mode. Default 'draft' (v1 behavior). */
+  prMode?: PrMode;
+  /**
+   * v2: render the schedule contract (side-effect receipts, duplicate-firing
+   * skip) from ruvnet/core-memory issue #187. Omit for v1 behavior.
+   */
+  scheduleContract?: boolean;
 }
 
 export interface ValidationResult {
@@ -80,6 +125,57 @@ export interface ValidationResult {
 
 const CRON_RE = /^(\S+\s+){4}\S+$/;
 const FIXED_MINUTE_RE = /^(?:[0-9]|[1-5][0-9])$/;
+/**
+ * compile() interpolates identifier-like config values either inside a
+ * ```text fence (STEP 0's slot map) or inside a single-backtick inline
+ * span (most other sections, e.g. `` `${cron}` ``, `` `${ledgerPath}` ``).
+ * A newline breaks either container (a block fence closes on the next
+ * line starting with its own fence marker; a line break inside prose
+ * fields like extraDisciplines/competitors injects a fresh markdown line
+ * with no fence needed at all). A single backtick closes a one-backtick
+ * inline span early regardless of newlines. Either lets the remainder of
+ * the value render as literal, fabricated markdown/instructions in the
+ * compiled nightly prompt that a future night is told to follow exactly
+ * -- live-reproduced for slots[].deep, cron, evaluatorEntrypoints.*,
+ * labels[], extraDisciplines[], branchPrefix, and bonusModuli values.
+ */
+const FENCE_BREAK_RE = /[\r\n`]/;
+
+/** Push an error if `value` would break out of its markdown container. */
+function checkNoFenceBreak(value: string, label: string, errors: string[]): void {
+  if (FENCE_BREAK_RE.test(value)) {
+    errors.push(`${label} must not contain a newline or a backtick (would corrupt the compiled prompt's markdown structure)`);
+  }
+}
+
+/** Apply checkNoFenceBreak to every element of an already-validated string[] field. */
+function checkStringArrayFenceBreak(config: Partial<DreamConfig>, field: keyof DreamConfig, errors: string[]): void {
+  const v = (config as Record<string, unknown>)[field];
+  if (isNonEmptyStringArray(v)) {
+    v.forEach((item, i) => checkNoFenceBreak(item, `${field}[${i}]`, errors));
+  }
+}
+
+/**
+ * buildStep.cmd and controlPlaneProbes entries are legitimately free-form
+ * shell text embedded verbatim inside their own ```bash fence
+ * (step05Build) -- a real command may contain a lone backtick (command
+ * substitution) or a newline (a multi-line script), so FENCE_BREAK_RE's
+ * blanket ban would reject valid configuration. But they share the same
+ * fence-breakable container as slots[].deep: a line that IS a fence
+ * marker (optional indent, then 3+ backticks, optionally followed by a
+ * language tag) closes/reopens the surrounding ```bash block exactly like
+ * the original bug, and no legitimate shell command is ever just a bare
+ * backtick-fence line. Flagged live by an independent critic reviewing
+ * the widened fix, after the blanket exclusion of these two fields.
+ */
+const FENCE_LINE_RE = /^[ \t]{0,3}`{3,}.*$/m;
+
+function checkNoFenceLine(value: string, label: string, errors: string[]): void {
+  if (FENCE_LINE_RE.test(value)) {
+    errors.push(`${label} must not contain a line that is itself a markdown fence marker (would corrupt the compiled prompt's fenced block)`);
+  }
+}
 
 /** True iff `v` is an array whose every element is a non-empty (trimmed) string. */
 function isNonEmptyStringArray(v: unknown): v is string[] {
@@ -111,6 +207,10 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   if (typeof config.cron !== 'string' || !CRON_RE.test(config.cron.trim())) {
     errors.push('cron must be a 5-field expression');
   } else {
+    // CRON_RE's \s+ separators also match newlines, so a "5-field" cron can
+    // smuggle a fence break between two fields; reject independently of the
+    // field-count check above.
+    checkNoFenceBreak(config.cron.trim(), 'cron', errors);
     const [minute] = config.cron.trim().split(/\s+/);
     if (!FIXED_MINUTE_RE.test(minute)) {
       errors.push('cron minute field must be a single value from 0 to 59; minimum interval is 1 hour');
@@ -126,7 +226,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         errors.push(`slot ${i}: must be an object with "deep" and "scan"`);
         return;
       }
-      if (typeof s.deep !== 'string' || !s.deep.trim()) errors.push(`slot ${i}: missing "deep" surface`);
+      if (typeof s.deep !== 'string' || !s.deep.trim()) {
+        errors.push(`slot ${i}: missing "deep" surface`);
+      } else {
+        checkNoFenceBreak(s.deep, `slot ${i}: "deep"`, errors);
+      }
       if (!s.scan) {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else if (!Array.isArray(s.scan)) {
@@ -135,7 +239,11 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
         warnings.push(`slot ${i}: no scan surfaces`);
       } else {
         s.scan.forEach((sc, j) => {
-          if (typeof sc !== 'string' || !sc.trim()) errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          if (typeof sc !== 'string' || !sc.trim()) {
+            errors.push(`slot ${i}: scan[${j}] must be a non-empty surface name`);
+          } else {
+            checkNoFenceBreak(sc, `slot ${i}: scan[${j}]`, errors);
+          }
         });
       }
     });
@@ -144,11 +252,26 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
   checkStringArrayField(config, 'competitors', errors);
   checkStringArrayField(config, 'extraDisciplines', errors);
   checkStringArrayField(config, 'controlPlaneProbes', errors);
+  // labels/competitors/extraDisciplines are short identifiers rendered as
+  // backtick-wrapped inline spans or plain bullet prose: no legitimate
+  // value needs a backtick or newline, so the blanket check applies.
+  checkStringArrayFenceBreak(config, 'labels', errors);
+  checkStringArrayFenceBreak(config, 'competitors', errors);
+  checkStringArrayFenceBreak(config, 'extraDisciplines', errors);
+  // controlPlaneProbes entries are free-form shell commands embedded in
+  // their own ```bash fence: a lone backtick or a legitimate multi-line
+  // probe is not a defect, but a line that is itself a fence marker would
+  // still break out of that block, so the narrower per-line check applies.
+  if (isNonEmptyStringArray(config.controlPlaneProbes)) {
+    config.controlPlaneProbes.forEach((p, i) => checkNoFenceLine(p, `controlPlaneProbes[${i}]`, errors));
+  }
   if (config.bonusModuli) {
     for (const [k, v] of Object.entries(config.bonusModuli)) {
       if (!/^\d+$/.test(k)) errors.push(`bonusModuli key "${k}" must be an integer`);
       if (typeof v !== 'string' || v.trim().length === 0) {
         errors.push(`bonusModuli["${k}"] must be a non-empty string`);
+      } else {
+        checkNoFenceBreak(v, `bonusModuli["${k}"]`, errors);
       }
     }
   }
@@ -159,6 +282,19 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     }
     if (typeof dir !== 'string' || dir.trim().length === 0) {
       errors.push('adrConvention.dir must be a non-empty string');
+    } else {
+      checkNoFenceBreak(dir, 'adrConvention.dir', errors);
+    }
+  }
+  // evaluatorEntrypoints has no type/shape validation on main yet (tracked
+  // separately, open draft PR #152); guard defensively here regardless of
+  // that PR's fate -- names are rendered as plain bullet prose, and string
+  // values as backtick-wrapped spans in STEP 6-9. Guard both sides of every
+  // entry, including unknown names, without changing #152's shape policy.
+  if (config.evaluatorEntrypoints !== undefined && config.evaluatorEntrypoints !== null && typeof config.evaluatorEntrypoints === 'object' && !Array.isArray(config.evaluatorEntrypoints)) {
+    for (const [key, v] of Object.entries(config.evaluatorEntrypoints)) {
+      checkNoFenceBreak(key, `evaluatorEntrypoints key ${JSON.stringify(key)}`, errors);
+      if (typeof v === 'string') checkNoFenceBreak(v, `evaluatorEntrypoints.${key}`, errors);
     }
   }
   if (config.buildStep !== undefined) {
@@ -168,17 +304,35 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
     } else {
       if (typeof b.cmd !== 'string' || b.cmd.trim().length === 0) {
         errors.push('buildStep.cmd must be a non-empty string');
+      } else {
+        // Free-form shell text, embedded in its own ```bash fence: see
+        // checkNoFenceLine's doc comment for why this is narrower than
+        // checkNoFenceBreak.
+        checkNoFenceLine(b.cmd, 'buildStep.cmd', errors);
       }
       if (b.degradeOnWasmFailure !== undefined && typeof b.degradeOnWasmFailure !== 'boolean') {
         errors.push('buildStep.degradeOnWasmFailure must be a boolean');
       }
     }
   }
-  if (config.ledgerPath !== undefined && (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0)) {
-    errors.push('ledgerPath must be a non-empty string');
+  if (config.ledgerPath !== undefined) {
+    if (typeof config.ledgerPath !== 'string' || config.ledgerPath.trim().length === 0) {
+      errors.push('ledgerPath must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.ledgerPath, 'ledgerPath', errors);
+    }
   }
-  if (config.branchPrefix !== undefined && (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0)) {
-    errors.push('branchPrefix must be a non-empty string');
+  if (config.branchPrefix !== undefined) {
+    if (typeof config.branchPrefix !== 'string' || config.branchPrefix.trim().length === 0) {
+      errors.push('branchPrefix must be a non-empty string');
+    } else {
+      checkNoFenceBreak(config.branchPrefix, 'branchPrefix', errors);
+      // Rendered inside shell commands (e.g. a quoted gh --search argument), so
+      // restrict it to git-ref-safe characters: no quotes, $, ;, spaces or globs.
+      if (!/^[A-Za-z0-9._/-]+$/.test(config.branchPrefix)) {
+        errors.push('branchPrefix may contain only letters, digits, ".", "_", "/" and "-"');
+      }
+    }
   }
   if (config.ruosEvaluation !== undefined) {
     const r = config.ruosEvaluation;
@@ -197,12 +351,55 @@ export function validateConfig(config: Partial<DreamConfig>): ValidationResult {
       }
     }
   }
+  validateV2(config, errors);
   return { ok: errors.length === 0, errors, warnings };
 }
 
+function isIntIn(v: unknown, lo: number, hi: number): v is number {
+  return Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
+}
+
+/** Shape-check an optional object field, rejecting non-objects and unknown keys. */
+function checkObjectShape(v: unknown, field: string, allowed: string[], errors: string[]): v is Record<string, unknown> {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    errors.push(`${field} must be an object`);
+    return false;
+  }
+  const unknown = Object.keys(v).filter((k) => !allowed.includes(k));
+  if (unknown.length) errors.push(`${field} contains unknown fields: ${unknown.join(', ')}`);
+  return true;
+}
+
+function validateV2(config: Partial<DreamConfig>, errors: string[]): void {
+  const rd = config.researchDepth as unknown;
+  if (rd !== undefined && checkObjectShape(rd, 'researchDepth', ['minPrimarySources', 'minRecentSources', 'externalCandidates'], errors)) {
+    if (!isIntIn(rd.minPrimarySources, 1, 50)) errors.push('researchDepth.minPrimarySources must be an integer from 1 to 50');
+    const max = isIntIn(rd.minPrimarySources, 1, 50) ? rd.minPrimarySources : 50;
+    if (!isIntIn(rd.minRecentSources, 0, max)) errors.push('researchDepth.minRecentSources must be an integer from 0 to minPrimarySources');
+    if (!isIntIn(rd.externalCandidates, 0, 5)) errors.push('researchDepth.externalCandidates must be an integer from 0 to 5');
+  }
+  const it = config.implementationTrack as unknown;
+  if (it !== undefined && checkObjectShape(it, 'implementationTrack', ['reviewBacklogLimit'], errors)) {
+    if (!isIntIn(it.reviewBacklogLimit, 1, 100)) errors.push('implementationTrack.reviewBacklogLimit must be an integer from 1 to 100');
+  }
+  const sr = config.selfReview as unknown;
+  if (sr !== undefined && checkObjectShape(sr, 'selfReview', ['everyDays', 'configSource'], errors)) {
+    if (!isIntIn(sr.everyDays, 2, 60)) errors.push('selfReview.everyDays must be an integer from 2 to 60');
+    if (sr.configSource !== undefined && (typeof sr.configSource !== 'string' || !/^[\w.-]+\/[\w.-]+:[\w./-]+$/.test(sr.configSource))) {
+      errors.push('selfReview.configSource must look like "owner/repo:path/to/config.json"');
+    }
+  }
+  if (config.scheduleContract !== undefined && typeof config.scheduleContract !== 'boolean') {
+    errors.push('scheduleContract must be a boolean');
+  }
+  if (config.prMode !== undefined && config.prMode !== 'draft' && config.prMode !== 'ready-on-accept') {
+    errors.push('prMode must be "draft" or "ready-on-accept"');
+  }
+}
+
 /** Fill defaults over a partial config after validation passes. */
-export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'>> &
-  Pick<DreamConfig, 'buildStep' | 'bonusModuli' | 'ruosEvaluation'> {
+type OptionalKeys = 'buildStep' | 'bonusModuli' | 'ruosEvaluation' | 'researchDepth' | 'implementationTrack' | 'selfReview';
+export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, OptionalKeys>> & Pick<DreamConfig, OptionalKeys> {
   return {
     repo: config.repo,
     cron: config.cron.trim(),
@@ -219,6 +416,11 @@ export function withDefaults(config: DreamConfig): Required<Omit<DreamConfig, 'b
     labels: config.labels ?? ['dream-cycle', 'research'],
     autoMerge: config.autoMerge ?? false,
     ...(config.ruosEvaluation === undefined ? {} : { ruosEvaluation: { ...config.ruosEvaluation } }),
+    prMode: config.prMode ?? 'draft',
+    scheduleContract: config.scheduleContract ?? false,
+    ...(config.researchDepth === undefined ? {} : { researchDepth: { ...config.researchDepth } }),
+    ...(config.implementationTrack === undefined ? {} : { implementationTrack: { ...config.implementationTrack } }),
+    ...(config.selfReview === undefined ? {} : { selfReview: { ...config.selfReview } }),
   };
 }
 

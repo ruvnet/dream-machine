@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "repo": "ruvnet/dream-machine",
+  "topics": [
+    "agent evaluation",
+    "software engineering agents",
+    "inference efficiency"
+  ],
+  "sources": [
+    "https://huggingface.co/api/daily_papers",
+    "https://api.github.com/repos/ruvnet/ruflo/releases?per_page=5",
+    "https://export.arxiv.org/api/query?search_query=all%3Asoftware%20agents&start=0&max_results=5&sortBy=submittedDate&sortOrder=descending"
+  ],
+  "maxSources": 5,
+  "maxAgeDays": 30,
+  "limits": {
+    "maxCandidates": 1,
+    "maxOptimizationRounds": 2,
+    "maxRuntimeMinutes": 45,
+    "maxInferenceUsd": 10
+  },
+  "release": {
+    "package": "dream-machine",
+    "channel": "next",
+    "automaticStable": false
+  },
+  "metric": {
+    "name": "evaluation_latency_ms",
+    "direction": "lower",
+    "minImprovementPercent": 10
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "repo": "ruvnet/ruClip",
+  "cron": "17 8 * * *",
+  "slots": [
+    {
+      "deep": "correctness",
+      "scan": [
+        "performance",
+        "tests"
+      ]
+    },
+    {
+      "deep": "security",
+      "scan": [
+        "dependencies",
+        "secrets"
+      ]
+    },
+    {
+      "deep": "architecture",
+      "scan": [
+        "docs",
+        "api"
+      ]
+    },
+    {
+      "deep": "performance",
+      "scan": [
+        "memory",
+        "latency"
+      ]
+    },
+    {
+      "deep": "developer-experience",
+      "scan": [
+        "ci",
+        "tooling"
+      ]
+    }
+  ],
+  "bonusModuli": {
+    "25": "roadmap-review"
+  },
+  "controlPlaneProbes": [
+    "npm run --silent 2>/dev/null || true",
+    "ls package.json && cat package.json | head -40"
+  ],
+  "buildStep": {
+    "cmd": "npm ci && npm run build",
+    "degradeOnWasmFailure": true
+  },
+  "evaluatorEntrypoints": {
+    "bench": "npm test"
+  },
+  "adrConvention": "4-digit",
+  "competitors": [
+    "paperclipai/paperclip"
+  ],
+  "researchDepth": {
+    "minPrimarySources": 8,
+    "minRecentSources": 3,
+    "externalCandidates": 2
+  },
+  "implementationTrack": {
+    "reviewBacklogLimit": 6
+  },
+  "selfReview": {
+    "everyDays": 7,
+    "configSource": "ruvnet/dream-machine:targets/ruvnet-ruclip.dream.json"
+  },
+  "prMode": "ready-on-accept",
+  "scheduleContract": true,
+  "autoMerge": false
+}

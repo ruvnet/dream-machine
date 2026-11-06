@@ -11,3 +11,7 @@ coverage/
 .claude/memory.db*
 .claude/proven-config.json
 .claude/.proven-config-version
+
+# Local factory publication staging
+release-artifact/
+packages/cli/package.json.bak

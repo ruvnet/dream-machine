@@ -1,7 +1,7 @@
 {
   "name": "dream-machine",
-  "version": "0.1.2",
-  "description": "The Dream Machine — a config-driven engine for nightly, cloud-scheduled, evidence-gated repository evolution. It never merges; a human does.",
+  "version": "0.2.0-next.3",
+  "description": "The Dream Machine \u2014 a config-driven engine for nightly, cloud-scheduled, evidence-gated repository evolution. It never merges; a human does.",
   "type": "module",
   "license": "MIT",
   "author": "rUv <ruv@ruv.net>",
@@ -15,7 +15,8 @@
     "url": "https://github.com/ruvnet/dream-machine/issues"
   },
   "bin": {
-    "dream-machine": "dist/bin.js"
+    "dream-machine": "dist/bin.js",
+    "dream-machine-factory": "dist/software-factory.mjs"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,7 +30,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && node ../../scripts/build-factory.mjs"
   },
   "dependencies": {
     "@dream-machine/compile": "0.1.0",
