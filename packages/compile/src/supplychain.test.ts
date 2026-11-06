@@ -180,4 +180,91 @@ describe('findUnpinnedNpxInvocations', () => {
       expect(findUnpinnedNpxInvocations(['npx -p a@1.2.3 cmd -p b'], {})).toHaveLength(0);
     });
   });
+
+  // Regression tests for the 2026-09-28 finding: `pnpm dlx`, `yarn dlx`, and `bunx`
+  // are the same unpinned-registry-resolution risk as `npx`/`npm exec` (pnpm's and
+  // Yarn's own `dlx` docs, and Bun's own "equivalent to npx" framing of `bunx`), but
+  // were invisible to this scanner's trigger set until now.
+
+  describe('alternate ad-hoc-execution tools (pnpm dlx / yarn dlx / bunx)', () => {
+    it('flags an unpinned bunx invocation', () => {
+      const findings = findUnpinnedNpxInvocations(['bunx @metaharness/darwin evolve'], {});
+      expect(findings).toHaveLength(1);
+      expect(findings[0].packageSpec).toBe('@metaharness/darwin');
+    });
+
+    it('does not flag a pinned bunx invocation', () => {
+      expect(findUnpinnedNpxInvocations(['bunx @metaharness/darwin@0.9.2 evolve'], {})).toHaveLength(0);
+    });
+
+    it('flags an unpinned pnpm dlx invocation', () => {
+      const findings = findUnpinnedNpxInvocations([], {
+        darwin: 'pnpm dlx @metaharness/darwin evolve --sandbox mock',
+      });
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({
+        source: 'evaluatorEntrypoints.darwin',
+        packageSpec: '@metaharness/darwin',
+      });
+    });
+
+    it('does not flag a pinned pnpm dlx invocation', () => {
+      expect(findUnpinnedNpxInvocations(['pnpm dlx cowsay@1.2.3 hi'], {})).toHaveLength(0);
+    });
+
+    it('flags an unpinned yarn dlx invocation', () => {
+      const findings = findUnpinnedNpxInvocations(['yarn dlx cowsay@latest hi'], {});
+      expect(findings).toHaveLength(1);
+      expect(findings[0].packageSpec).toBe('cowsay@latest');
+    });
+
+    it('does not flag a pinned yarn dlx invocation', () => {
+      expect(findUnpinnedNpxInvocations(['yarn dlx cowsay@1.2.3 hi'], {})).toHaveLength(0);
+    });
+
+    it('honors --package= on pnpm dlx the same way as npx', () => {
+      const findings = findUnpinnedNpxInvocations(['pnpm dlx --package=@scope/tool@1 cmd'], {});
+      expect(findings).toHaveLength(1);
+      expect(findings[0].packageSpec).toBe('@scope/tool@1');
+    });
+
+    it('does not flag bare `pnpm install` or `yarn add` (no dlx trigger)', () => {
+      expect(
+        findUnpinnedNpxInvocations(['pnpm install @metaharness/darwin', 'yarn add cowsay@latest'], {}),
+      ).toHaveLength(0);
+    });
+
+    it('does not flag a local file bunx/dlx invocation', () => {
+      expect(
+        findUnpinnedNpxInvocations(['bunx ./scripts/tool.js', 'pnpm dlx ./scripts/tool.js'], {}),
+      ).toHaveLength(0);
+    });
+
+    it('correctly flags yarn dlx repeated -p/--package multi-package form (real yarn syntax)', () => {
+      const findings = findUnpinnedNpxInvocations(
+        ['yarn dlx -p typescript -p ts-node@1.2.3 ts-node'],
+        {},
+      );
+      expect(findings.map((f) => f.packageSpec)).toEqual(['typescript']);
+    });
+
+    // KNOWN UNRESOLVED GAP (2026-09-28 independent critic review, not fixed tonight):
+    // a global CLI flag before the subcommand defeats the exact-adjacent-token trigger
+    // match. Pre-existing for `npm exec`; extended, not introduced, by tonight's new
+    // `pnpm dlx`/`yarn dlx` triggers. These are documenting `.skip`s, not silently
+    // dropped: flip to `it` once a follow-up adds flag-aware trigger matching.
+    describe.skip('KNOWN GAP: a global flag before the subcommand defeats the trigger', () => {
+      it('yarn --cwd . dlx <unpinned> should be flagged but is not', () => {
+        expect(findUnpinnedNpxInvocations(['yarn --cwd . dlx cowsay hi'], {})).toHaveLength(1);
+      });
+
+      it('pnpm --silent dlx <unpinned> should be flagged but is not', () => {
+        expect(findUnpinnedNpxInvocations(['pnpm --silent dlx cowsay hi'], {})).toHaveLength(1);
+      });
+
+      it('pre-existing: npm --loglevel=silent exec <unpinned> should be flagged but is not', () => {
+        expect(findUnpinnedNpxInvocations(['npm --loglevel=silent exec cowsay'], {})).toHaveLength(1);
+      });
+    });
+  });
 });
