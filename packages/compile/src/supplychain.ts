@@ -119,35 +119,35 @@ function extractPackageSpecs(tokens: string[], start: number): string[] {
 }
 
 /**
- * Every ad-hoc-execution trigger this scanner recognizes, and how many tokens
- * to skip to reach the package-spec position. `pnpm dlx` and `yarn dlx`
- * resolve an unpinned package from the registry at invocation time exactly
- * like `npx` does (pnpm's and Yarn Berry's own docs describe `dlx` in those
- * terms); `bunx` is documented by Bun itself as "equivalent to `npx`". None of
- * the three is governed by this repo's lockfile any more than `npx` is, so
- * they carry the identical risk `npx`/`npm exec` are already scanned for.
- * Scope: the common single-package form (`pnpm dlx pkg@ver`, `bunx pkg@ver`,
- * `yarn dlx pkg@ver`; Yarn's own repeated `-p`/`--package` multi-package form,
- * e.g. `yarn dlx -p a -p b@1.2.3 b`, is already handled correctly by the
- * shared `extractPackageSpecs` below, same as it is for `npx`).
+ * Index of the first package-spec token for an ad-hoc-execution trigger
+ * starting at `tokens[i]`, or undefined if this isn't one. Recognized
+ * triggers: `npx`, `bunx` (one token) and `npm exec`, `pnpm dlx`,
+ * `yarn dlx` (two tokens). `pnpm dlx`/`yarn dlx` resolve an unpinned
+ * package from the registry at invocation time exactly like `npx` does, and
+ * `bunx` is documented by Bun itself as "equivalent to `npx`"; none is
+ * governed by this repo's lockfile, so they carry the identical risk.
+ * Yarn's repeated `-p`/`--package` multi-package form is handled by the
+ * shared `extractPackageSpecs`, same as for `npx`.
  *
- * KNOWN UNRESOLVED GAP (disclosed, not fixed here — see the 2026-09-28
- * report/PR): this trigger match is exact-adjacent-token only. A global CLI
- * flag placed *before* the subcommand — `yarn --cwd . dlx pkg`, `pnpm --silent
- * dlx pkg`, or even the pre-existing `npm --loglevel=silent exec pkg` — is
- * NOT detected, because `tokens[i + 1]` must literally be `dlx`/`exec`. This
- * bypass already existed for `npm exec` before tonight's change; tonight
- * extends the same weak pattern to `pnpm dlx`/`yarn dlx` without adding
- * tolerance for it. Fixing it generally requires knowing which global flags
- * take a value token (to skip correctly) versus which don't — a distinct,
- * larger piece of work than this trigger-set extension, left for a dedicated
- * follow-up rather than bolted on under time pressure.
+ * For the two-token forms a global flag (`--loglevel=silent`, `-s`,
+ * `--yes`, `--silent`) may appear between the tool and its subcommand;
+ * those are skipped. Only flag tokens with their value folded into the same
+ * token (`--flag=value`) or no value at all are tolerated — a flag whose
+ * value is a separate following token (e.g. `--prefix /tmp`, `--cwd .`) is
+ * a disclosed, unfixed gap (see supplychain.test.ts), never treated as a
+ * hidden subcommand, so it can only cause a missed detection, never a false
+ * one. The converse, a separate-token flag value that is itself the literal
+ * subcommand string (e.g. `--registry exec`), can misread that value as the
+ * subcommand — a disclosed, non-blocking mislabeling risk (spurious finding,
+ * never a missed one), also covered in supplychain.test.ts.
  */
 function matchTrigger(tokens: string[], i: number): number | undefined {
-  if (tokens[i] === 'npx' || tokens[i] === 'bunx') return 1;
-  if (tokens[i] === 'npm' && tokens[i + 1] === 'exec') return 2;
-  if ((tokens[i] === 'pnpm' || tokens[i] === 'yarn') && tokens[i + 1] === 'dlx') return 2;
-  return undefined;
+  if (tokens[i] === 'npx' || tokens[i] === 'bunx') return i + 1;
+  const subcommand = tokens[i] === 'npm' ? 'exec' : tokens[i] === 'pnpm' || tokens[i] === 'yarn' ? 'dlx' : undefined;
+  if (subcommand === undefined) return undefined;
+  let j = i + 1;
+  while (j < tokens.length && tokens[j].startsWith('-')) j++;
+  return tokens[j] === subcommand ? j + 1 : undefined;
 }
 
 /**
@@ -174,9 +174,9 @@ export function findUnpinnedNpxInvocations(
   for (const [source, command] of sources) {
     const tokens = command.split(/\s+/).filter(Boolean);
     for (let i = 0; i < tokens.length; i++) {
-      const skip = matchTrigger(tokens, i);
-      if (skip === undefined) continue;
-      for (const packageSpec of extractPackageSpecs(tokens, i + skip)) {
+      const start = matchTrigger(tokens, i);
+      if (start === undefined) continue;
+      for (const packageSpec of extractPackageSpecs(tokens, start)) {
         if (!isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
           findings.push({ source, command, packageSpec });
         }

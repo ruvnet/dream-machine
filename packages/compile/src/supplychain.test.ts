@@ -87,6 +87,55 @@ describe('findUnpinnedNpxInvocations', () => {
     expect(findings[0].packageSpec).toBe('@metaharness/darwin');
   });
 
+  // Regression tests (2026-10-08 security-adversarial night, issue filed this run): a
+  // global npm flag between `npm` and `exec` defeated the exact-adjacent-token match,
+  // a pre-existing gap disclosed but left unfixed by PR #139's reward-hack check.
+
+  describe('npm exec with an intervening global flag', () => {
+    it.each([
+      'npm --loglevel=silent exec @metaharness/darwin evolve',
+      'npm -s exec @metaharness/darwin evolve',
+      'npm --yes exec @metaharness/darwin evolve',
+      'npm --silent --yes exec @metaharness/darwin evolve',
+    ])('still flags %s', (cmd) => {
+      const findings = findUnpinnedNpxInvocations([cmd], {});
+      expect(findings).toHaveLength(1);
+      expect(findings[0].packageSpec).toBe('@metaharness/darwin');
+    });
+
+    it('does not flag npm run exec-something (not the exec subcommand)', () => {
+      expect(findUnpinnedNpxInvocations(['npm run exec-something'], {})).toHaveLength(0);
+    });
+
+    it('does not flag plain npm test / npm ci (no exec subcommand at all)', () => {
+      expect(
+        findUnpinnedNpxInvocations(['npm ci && npm run build', 'npm test --silent'], { bench: 'npm test' }),
+      ).toHaveLength(0);
+    });
+
+    // Disclosed, unfixed: a flag whose value is a separate following token (not folded
+    // via `=`) still defeats the match, since this fix does not consume a flag's value
+    // token — doing so without a full npm-flag table risks misreading the real `exec`
+    // token as a flag's value instead. Flag for a future night, same as PR #139's gaps.
+    describe.skip('disclosed gap: separate-value global flag before exec', () => {
+      it('does not yet flag npm --prefix /tmp exec (separate-value flag)', () => {
+        const findings = findUnpinnedNpxInvocations(['npm --prefix /tmp exec @metaharness/darwin evolve'], {});
+        expect(findings).toHaveLength(1);
+        expect(findings[0].packageSpec).toBe('@metaharness/darwin');
+      });
+    });
+
+    // Disclosed, non-blocking mislabeling: the converse of the gap above. A flag's
+    // separate-token value that is itself the literal string "exec" is misread as the
+    // subcommand, producing a spurious finding against a real subcommand's own operand —
+    // never a missed detection (found by an independent critic review of this candidate).
+    it('mislabels --registry exec <subcommand> as the exec subcommand (disclosed false-positive risk)', () => {
+      const findings = findUnpinnedNpxInvocations(['npm --registry exec install @metaharness/darwin'], {});
+      expect(findings).toHaveLength(1);
+      expect(findings[0].packageSpec).toBe('install');
+    });
+  });
+
   it('does not flag a local file invocation (misleading-message regression)', () => {
     const findings = findUnpinnedNpxInvocations(['npx ./scripts/tool.js'], {});
     expect(findings).toHaveLength(0);
@@ -248,22 +297,32 @@ describe('findUnpinnedNpxInvocations', () => {
       expect(findings.map((f) => f.packageSpec)).toEqual(['typescript']);
     });
 
-    // KNOWN UNRESOLVED GAP (2026-09-28 independent critic review, not fixed tonight):
-    // a global CLI flag before the subcommand defeats the exact-adjacent-token trigger
-    // match. Pre-existing for `npm exec`; extended, not introduced, by tonight's new
-    // `pnpm dlx`/`yarn dlx` triggers. These are documenting `.skip`s, not silently
-    // dropped: flip to `it` once a follow-up adds flag-aware trigger matching.
-    describe.skip('KNOWN GAP: a global flag before the subcommand defeats the trigger', () => {
+    // Flag-aware trigger matching (#157) applies to every two-token trigger, so the
+    // 2026-09-28 disclosed gap is closed for self-contained flags on `pnpm dlx` and
+    // `yarn dlx` as well as `npm exec`.
+    it('flags pnpm --silent dlx <unpinned> (global flag before dlx)', () => {
+      const findings = findUnpinnedNpxInvocations(['pnpm --silent dlx cowsay hi'], {});
+      expect(findings.map((f) => f.packageSpec)).toEqual(['cowsay']);
+    });
+
+    it('flags yarn --quiet dlx <unpinned> (global flag before dlx)', () => {
+      const findings = findUnpinnedNpxInvocations(['yarn --quiet dlx cowsay hi'], {});
+      expect(findings.map((f) => f.packageSpec)).toEqual(['cowsay']);
+    });
+
+    it('flags npm --loglevel=silent exec <unpinned>', () => {
+      expect(findUnpinnedNpxInvocations(['npm --loglevel=silent exec cowsay'], {})).toHaveLength(1);
+    });
+
+    it('does not flag pnpm/yarn with a flag but no dlx subcommand', () => {
+      expect(findUnpinnedNpxInvocations(['pnpm --silent install', 'yarn -s run build'], {})).toHaveLength(0);
+    });
+
+    // Still a disclosed gap (same as `npm --prefix /tmp exec` above): a flag whose
+    // value is a separate token stops the skip, so this is a missed detection.
+    describe.skip('KNOWN GAP: separate-value global flag before dlx', () => {
       it('yarn --cwd . dlx <unpinned> should be flagged but is not', () => {
         expect(findUnpinnedNpxInvocations(['yarn --cwd . dlx cowsay hi'], {})).toHaveLength(1);
-      });
-
-      it('pnpm --silent dlx <unpinned> should be flagged but is not', () => {
-        expect(findUnpinnedNpxInvocations(['pnpm --silent dlx cowsay hi'], {})).toHaveLength(1);
-      });
-
-      it('pre-existing: npm --loglevel=silent exec <unpinned> should be flagged but is not', () => {
-        expect(findUnpinnedNpxInvocations(['npm --loglevel=silent exec cowsay'], {})).toHaveLength(1);
       });
     });
   });
