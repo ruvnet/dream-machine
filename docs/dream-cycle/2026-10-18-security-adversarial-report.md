@@ -290,12 +290,95 @@ already on hand).
 gist-creation MCP tool available. Full report committed at this path as the
 durable artifact.
 
+## Consolidation Refresh — 2026-11-06
+
+MODE=CONSOLIDATE (STEP 1.5, ADR-0011): 20 open `dream/*` candidate PRs
+tonight, well over `implementationTrack.reviewBacklogLimit=6`. The eleven
+nearer-the-front eligible drafts — #145, #148, #150, #152, #154, #158,
+#161, #180, #182, #184, #189, #192 — each already carry a
+`dream-consolidate` marker for today's exact default-branch SHA (`3fc3222`)
+from eleven preceding nights (`main` has not moved since #196, landed
+2026-10-19). This PR (#194) was the oldest still-eligible draft (still
+draft, ACCEPT in its own Evaluation Receipt, not a `routine-self-review`
+PR) carrying no prior consolidate marker at all. #139 is REJECT and
+excluded; #98/#101 are multi-repo portfolio branches, not single-surface
+dream-cycle candidates; #137/#141/#156 are already out of draft.
+
+**Action.** Merged `main` (`3fc3222d2e5566a203331d3686c4d2eaf06713a8`) into
+this branch with an ordinary merge commit (`744705d`, never rebase, never
+force-push). Zero textual conflicts. `packages/cli/src/entrypoint.ts` /
+`entrypoint.test.ts` (this candidate's own files) are byte-identical
+before and after the merge (`git diff 2c86a7c..744705d -- packages/cli/src/entrypoint.ts packages/cli/src/entrypoint.test.ts`
+is empty); `index.ts`/`index.test.ts` auto-merged clean against substantial
+intervening `main` history (Dream Cycle v2 engine, PR #195/#196) with no
+overlap on this candidate's own hunks.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`), baseline
+measured independently in an isolated `git worktree` at bare
+`main@3fc3222`: vitest 886/886, governance 195/195. On this merged head:
+vitest 904/904 (+18, this candidate's own tests, 0 regressions), governance
+195/195 unchanged. `npm run lint`/`npm run typecheck` clean. `npm run build`
+clean (8 packages, no wasm/NAPI degradation). `ledger verify --since-row 38
+--legacy-digest 23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`:
+OK. Self-hosted `dream.config.json` compile output byte-identical. Live
+repro of all 4 original PoCs (`sh -c`, `find -exec sh -c`, `su -c`,
+`env -S`) re-run against the rebuilt CLI: all still `blocked`, no file
+written.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the merged
+diff and the live repository (not a reread of the prior rounds' verdict):
+**CLEAR**, with one new disclosed finding. It confirmed the candidate's own
+files are merge-untouched, re-ran `npm test`/`lint`/`typecheck` itself
+(904/195, 0 failures, both clean), confirmed the full candidate diff
+(`b2abcc1..2c86a7c`) touches only `entrypoint.ts`, `entrypoint.test.ts`,
+`index.ts`, `index.test.ts` plus this report — no gold data, benchmark
+corpus, threshold, `dream.config.json`, or CI/workflow file — and confirmed
+every test-file change is a pure addition (no existing assertion weakened,
+skipped, or removed). It also found a genuinely novel, live-reproduced
+bypass class the original two rounds did not name: a general-purpose
+scripting interpreter (Perl `exec`, Python `subprocess.run`, AWK `system()`)
+spawning `sh -c` **inside its own process**, with no `sh`/`bash`/`-c` token
+ever appearing in the entrypoint's own argv — structurally undetectable by
+any argv-based scan, unlike the four already-disclosed gaps (which are all
+still argv-visible). This does not change the verdict: `invokesShellInterpreter`'s
+own doc comment already states it is "a denylist of known wrappers, not a
+closed set" and that the real trust boundary is repo-committed, PR-reviewed
+config, not a hard security boundary — this finding extends, rather than
+contradicts, that disclosed posture. Recorded here as a fifth disclosed gap
+(see updated next-steps below); not fixed tonight (CONSOLIDATE mode
+re-evaluates the existing candidate, it does not widen one — STEPS 5-9 are
+skipped).
+
+**CI on the pushed head (`744705d`).** `git diff origin/main -- package.json
+package-lock.json` from this branch is empty — the lockfile is byte-identical
+to `main`'s. `npm audit --omit=dev --audit-level=high` (the production-scoped
+gate `dependency-security` actually enforces): 0 vulnerabilities. Full
+dev-inclusive `npm audit --audit-level=high` reproduces 15 findings (14
+moderate, 1 high: `vite`/`launch-editor`, plus an `eslint`/`typescript-eslint`
+cluster) — the same pre-existing, already-tracked dev-toolchain advisory
+family as issue #197 (opened 2026-10-21 against PR #145, still open, no fix
+PR exists yet to port; a semver-range-breaking `vite`/`eslint` bump is out
+of scope for this single-detector-function fix). Not re-filing a duplicate
+issue; not fixing it from this PR.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but
+`dependency-audit` is expected red on the new head for the pre-existing
+reason above, so not every required check is green — per STEP 1.5, this PR
+**stays draft**. Witness refreshed below, bound to merge commit `744705d`.
+One ledger row appended on this branch: `docs/dream-cycle/LEDGER.md`
+(2026-11-06) — also to be noted on issue #193, since it reaches `main` only
+if this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
 ```
-report_sha256 : db54e5c99c5c0c413b7ad9901ad7e6105aef4ad0eaf1d084521f23047e60291f
-session_commit: b2abcc14a632d7e0948962065a7c6c8920cf306c
-witness       : 571c7214a57e319435469e04936b314a909a02a2968c904df9e8d302df077784
+report_sha256 : 71f8cf2e288321cbd26e1bd5ff57697065d788b6bc0d27f4121a76749ecfa406
+session_commit: 744705d6c15382b46f8ba0f873aca11d9a6512c1
+witness       : a0829602b1dc51455b40d107f40d4e2d95d376b44bf421674cc989ad6e7890f4
 ```
 
 Computed over this file's canonical bytes (everything above this heading,
@@ -304,7 +387,7 @@ trailing whitespace collapsed to one newline — see
 committed file with no unavailable intermediate bytes. Verify:
 
 ```bash
-node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-18-security-adversarial-report.md --commit b2abcc14a632d7e0948962065a7c6c8920cf306c
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-18-security-adversarial-report.md --commit 744705d6c15382b46f8ba0f873aca11d9a6512c1
 ```
 
 ## Recommendation
@@ -337,6 +420,17 @@ per STEP 5-9):
 4. The 2026-10-03 night's missing ledger row (STEP 25 never completed that
    night) is a process gap outside tonight's surface — flagged for a future
    `ledger-signals` night, not fixed here.
+5. (Added 2026-11-06 consolidation.) A general-purpose scripting
+   interpreter (Perl/Python/Ruby/Node/AWK/PHP/Lua/Tcl) that spawns a shell
+   internally via its own `exec`/`system`/`subprocess` — live-confirmed for
+   `perl -e 'exec(...)'`, `python3 -c 'subprocess.run(...)'`, and AWK's
+   `system()` — is structurally invisible to any argv-based scan, unlike
+   the four gaps above. No further widening of `invokesShellInterpreter`
+   can close this; it would need a different trust-boundary design (e.g.
+   an interpreter allowlist/denylist on the entrypoint executable itself,
+   or dropping the "defense-in-depth against careless config" framing in
+   favor of treating any config-named executable as fully trusted code, as
+   `supplychain.ts`'s own header comment already does for unpinned `npx`).
 
 ## Merge Policy
 
