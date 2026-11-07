@@ -81,6 +81,39 @@ describe('cell escaping', () => {
     expect(renderRow(row({ finding: 'a | b' }))).toContain('a \\| b');
     expect(escapeCell('x\ny')).toBe('x y');
   });
+
+  it('round-trips a pipe character in a field without shifting any column (regression, issue tbd)', () => {
+    // Prior behavior: appendRow escaped `|` to `\|`, but parseLedger split on
+    // every raw `|` including that escaped one, shifting every column after
+    // Finding by one and corrupting Verdict/Evaluated into garbage values —
+    // while still reporting rows.length === 1, which the test above alone
+    // could not catch.
+    const l = appendRow(emptyLedger(), row({ finding: 'rejects a | b split', effect: 'n=1' }));
+    const { rows, warnings, wellFormed } = parseLedger(l);
+    expect(warnings).toEqual([]);
+    expect(wellFormed).toEqual([true]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].finding).toBe('rejects a | b split');
+    expect(rows[0].effect).toBe('n=1');
+    expect(rows[0].verdict).toBe('ACCEPT');
+    expect(rows[0].evaluated).toBe('yes');
+    expect(verifyLedger(l).ok).toBe(true);
+  });
+
+  it('round-trips multiple pipes and a pipe adjacent to a backslash', () => {
+    const l = appendRow(emptyLedger(), row({ finding: 'a || b \\ c | d', priorFates: 'x' }));
+    const { rows, warnings } = parseLedger(l);
+    expect(warnings).toEqual([]);
+    expect(rows[0].finding).toBe('a || b \\ c | d');
+    expect(rows[0].priorFates).toBe('x');
+  });
+
+  it('leaves a lone backslash (not escaping a pipe) untouched', () => {
+    const l = appendRow(emptyLedger(), row({ finding: 'path C:\\temp has no pipe' }));
+    const { rows, warnings } = parseLedger(l);
+    expect(warnings).toEqual([]);
+    expect(rows[0].finding).toBe('path C:\\temp has no pipe');
+  });
 });
 
 describe('verifyLedger', () => {
