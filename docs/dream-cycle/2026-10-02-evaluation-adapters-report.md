@@ -346,6 +346,142 @@ no CI result to await beyond what this session itself reproduced.
 Promotion gate unchanged: this session never self-merges and never applies
 `automerge-safe`.
 
+## Consolidation Refresh — 2026-11-08
+
+STEP 1.5 MODE=CONSOLIDATE (slot `20261108 % 5 = 3`, DEEP=security-adversarial
+tonight — irrelevant to this refresh, which is a CONSOLIDATE action, not a
+slot-bound candidate). 18 open `dream/*` candidate PRs measured tonight
+(#98,#101,#137,#141,#145,#148,#152,#154,#156,#161,#180,#182,#184,#189,#192,
+#199,#202,#204), well over `implementationTrack.reviewBacklogLimit=6`.
+`#145`/`#156` (ready-for-review, non-draft) and `#202`/`#204`/`#199`
+(`routine-self-review`) are excluded from eligibility; among the remaining
+drafts this PR (#148) is again the oldest with verdict ACCEPT in its own
+Evaluation Receipt and no `dream-consolidate` marker for tonight's
+default-branch SHA (`71d607bea6608180b8c41980dc5386526d3f1f16` — the prior
+marker on this PR, from 2026-10-23, names `3fc3222d2e5566a203331d3686c4d2eaf06713a8`,
+which `main` has since moved past). No new research, candidate, or PR
+opened tonight (STEPS 2–9 and 17–24 skipped); only STEPS 10–16 re-run below,
+then STEP 25 (ledger).
+
+**Merge.** `git merge origin/main` (merge commit `090fb3e05d0281e14cf764aa578486c5e4a7dca0`,
+no rebase, no force-push) from parent `3fc3222` forward to
+`main@71d607bea6608180b8c41980dc5386526d3f1f16` — 10 commits (dependency bumps
+`#185`/`#186`/`#187`/`#205`/`#206`/`#209`, and three merged dream-cycle
+candidates: `#150` BASELINE_COMMIT shallow-clone self-heal, `#139`
+dlx/bunx/pnpm unpinned-execution widening, `#158` global-flag-before-exec
+bypass fix, plus `#193`/`#208` correcting a stale "never a shell" claim about
+`verify-entrypoints`). One textual conflict, in `docs/dream-cycle/LEDGER.md`
+only (both sides had appended rows after the same common-ancestor row, and
+three rows — 2026-10-10/11/12 — appeared on both sides of the conflict hunk
+identically since they predate the fork point but fell inside the
+surrounding diff); resolved by taking the union, de-duplicated by date, in
+chronological order — no content from either side dropped or altered
+(verified: `git diff` shows zero remaining `<<<<<<<`/`=======`/`>>>>>>>`
+markers, and `dream-machine ledger verify --since-row 38` reports
+`✓ ledger OK — 60 rows`). `packages/cli/src/entrypoint.ts` and
+`entrypoint.test.ts` (this candidate's only files) again received **zero**
+competing changes on `main` since the last refresh (`git log
+3fc3222..71d607b -- packages/cli/src/entrypoint.ts
+packages/cli/src/entrypoint.test.ts` is empty) — the candidate diff is
+still byte-identical to the one originally reviewed on 2026-10-02.
+
+**Re-run real evaluator on the exact new head:**
+
+| | Baseline (`main@71d607b`, fresh worktree) | Candidate (merged head) |
+| --- | --- | --- |
+| vitest | 908 passed + 2 skipped | 912 passed + 2 skipped (+4, the candidate's own tests; 0 regressions) |
+| governance | 197 | 197 (unchanged) |
+| Total | 1105 (+2 skipped) | 1109 (+2 skipped) |
+| `npm run typecheck` | clean | clean |
+| `npm run lint` | clean | clean |
+| `npm run check:edge-contracts` | clean | clean |
+| `npm run check:development-policy` | `{"findings":[],"verdict":"ACCEPT"}` | `{"findings":[],"verdict":"ACCEPT"}` |
+
+**Dependency-audit gate, re-checked (this is what kept the PR in draft on
+2026-10-23/10-24/10-28):** `npm audit --audit-level=high` — the exact command
+`ci.yml`'s `dependency-audit` job runs — now exits **0** (10 moderate-only
+findings remain in the dev toolchain graph, 0 high/critical; resolved on
+`main` by `#205`, the vite 8.3.6 / vitest 5.1.0 bump, which landed between
+2026-10-28 and tonight). `npm audit --omit=dev` → 0 vulnerabilities at any
+severity; `dream-machine audit-gate --path /tmp/audit-prod.json` →
+`audit-gate: clear — 0 findings at any severity`. The blocker named in this
+PR's two prior consolidation comments is gone on this exact head.
+
+**Fresh independent critic + reward-hack check on the new diff** (separate
+subagent, no access to prior review context, full repo read access,
+instructed to try to kill the candidate): **CLEAR**. Verbatim verdict and
+checklist:
+
+> VERDICT: CLEAR (no blocking issues found)
+>
+> 1. Not a duplicate — the only place `classifyEntrypointResult`/its
+>    `"blocked"` reason text exists; confirmed no overlap with PR #137's
+>    `bin.ts` spawn-failure catch block (different function, different
+>    trigger condition).
+> 2. Falsifiable and correctly tested — read `entrypoint.ts:121-156` and the
+>    4 tests at `entrypoint.test.ts:126-162`; `npx vitest run
+>    packages/cli/src/entrypoint.test.ts` → 23/23 pass; full `packages/cli`
+>    suite 138/138; `tsc --noEmit` clean.
+> 3. Not gameable — pure synchronous string classifier (doc comment "Pure —
+>    no I/O"); touches no benchmark, gold answer, threshold, or cache; only
+>    `blocked`'s `reason` string changes, not the `live`/`blocked`/
+>    `suspicious-silent` verdict/exit-code mapping.
+> 4. Data/secret exposure: low-concern, non-blocking. `reason` only reaches a
+>    human/CI-facing log line (`index.ts:530,606`), never a committed
+>    artifact or posted PR/issue body; `evaluatorEntrypoints` commands are
+>    trusted, repo-committed config, not attacker-controlled (existing
+>    boundary, not widened in kind — only in how much of an already-trusted
+>    command's own stdout gets echoed).
+> 5. Simpler alternative (unconditional stream concatenation) considered and
+>    rejected — would break the explicitly-tested stderr-wins precedent and
+>    add noise to clean stderr-only failures.
+> 6. Adversarial input checked: the stale-state regex at `entrypoint.ts:122-124`
+>    reads only `r.stderr`, confirmed by direct inspection, so a
+>    stale-state-shaped stdout-only message correctly stays `blocked`
+>    (stdout-fallback), not misclassified `stale-state` — matches the 4th new
+>    test exactly. `maxBuffer` 10MB cap pre-exists for both streams
+>    (`bin.ts:36,52`); no new crash class from ANSI/binary content (plain
+>    utf8 strings throughout).
+> 7. Regression risk: only two call sites (`index.ts:529,605`), both just log
+>    `check.reason`; no code anywhere pattern-matches the old literal
+>    `"exited N with no stderr"` string.
+> 8. No new execution/trust surface — the classifier performs no I/O; the
+>    widening is display-only.
+>
+> Non-blocking disclosures: the stdout fallback is unbounded/untruncated in
+> the `reason` string (pre-existing pattern for stderr, now also applies to
+> stdout) — a verbose failing `bench` run could produce a very large single
+> log line; worth a follow-up truncation if it becomes a CI-log nuisance,
+> not a regression this diff introduces. One new test's name is slightly
+> awkwardly phrased but its assertions were verified correct against the
+> actual regex scope.
+
+`reward_hack_clear` / `critic_clear` still hold; nothing in the fresh pass
+contradicts or weakens the original Reward-Hack Check above.
+
+**Darwin.** Exercised live tonight (last night's two sandbox-policy denials
+did not recur): `rm -rf .metaharness && npx -y @metaharness/darwin@0.12.0
+evolve . --sandbox mock` → `Winner: g2_v5 · Lineage: baseline → g1_v0 → g2_v5
+· Delta over baseline: +0.110`, exit 0; `.metaharness/` gitignored,
+`git status --porcelain` clean afterward. This is the generic bounded-mock
+control-plane check, not specific to this candidate's diff (a single-branch
+classifier fallback has no evolvable population to fitness-search) —
+`DARWIN=not-applicable` to the candidate itself stands, matching every prior
+night on this exact finding.
+
+**Gate.** `evaluation_complete` ∧ `effect_positive` ∧
+`significance_sufficient` ∧ `no_material_regression` (0 regressions on 1105
+baseline tests) ∧ `tests_green` ∧ `reward_hack_clear` ∧ `critic_clear` ∧
+`witness_valid` (below) ∧ `receipt_reproducible` (this section) all hold →
+**verdict ACCEPT still holds**. Every locally-reproduced check this session
+controls is green on the exact merge-commit head, **including the
+dependency-audit gate that previously blocked readiness**. Promotion gate
+unchanged: this session never self-merges and never applies
+`automerge-safe`; readiness (`gh pr ready`) still additionally requires the
+real GitHub-hosted required checks to report green on this exact pushed
+head before the PR is marked ready for review (see Merge Policy / PR
+comment for the live CI outcome, decided after push).
+
 ## Gist
 
 `GIST=LOCAL` — no `gh` CLI gist capability or MCP gist-creation tool
@@ -356,10 +492,24 @@ report is the durable artifact.
 
 ## Witness
 
-Current (consolidation refresh, 2026-10-23), computed over this file's
-canonical bytes as committed now (everything above this heading, trailing
-whitespace collapsed to one newline) at tonight's merge commit — this is
-the triple `witness verify-report` (no `--commit` override) checks against:
+Current (consolidation refresh, 2026-11-08), computed over this file's
+canonical bytes (the report-witness module's canonical exclusion already
+omits this "## Witness" section itself, so inserting this triple does not
+change `report_sha256`) at tonight's merge commit — this is the triple
+`witness verify-report` (no `--commit` override) checks against:
+
+```
+report_sha256 : 337a5cbd0650a97c4bdc9c40f3406bdb4e5bfdfb76afe6856c1eeaec86ebcf36
+session_commit: 090fb3e05d0281e14cf764aa578486c5e4a7dca0
+witness       : 8c431495b857ddc886ca4afcff5ccf714c166304094b8fd34675cb191ce47d29
+```
+
+Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-02-evaluation-adapters-report.md`
+
+Prior witness (consolidation refresh, 2026-10-23), over this file's
+canonical bytes as they stood before tonight's section existed — preserved
+for history, no longer the value `verify-report` checks against this file's
+current bytes:
 
 ```
 report_sha256 : f43bd1b9f4b86ec6b9c69a4cc22747bee99f366134ba2380034607885f650917
@@ -367,12 +517,9 @@ session_commit: 5d29d6384154e4540ce291c8bebfdf189e247fb9
 witness       : f0fe18aef3864a2c428f80f2b1a9ee2de370a37ec41f06533f5d5e52be4701e7
 ```
 
-Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-02-evaluation-adapters-report.md`
-
 Original night-of witness (2026-10-02), over this file's canonical bytes as
-they stood before tonight's Consolidation Refresh section existed —
-preserved for history, no longer the value `verify-report` checks against
-this file's current bytes:
+they stood before any Consolidation Refresh section existed — preserved for
+history only:
 
 ```
 report_sha256 : 643ad95981d507ff636d8a14a0525dc59dcff80158f8d4a722414783cdd07272
