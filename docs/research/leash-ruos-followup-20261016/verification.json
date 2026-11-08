@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "date": "2026-10-16",
+  "sourceCommit": "e469a062aee2cd97672d278a0906f894f70172e5",
+  "verifierCommit": "00d19794705ea4ee4ab10ba4d13ebd830ac9b0b4",
+  "executor": {
+    "completionVersion": 1,
+    "completionVerified": true,
+    "status": "ok",
+    "exitCode": 0,
+    "machineId": "85050dc77130e8"
+  },
+  "originalLongCall": "INCONCLUSIVE_TRANSPORT_ERROR; not resubmitted. Saved artifacts independently regraded by a fresh verified executor job.",
+  "summary": {
+    "verified": true,
+    "outcomesRegraded": 80,
+    "selected": {
+      "template": 1,
+      "precision": "float32"
+    },
+    "families": {
+      "tool_json": {
+        "tasks": 12,
+        "baseline": 0,
+        "candidate": 0
+      },
+      "repository_repair": {
+        "tasks": 12,
+        "baseline": 0,
+        "candidate": 1
+      }
+    },
+    "formatGate": false,
+    "activationLatencyGate": false,
+    "timingP95Ms": {
+      "float32": 241.45678855,
+      "dynamic-int8": 129.89912335
+    },
+    "reportSha256": "b47782471c773cca119e082e1fc8e936270cc31fa3a6758cd36587978f825056",
+    "promotionAuthorized": false
+  },
+  "trainingPassed": [
+    0,
+    2,
+    0
+  ],
+  "quantizedTrainingPassed": 0,
+  "providerCalls": 0,
+  "secretValuesExported": false,
+  "promotionAuthorized": false
+}

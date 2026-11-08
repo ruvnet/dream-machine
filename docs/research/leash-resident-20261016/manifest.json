@@ -1,0 +1,733 @@
+{
+  "evidence": "PUBLIC_BOUNDED_SYNTHETIC_TASKS",
+  "manifestDigest": "000da1b37f8cdfbe413c2564cb79bf2b499728bdc42b7971f75d2daead73006a",
+  "schema": 1,
+  "seed": 261016,
+  "splitCounts": {
+    "calibration": 8,
+    "confirmation": 16,
+    "reference": 12
+  },
+  "tasks": [
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_978.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "reference-tool_json-00",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_978.py.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "-"
+      },
+      "id": "reference-repository_repair-01",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate(a, b): return a * b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_289.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "reference-tool_json-02",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_289.py.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "*"
+      },
+      "id": "reference-repository_repair-03",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate(a, b): return a - b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_673.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "reference-tool_json-04",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_673.py.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "*"
+      },
+      "id": "reference-repository_repair-05",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate(a, b): return a // b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_701"
+        },
+        "tool": "list_directory"
+      },
+      "id": "reference-tool_json-06",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_701.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "//"
+      },
+      "id": "reference-repository_repair-07",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate(a, b): return a * b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_295"
+        },
+        "tool": "list_directory"
+      },
+      "id": "reference-tool_json-08",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_295.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "//"
+      },
+      "id": "reference-repository_repair-09",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate(a, b): return a * b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_372"
+        },
+        "tool": "list_directory"
+      },
+      "id": "reference-tool_json-10",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_372.",
+      "split": "reference"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "+"
+      },
+      "id": "reference-repository_repair-11",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate(a, b): return a // b",
+      "split": "reference"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_520"
+        },
+        "tool": "list_directory"
+      },
+      "id": "calibration-tool_json-00",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_520.",
+      "split": "calibration"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "+"
+      },
+      "id": "calibration-repository_repair-01",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate(a, b): return a * b",
+      "split": "calibration"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_632"
+        },
+        "tool": "list_directory"
+      },
+      "id": "calibration-tool_json-02",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_632.",
+      "split": "calibration"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "//"
+      },
+      "id": "calibration-repository_repair-03",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate(a, b): return a - b",
+      "split": "calibration"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_984"
+        },
+        "tool": "list_directory"
+      },
+      "id": "calibration-tool_json-04",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_984.",
+      "split": "calibration"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "+"
+      },
+      "id": "calibration-repository_repair-05",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate(a, b): return a // b",
+      "split": "calibration"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_502"
+        },
+        "tool": "list_directory"
+      },
+      "id": "calibration-tool_json-06",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_502.",
+      "split": "calibration"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "//"
+      },
+      "id": "calibration-repository_repair-07",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate(a, b): return a + b",
+      "split": "calibration"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_997"
+        },
+        "tool": "list_directory"
+      },
+      "id": "confirmation-tool_json-00",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_997.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "-"
+      },
+      "id": "confirmation-repository_repair-01",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate(a, b): return a + b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_901.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "confirmation-tool_json-02",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_901.py.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "*"
+      },
+      "id": "confirmation-repository_repair-03",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate(a, b): return a // b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_702.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "confirmation-tool_json-04",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_702.py.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "//"
+      },
+      "id": "confirmation-repository_repair-05",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the integer floor quotient of a divided by b. Current source: def calculate(a, b): return a - b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_135"
+        },
+        "tool": "list_directory"
+      },
+      "id": "confirmation-tool_json-06",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_135.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "+",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "*"
+      },
+      "id": "confirmation-repository_repair-07",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate(a, b): return a + b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_456"
+        },
+        "tool": "list_directory"
+      },
+      "id": "confirmation-tool_json-08",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_456.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "//",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "-"
+      },
+      "id": "confirmation-repository_repair-09",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the a minus b. Current source: def calculate(a, b): return a // b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_844.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "confirmation-tool_json-10",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_844.py.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "*",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "+"
+      },
+      "id": "confirmation-repository_repair-11",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate(a, b): return a * b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/module_962.py"
+        },
+        "tool": "read_file"
+      },
+      "id": "confirmation-tool_json-12",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: Read the file src/module_962.py.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "*"
+      },
+      "id": "confirmation-repository_repair-13",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the product of a and b. Current source: def calculate(a, b): return a - b",
+      "split": "confirmation"
+    },
+    {
+      "family": "tool_json",
+      "grading": {
+        "args": {
+          "path": "src/package_750"
+        },
+        "tool": "list_directory"
+      },
+      "id": "confirmation-tool_json-14",
+      "prompt": "Return exactly one JSON tool call with keys tool and args. Allowed tools: read_file and list_directory. Each takes exactly one string argument named path. No prose or markdown. Request: List the directory src/package_750.",
+      "split": "confirmation"
+    },
+    {
+      "family": "repository_repair",
+      "grading": {
+        "brokenOperator": "-",
+        "cases": [
+          [
+            7,
+            3
+          ],
+          [
+            -5,
+            2
+          ],
+          [
+            6,
+            -4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "targetOperator": "+"
+      },
+      "id": "confirmation-repository_repair-15",
+      "prompt": "Select a one-token repair for this small repository function. Return exactly one JSON object with the key replacement. Its value must be one of +, -, *, //. No prose or markdown. The function must return the sum of a and b. Current source: def calculate(a, b): return a - b",
+      "split": "confirmation"
+    }
+  ]
+}

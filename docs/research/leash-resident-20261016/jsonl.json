@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "stage": "JSONL_INTERFACE_ONLY",
+  "requests": 2,
+  "exitCode": 0,
+  "sameResidentStartup": true,
+  "dimensions": 576,
+  "promotionAuthorized": false,
+  "requestMs": [
+    213.491174,
+    159.53635
+  ]
+}

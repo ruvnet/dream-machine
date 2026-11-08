@@ -1,0 +1,1603 @@
+{
+  "schema": 2,
+  "scope": "synthetic format compatibility and CPU optimization only",
+  "training": [
+    [
+      {
+        "id": "ruos-v2-training-0",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2920.452602,
+        "activationMs": 366.115505
+      },
+      {
+        "id": "ruos-v2-training-1",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_training_1(a, b):\n    return a -",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 100,
+        "generatedTokens": 32,
+        "requestMs": 2684.23919,
+        "activationMs": 322.856574
+      },
+      {
+        "id": "ruos-v2-training-2",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "You can use the following Python code to achieve this:\n\n```python\nimport os\n\ndef read_file(path):\n    with open(path",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 84,
+        "generatedTokens": 32,
+        "requestMs": 2701.123238,
+        "activationMs": 274.473231
+      },
+      {
+        "id": "ruos-v2-training-3",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_training_3(a, b):\n    return a -",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 100,
+        "generatedTokens": 32,
+        "requestMs": 2847.477517,
+        "activationMs": 312.001759
+      },
+      {
+        "id": "ruos-v2-training-4",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2689.520771,
+        "activationMs": 284.784575
+      },
+      {
+        "id": "ruos-v2-training-5",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_training_5(a, b):\n    return a //",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 98,
+        "generatedTokens": 32,
+        "requestMs": 2804.613288,
+        "activationMs": 317.076471
+      },
+      {
+        "id": "ruos-v2-training-6",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2582.434622,
+        "activationMs": 270.910169
+      },
+      {
+        "id": "ruos-v2-training-7",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_training_7(a, b):\n    return a -",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 100,
+        "generatedTokens": 32,
+        "requestMs": 2828.275598,
+        "activationMs": 492.885675
+      }
+    ],
+    [
+      {
+        "id": "ruos-v2-training-0",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2783.900287,
+        "activationMs": 336.81744
+      },
+      {
+        "id": "ruos-v2-training-1",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": true,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 118,
+        "generatedTokens": 12,
+        "requestMs": 1203.309894,
+        "activationMs": 361.428952
+      },
+      {
+        "id": "ruos-v2-training-2",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, 'r') as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 116,
+        "generatedTokens": 32,
+        "requestMs": 2781.411866,
+        "activationMs": 343.658483
+      },
+      {
+        "id": "ruos-v2-training-3",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 118,
+        "generatedTokens": 11,
+        "requestMs": 1114.856832,
+        "activationMs": 344.565544
+      },
+      {
+        "id": "ruos-v2-training-4",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2735.275294,
+        "activationMs": 348.543386
+      },
+      {
+        "id": "ruos-v2-training-5",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 116,
+        "generatedTokens": 11,
+        "requestMs": 1043.008357,
+        "activationMs": 310.923338
+      },
+      {
+        "id": "ruos-v2-training-6",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2651.333205,
+        "activationMs": 335.11064
+      },
+      {
+        "id": "ruos-v2-training-7",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": true,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 118,
+        "generatedTokens": 11,
+        "requestMs": 1172.675059,
+        "activationMs": 337.731041
+      }
+    ],
+    [
+      {
+        "id": "ruos-v2-training-0",
+        "family": "tool_json",
+        "variant": 2,
+        "passed": false,
+        "text": "```python\nimport os\nimport argparse\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return f",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2539.961182,
+        "activationMs": 285.637706
+      },
+      {
+        "id": "ruos-v2-training-1",
+        "family": "repository_repair",
+        "variant": 2,
+        "passed": false,
+        "text": "Sum of a and b => {\"replacement\":\"+\"}\n\nproduct of a and b => {\"replacement\":\"*\"}\ninteger floor quotient of",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2677.812036,
+        "activationMs": 287.819777
+      },
+      {
+        "id": "ruos-v2-training-2",
+        "family": "tool_json",
+        "variant": 2,
+        "passed": false,
+        "text": "```python\nimport os\nimport sys\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return f",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 103,
+        "generatedTokens": 32,
+        "requestMs": 2620.662,
+        "activationMs": 319.209662
+      },
+      {
+        "id": "ruos-v2-training-3",
+        "family": "repository_repair",
+        "variant": 2,
+        "passed": false,
+        "text": "Sum of a and b => {\"replacement\":\"+\"}\na minus b => {\"replacement\":\"-\"}\nproduct of a and b => {\"replace",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2853.775131,
+        "activationMs": 442.505561
+      },
+      {
+        "id": "ruos-v2-training-4",
+        "family": "tool_json",
+        "variant": 2,
+        "passed": false,
+        "text": "Here's how you can use the `read_file` function to read a file and print its contents:\n\n```python\nimport os\n\ndef",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2791.992341,
+        "activationMs": 322.688824
+      },
+      {
+        "id": "ruos-v2-training-5",
+        "family": "repository_repair",
+        "variant": 2,
+        "passed": false,
+        "text": "Sum of a and b => {\"replacement\":\"+\"}\na minus b => {\"replacement\":\"-\"}\nproduct of a and b => {\"replace",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 99,
+        "generatedTokens": 32,
+        "requestMs": 2737.728615,
+        "activationMs": 310.910808
+      },
+      {
+        "id": "ruos-v2-training-6",
+        "family": "tool_json",
+        "variant": 2,
+        "passed": false,
+        "text": "Here's how you can use the `read_file` function to read a file and print its contents:\n\n```python\nimport os\n\ndef",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2833.594271,
+        "activationMs": 319.632022
+      },
+      {
+        "id": "ruos-v2-training-7",
+        "family": "repository_repair",
+        "variant": 2,
+        "passed": false,
+        "text": "Sum of a and b => {\"replacement\":\"+\"}\n\ncase \"a minus b\" => {\"replacement\":\"+\"}\ncase \"a divided",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2824.883556,
+        "activationMs": 331.248058
+      }
+    ]
+  ],
+  "quantizedTraining": [
+    {
+      "id": "ruos-v2-training-0",
+      "family": "tool_json",
+      "variant": 1,
+      "passed": false,
+      "text": "You are a helpful AI assistant named SmolLM, trained to provide helpful answers to user's questions. You can answer questions about the Hugging Face API,",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 114,
+      "generatedTokens": 32,
+      "requestMs": 1410.280902,
+      "activationMs": 262.848865
+    },
+    {
+      "id": "ruos-v2-training-1",
+      "family": "repository_repair",
+      "variant": 1,
+      "passed": false,
+      "text": "The following code snippet is used to calculate the sum of a and b.\n\ndef calculate_training_1(a, b):\n    return a -",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 118,
+      "generatedTokens": 32,
+      "requestMs": 1396.922416,
+      "activationMs": 253.514961
+    },
+    {
+      "id": "ruos-v2-training-2",
+      "family": "tool_json",
+      "variant": 1,
+      "passed": false,
+      "text": "You are an AI assistant specialized in helping users complete tasks. Users will get a clear and concise answer.",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 116,
+      "generatedTokens": 22,
+      "requestMs": 1212.454729,
+      "activationMs": 244.998907
+    },
+    {
+      "id": "ruos-v2-training-3",
+      "family": "repository_repair",
+      "variant": 1,
+      "passed": false,
+      "text": "Your answer is incomplete. Please provide a complete JSON object with the replacement, and its value must be one of +, -, *, //, or no prose",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 118,
+      "generatedTokens": 32,
+      "requestMs": 1456.297224,
+      "activationMs": 266.654857
+    },
+    {
+      "id": "ruos-v2-training-4",
+      "family": "tool_json",
+      "variant": 1,
+      "passed": false,
+      "text": "Write a Python function to check if a directory has a certain file. If it does, return True. If it doesn't, return False.",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 114,
+      "generatedTokens": 30,
+      "requestMs": 1363.61268,
+      "activationMs": 297.196432
+    },
+    {
+      "id": "ruos-v2-training-5",
+      "family": "repository_repair",
+      "variant": 1,
+      "passed": false,
+      "text": "Your code is correct and the function is returning a string.",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 116,
+      "generatedTokens": 13,
+      "requestMs": 686.320737,
+      "activationMs": 252.624641
+    },
+    {
+      "id": "ruos-v2-training-6",
+      "family": "tool_json",
+      "variant": 1,
+      "passed": false,
+      "text": "You are an AI assistant designed to support a conversational AI assistant. You will be provided with a user's input and output to answer their questions.",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 114,
+      "generatedTokens": 30,
+      "requestMs": 1423.353748,
+      "activationMs": 242.782456
+    },
+    {
+      "id": "ruos-v2-training-7",
+      "family": "repository_repair",
+      "variant": 1,
+      "passed": false,
+      "text": "Your answer must contain exactly 3 bullet points. Use the markdown bullet points such as: * This is point 1. Your response should contain at least",
+      "identity": {
+        "model": "SmolLM2-135M-Instruct/chat/dynamic-int8",
+        "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+        "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+        "layer": 15,
+        "position": "last_prompt_token"
+      },
+      "promptTokens": 118,
+      "generatedTokens": 32,
+      "requestMs": 1451.136412,
+      "activationMs": 248.582889
+    }
+  ],
+  "selected": {
+    "template": 1,
+    "precision": "float32"
+  },
+  "timing": {
+    "float32": {
+      "samples": 24,
+      "requestMs": [
+        205.442678,
+        208.68312,
+        210.55106,
+        210.145951,
+        209.38957,
+        346.318015,
+        222.610486,
+        214.652202,
+        211.649941,
+        209.8758,
+        231.89797,
+        232.601481,
+        236.432793,
+        227.409388,
+        242.343376,
+        226.602338,
+        228.431949,
+        226.137168,
+        228.340629,
+        227.660319,
+        221.436665,
+        221.957076,
+        223.637917,
+        218.998054
+      ],
+      "p95Ms": 241.45678855,
+      "startupMs": 9941.57733
+    },
+    "dynamic-int8": {
+      "samples": 24,
+      "requestMs": [
+        114.963204,
+        117.466516,
+        112.659503,
+        117.631016,
+        116.260375,
+        121.454258,
+        168.992731,
+        120.506867,
+        130.456852,
+        120.065557,
+        115.536225,
+        121.345578,
+        121.487618,
+        119.582557,
+        119.886738,
+        125.7636,
+        125.52216,
+        125.97871,
+        123.362549,
+        118.650226,
+        126.738661,
+        122.453138,
+        122.550529,
+        125.292599
+      ],
+      "p95Ms": 129.89912335,
+      "startupMs": 4425.68586
+    }
+  },
+  "confirmation": [
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-0",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2701.294588,
+        "activationMs": 280.319153
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-0",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2714.760875,
+        "activationMs": 338.137821
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-1",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 119,
+        "generatedTokens": 11,
+        "requestMs": 1110.86774,
+        "activationMs": 367.197575
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-1",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_1(a, b):\n    return a",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 101,
+        "generatedTokens": 32,
+        "requestMs": 2675.335516,
+        "activationMs": 364.096114
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-2",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2724.270069,
+        "activationMs": 278.929673
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-2",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2855.716102,
+        "activationMs": 362.839633
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-3",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 117,
+        "generatedTokens": 11,
+        "requestMs": 1119.920494,
+        "activationMs": 350.632687
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-3",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_3(a, b):\n    return a",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 99,
+        "generatedTokens": 32,
+        "requestMs": 2691.675771,
+        "activationMs": 307.194797
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-4",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2672.203955,
+        "activationMs": 271.88939
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-4",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2849.907489,
+        "activationMs": 351.128757
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-5",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\ndef calculate_confirmation_5(a, b):\n    return a + b\n```",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 123,
+        "generatedTokens": 23,
+        "requestMs": 2014.14639,
+        "activationMs": 371.309337
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-5",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_5(a, b):\n    return a",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 105,
+        "generatedTokens": 32,
+        "requestMs": 2757.963205,
+        "activationMs": 329.224747
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-6",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2786.235129,
+        "activationMs": 287.460687
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-6",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2642.8147,
+        "activationMs": 344.385354
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-7",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 117,
+        "generatedTokens": 11,
+        "requestMs": 1121.621865,
+        "activationMs": 347.879876
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-7",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_7(a, b):\n    return a",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 99,
+        "generatedTokens": 32,
+        "requestMs": 2813.254681,
+        "activationMs": 456.421788
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-8",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "You can use the following code to return exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\n",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 84,
+        "generatedTokens": 32,
+        "requestMs": 2761.325237,
+        "activationMs": 273.89544
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-8",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, 'r') as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 116,
+        "generatedTokens": 32,
+        "requestMs": 2667.488012,
+        "activationMs": 348.006136
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-9",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 117,
+        "generatedTokens": 11,
+        "requestMs": 1196.59424,
+        "activationMs": 353.500219
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-9",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_9(a, b):\n    return a",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 99,
+        "generatedTokens": 32,
+        "requestMs": 2695.720326,
+        "activationMs": 314.03662
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-10",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2737.878334,
+        "activationMs": 284.491165
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-10",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2787.125819,
+        "activationMs": 364.212353
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-11",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\",\n  \"floor_quotient\": 1,\n  \"integer_quotient\": 1\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 124,
+        "generatedTokens": 32,
+        "requestMs": 3001.375472,
+        "activationMs": 518.229507
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-11",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_11(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 106,
+        "generatedTokens": 32,
+        "requestMs": 2914.99134,
+        "activationMs": 333.505409
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-12",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2627.921543,
+        "activationMs": 267.234067
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-12",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2795.285393,
+        "activationMs": 343.549653
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-13",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 120,
+        "generatedTokens": 12,
+        "requestMs": 1215.21545,
+        "activationMs": 340.652362
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-13",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_13(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 102,
+        "generatedTokens": 32,
+        "requestMs": 2825.545667,
+        "activationMs": 314.8422
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-14",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2683.00198,
+        "activationMs": 275.813242
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-14",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2587.612464,
+        "activationMs": 315.12546
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-15",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\",\n  \"floor_quotient\": 15,\n  \"integer_quotient\": 15",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 124,
+        "generatedTokens": 32,
+        "requestMs": 2776.336234,
+        "activationMs": 326.743686
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-15",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_15(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 106,
+        "generatedTokens": 32,
+        "requestMs": 2588.371182,
+        "activationMs": 292.107429
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-16",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2792.036921,
+        "activationMs": 276.357442
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-16",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2998.732539,
+        "activationMs": 441.229111
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-17",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\",\n  \"value\": \"17\",\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 118,
+        "generatedTokens": 20,
+        "requestMs": 1806.265801,
+        "activationMs": 384.500333
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-17",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_17(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 100,
+        "generatedTokens": 32,
+        "requestMs": 2901.867673,
+        "activationMs": 315.110711
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-18",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "You can use the following code to return exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\n",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 84,
+        "generatedTokens": 32,
+        "requestMs": 2715.030335,
+        "activationMs": 367.700785
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-18",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, 'r') as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 116,
+        "generatedTokens": 32,
+        "requestMs": 2781.582686,
+        "activationMs": 458.955359
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-19",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\",\n  \"floor_quotient\": 19,\n  \"integer_quotient\": 19",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 124,
+        "generatedTokens": 32,
+        "requestMs": 2862.895605,
+        "activationMs": 398.63885
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-19",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_19(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 106,
+        "generatedTokens": 32,
+        "requestMs": 2707.852122,
+        "activationMs": 328.618987
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-20",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a Python function that returns exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\ndef list",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 82,
+        "generatedTokens": 32,
+        "requestMs": 2810.994591,
+        "activationMs": 278.805613
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-20",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, \"r\") as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 114,
+        "generatedTokens": 32,
+        "requestMs": 2836.448643,
+        "activationMs": 352.176238
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-21",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": true,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 120,
+        "generatedTokens": 12,
+        "requestMs": 1211.263388,
+        "activationMs": 346.163425
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-21",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_21(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 102,
+        "generatedTokens": 32,
+        "requestMs": 2973.248056,
+        "activationMs": 320.997162
+      }
+    },
+    {
+      "baseline": {
+        "id": "ruos-v2-confirmation-22",
+        "family": "tool_json",
+        "variant": 0,
+        "passed": false,
+        "text": "You can use the following code to return exactly one JSON tool call with keys `tool` and `args`:\n\n```python\nimport json\n\n",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 84,
+        "generatedTokens": 32,
+        "requestMs": 2626.247472,
+        "activationMs": 284.524736
+      },
+      "candidate": {
+        "id": "ruos-v2-confirmation-22",
+        "family": "tool_json",
+        "variant": 1,
+        "passed": false,
+        "text": "```python\nimport json\n\ndef read_file(path):\n    with open(path, 'r') as f:\n        return json.load(",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 116,
+        "generatedTokens": 32,
+        "requestMs": 2844.692246,
+        "activationMs": 352.989599
+      }
+    },
+    {
+      "candidate": {
+        "id": "ruos-v2-confirmation-23",
+        "family": "repository_repair",
+        "variant": 1,
+        "passed": false,
+        "text": "{\n  \"replacement\": \"+\"\n}",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 120,
+        "generatedTokens": 12,
+        "requestMs": 1177.651261,
+        "activationMs": 357.073191
+      },
+      "baseline": {
+        "id": "ruos-v2-confirmation-23",
+        "family": "repository_repair",
+        "variant": 0,
+        "passed": false,
+        "text": "Here is a one-token repair for the given function:\n\n```python\ndef calculate_confirmation_23(a, b):\n    return",
+        "identity": {
+          "model": "SmolLM2-135M-Instruct/chat",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "artifactDigest": "04122d954bc10fbca6b3f5fa9f0bb4027d6a0b98e42f74625f5adb97fb8f3d12",
+          "layer": 15,
+          "position": "last_prompt_token"
+        },
+        "promptTokens": 102,
+        "generatedTokens": 32,
+        "requestMs": 2804.027997,
+        "activationMs": 309.296178
+      }
+    }
+  ],
+  "families": {
+    "tool_json": {
+      "tasks": 12,
+      "baseline": 0,
+      "candidate": 0
+    },
+    "repository_repair": {
+      "tasks": 12,
+      "baseline": 0,
+      "candidate": 1
+    }
+  },
+  "protocolSha256": "16e8dd054a9a38d4d3e9a90410ea1b331f48b3ed608c428cb45d7ed56f978108",
+  "sourceSha256": {
+    "leash_ruos_followup.py": "2dcacbb61e04962569feb4b336bd74ad0f1a0ce90d2cd06dab37abab1c140da9",
+    "leash_activations.py": "3271344f5efe02f30aa159642acb9f44d28267739286417cb916c22768c0eb25",
+    "leash_workloads.py": "0ae613f8d270ecc1be47745dbfc9a4f7daabdda46c654a1d452e95a83176c24f"
+  },
+  "formatGate": false,
+  "activationLatencyGate": false,
+  "providerCalls": 0,
+  "billedCost": null,
+  "promotionAuthorized": false,
+  "wallMs": 213761.791272,
+  "limits": [
+    "Public toy tasks, not secret holdouts or representative repository repairs.",
+    "Prompt selection is not model-weight training or demonstrated learned routing.",
+    "Activation timing excludes transport, completion generation and action queueing.",
+    "No automatic drift detector or production permission integration.",
+    "Local CPU and idle costs unmetered; full monetary gate remains unknown."
+  ]
+}
