@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "live-rule-schema-20261011-v1",
+  "config": {
+    "model": "openai/gpt-oss-120b",
+    "provider": "groq",
+    "maxCalls": 2,
+    "maxOutputTokens": 1024,
+    "timeoutMs": 20000,
+    "maxCostUsd": 0.05,
+    "inputUsdPerMillion": 0.15,
+    "outputUsdPerMillion": 0.6
+  },
+  "tasks": [
+    {
+      "id": "affine",
+      "baseline": {
+        "schemaVersion": 1,
+        "candidateId": "strong",
+        "rulebook": "known affine baseline",
+        "program": [
+          {
+            "op": "multiply",
+            "key": "x",
+            "value": 7
+          },
+          {
+            "op": "addAction",
+            "key": "x"
+          },
+          {
+            "op": "addAction",
+            "key": "x"
+          },
+          {
+            "op": "add",
+            "key": "x",
+            "value": 3
+          }
+        ]
+      },
+      "training": [
+        {
+          "state": {
+            "x": 0
+          },
+          "action": 0,
+          "nextState": {
+            "x": 3
+          }
+        },
+        {
+          "state": {
+            "x": 1
+          },
+          "action": 0,
+          "nextState": {
+            "x": 10
+          }
+        },
+        {
+          "state": {
+            "x": 0
+          },
+          "action": 1,
+          "nextState": {
+            "x": 5
+          }
+        },
+        {
+          "state": {
+            "x": 2
+          },
+          "action": 3,
+          "nextState": {
+            "x": 23
+          }
+        }
+      ],
+      "confirmation": [
+        {
+          "state": {
+            "x": 5
+          },
+          "action": -3,
+          "nextState": {
+            "x": 32
+          }
+        },
+        {
+          "state": {
+            "x": 5
+          },
+          "action": 2,
+          "nextState": {
+            "x": 42
+          }
+        },
+        {
+          "state": {
+            "x": 5
+          },
+          "action": 5,
+          "nextState": {
+            "x": 48
+          }
+        },
+        {
+          "state": {
+            "x": 5
+          },
+          "action": 11,
+          "nextState": {
+            "x": 60
+          }
+        },
+        {
+          "state": {
+            "x": 9
+          },
+          "action": -3,
+          "nextState": {
+            "x": 60
+          }
+        },
+        {
+          "state": {
+            "x": 9
+          },
+          "action": 2,
+          "nextState": {
+            "x": 70
+          }
+        },
+        {
+          "state": {
+            "x": 9
+          },
+          "action": 5,
+          "nextState": {
+            "x": 76
+          }
+        },
+        {
+          "state": {
+            "x": 9
+          },
+          "action": 11,
+          "nextState": {
+            "x": 88
+          }
+        },
+        {
+          "state": {
+            "x": 13
+          },
+          "action": -3,
+          "nextState": {
+            "x": 88
+          }
+        },
+        {
+          "state": {
+            "x": 13
+          },
+          "action": 2,
+          "nextState": {
+            "x": 98
+          }
+        },
+        {
+          "state": {
+            "x": 13
+          },
+          "action": 5,
+          "nextState": {
+            "x": 104
+          }
+        },
+        {
+          "state": {
+            "x": 13
+          },
+          "action": 11,
+          "nextState": {
+            "x": 116
+          }
+        },
+        {
+          "state": {
+            "x": 21
+          },
+          "action": -3,
+          "nextState": {
+            "x": 144
+          }
+        },
+        {
+          "state": {
+            "x": 21
+          },
+          "action": 2,
+          "nextState": {
+            "x": 154
+          }
+        },
+        {
+          "state": {
+            "x": 21
+          },
+          "action": 5,
+          "nextState": {
+            "x": 160
+          }
+        },
+        {
+          "state": {
+            "x": 21
+          },
+          "action": 11,
+          "nextState": {
+            "x": 172
+          }
+        },
+        {
+          "state": {
+            "x": 34
+          },
+          "action": -3,
+          "nextState": {
+            "x": 235
+          }
+        },
+        {
+          "state": {
+            "x": 34
+          },
+          "action": 2,
+          "nextState": {
+            "x": 245
+          }
+        },
+        {
+          "state": {
+            "x": 34
+          },
+          "action": 5,
+          "nextState": {
+            "x": 251
+          }
+        },
+        {
+          "state": {
+            "x": 34
+          },
+          "action": 11,
+          "nextState": {
+            "x": 263
+          }
+        }
+      ]
+    }
+  ]
+}

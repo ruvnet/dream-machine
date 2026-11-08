@@ -1,7 +1,7 @@
 {
   "name": "@dream-machine/compile",
   "version": "0.1.0",
-  "description": "Compile a dream.config into the full Dream Machine nightly routine prompt — one source, many target repos.",
+  "description": "Compile a dream.config into the full Dream Machine nightly routine prompt \u2014 one source, many target repos.",
   "type": "module",
   "license": "MIT",
   "author": "rUv <ruv@ruv.net>",
@@ -21,6 +21,10 @@
     "./optimizer": {
       "types": "./dist/harness-optimizer.d.ts",
       "import": "./dist/harness-optimizer.js"
+    },
+    "./rule-learning": {
+      "types": "./dist/rule-learning.d.ts",
+      "import": "./dist/rule-learning.js"
     }
   },
   "files": [
