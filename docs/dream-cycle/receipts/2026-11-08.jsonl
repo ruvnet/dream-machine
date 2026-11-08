@@ -1,0 +1,9 @@
+{"ts":"2026-11-08T09:24:24Z","kind":"intent","action":"push","target":"dream/2026-10-02-evaluation-adapters","inputs_sha256":"8f3c5c594735a92625383a5fee3d9e9f92d285a2c66b69214724162a697b7e9f"}
+{"ts":"2026-11-08T09:24:34Z","kind":"result","action":"push","target":"dream/2026-10-02-evaluation-adapters","outcome":"ok","ref":"3bd4c4f"}
+{"ts":"2026-11-08T09:28:05Z","kind":"intent","action":"issue-comment","target":"dream-machine#197","inputs_sha256":"e0f3016b8e971acc09c55abdd71649cc907f299c1539de80e37cefe9067ef6f9"}
+{"ts":"2026-11-08T09:28:26Z","kind":"result","action":"issue-comment","target":"dream-machine#197","outcome":"ok","ref":"6719813028"}
+{"ts":"2026-11-08T09:28:49Z","kind":"intent","action":"pr-ready-for-review","target":"dream-machine#148","inputs_sha256":"bc4968be636ffbba1452ec073e183ab999b32c78f3612e1708b5611ad9af3c4f"}
+{"ts":"2026-11-08T09:29:03Z","kind":"result","action":"pr-ready-for-review","target":"dream-machine#148","outcome":"ok","ref":"3bd4c4f"}
+{"ts":"2026-11-08T09:29:13Z","kind":"intent","action":"pr-comment","target":"dream-machine#148","inputs_sha256":"d3427629981549ff15cc092b196a99f4851a48e95310152ddab9b1199117e51b"}
+{"ts":"2026-11-08T09:29:42Z","kind":"result","action":"pr-comment","target":"dream-machine#148","outcome":"ok","ref":"6719825183"}
+{"ts":"2026-11-08T09:30:21Z","kind":"intent","action":"push","target":"dream/2026-10-02-evaluation-adapters","inputs_sha256":"dd94e60b7025e295c5dc6c109f532182cf4aff316f10e15e461b397dca38c088"}
