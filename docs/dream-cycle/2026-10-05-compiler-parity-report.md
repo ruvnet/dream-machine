@@ -451,12 +451,107 @@ STEP 1.5, not embedded in this committed report.
 
 No merge, no close, no force-push, no self-promotion.
 
+## Consolidation refresh — 2026-11-09 (MODE=CONSOLIDATE)
+
+18 open `dream/*` candidate PRs tonight, well over
+`implementationTrack.reviewBacklogLimit=6`. `gh api search/issues` (ground
+truth, `head:dream/`) found 8 eligible drafts (still draft, ACCEPT in the
+PR's own Evaluation Receipt, not `routine-self-review`, no
+`dream-consolidate` marker for tonight's default-branch SHA `71d607b`):
+#152, #154, #161, #180, #182, #184, #189, #192. #98/#101 are legacy
+"portfolio" PRs with no `## Evaluation Receipt` section, so excluded by the
+literal eligibility text. This PR (#152, oldest by creation date among the
+eligible set) is tonight's pick.
+
+**Done.** Merged `main@71d607bea6608180b8c41980dc5386526d3f1f16` into this
+branch with an ordinary merge commit (`b1c630a`, never rebase, never
+force-push). One textual conflict this time (narrower than 2026-10-26's,
+since `main` has not touched `packages/compile/src/config.ts` again since):
+`docs/dream-cycle/LEDGER.md` — both sides had appended rows since this
+branch's 2026-10-05 base. Three of this branch's own rows (2026-10-10
+#164/#165, 2026-10-11 #166/#167, 2026-10-12 #176/#177) turned out to be
+byte-identical duplicates of rows `main` already carried (each landed via
+that PR's own independent merge into `main`, producing the same text
+twice from two lineages — a known property of this append-only file,
+already the subject of issue #166/PR #167's own fix for the distinct but
+related `duplicateDirections`-counts-rows bug). Resolved by keeping
+`main`'s full block verbatim (no dedup needed on that side) and appending
+only this branch's two genuinely unique rows after it — the original
+2026-10-05 candidate row and the 2026-10-26 refresh row, both for this PR
+— without re-appending the three duplicates. `git diff 71d607b..b1c630a -- packages/compile/src/config.ts`
+confirms the merge adds exactly this PR's original 21-line block and
+touches nothing else in that file.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+937/937 (935 passed + 2 pre-existing skipped; bare `main@71d607b` alone
+measured at 908 passed + 2 skipped by checking it out directly before
+re-checking out this branch, so this candidate's own net contribution is
+still exactly +27, matching the original receipt), governance 197/197
+(`node --test scripts/*.test.mjs`, unchanged — this candidate never touched
+a governance-suite file). 0 regressions. `npm run build` / `npm run
+typecheck` / `npm run lint`: clean, all 8 packages. `node
+packages/cli/dist/bin.js ledger verify --path docs/dream-cycle/LEDGER.md
+--since-row 38 --legacy-digest
+23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a` (the
+exact CI gate): `✓ ledger OK — 60 rows`. `npm run check:edge-contracts` and
+`npm run check:development-policy`: both clean (`verdict: ACCEPT`,
+`findings: []`). Self-hosted `dream.config.json` compile output confirmed
+byte-identical to this session's own `/tmp/tonight-prompt.md`.
+
+**Fresh critic + reward-hack pass** (separate-context subagent,
+independently re-derived from the live diff/dist, not a reread of the
+prior verdict): read `packages/compile/src/config.ts` and
+`packages/compile/src/index.test.ts` in full; traced the real crash path
+through `step6to9Candidate()`/`findUnpinnedNpxInvocations()` and confirmed
+live, against the built dist, that `{darwin:123}`, `{darwin:"  "}`,
+`{darwin:null}`, a bare array, a bare string, an unrecognized-key-with-bad-
+value, and an unrecognized-key-with-good-value all now classify correctly
+(error / error / error / "must be an object" / "must be an object" /
+error+warning / warning-only respectively) — no false reject, no false
+accept found; ran `npx vitest run packages/compile/src/index.test.ts`
+independently (145/145); confirmed no test, fixture, threshold, or gold
+value was weakened, only additions; confirmed the merge (`git diff 71d607b
+b1c630a`) touches exactly 5 files (this candidate's own `config.ts` hunk
+and `index.test.ts`, the already-committed 2026-10-05 report, a receipts
+jsonl, and `LEDGER.md`) and nothing else; confirmed the `LEDGER.md`
+resolution is exact and lossless: `main` contributed 58 data rows
+unchanged, this branch contributed its 2 rows not already present on
+`main` (the original 2026-10-05 row and the 2026-10-26 refresh row), and
+this branch's other 3 rows were correctly not re-appended because they
+were byte-identical duplicates already inside `main`'s 58 — total 60 data
+rows in the merged file, matching `58 + 2` with zero rows lost or
+duplicated. **CLEAR.** No reward-hacking signal.
+
+**CI on the pushed head.** Unlike 2026-10-26's refresh, `dependency-audit`
+(`npm audit --audit-level=high`, dev-toolchain included) is now expected
+**green**, not red: `main` has since picked up a dependabot bump moving
+`vite` from `8.3.0` (the version issue #197 was filed against) to `8.3.6`;
+`npm audit --audit-level=high` on this exact head exits `0` with `{info:0,
+low:0, moderate:10, high:0, critical:0}` (the 10 moderate findings are an
+unrelated `eslint`/`@typescript-eslint` dev-toolchain chain, below the
+`--audit-level=high` gate threshold). `npm audit --omit=dev`: `found 0
+vulnerabilities`. Issue #197 itself is left open and unmodified — closing
+it is a separate housekeeping action out of scope for this PR, not claimed
+here. Expect `test` (both Node versions), `software-evidence`,
+`dependency-security`, `dependency-audit`, `no-optional-deps`, `guard`, and
+CodeQL all green.
+
+**Decision.** ACCEPT still holds, the fresh critic is clear, and every
+required check reproduced locally against the exact pushed head is green
+(including `dependency-audit`, unlike the prior refresh) — per STEP 1.5,
+this PR is marked **ready for review** once the live CI run on the pushed
+head confirms green. Ledger row appended to `docs/dream-cycle/LEDGER.md`
+for 2026-11-09. The `dream-consolidate` marker for tonight's SHA is posted
+as a PR comment, per STEP 1.5, not embedded in this committed report.
+
+No merge, no close, no force-push, no self-promotion.
+
 ## Witness
 
 ```
-report_sha256 : 53b4b420ee8ae53302dc44f51450961511e297ce7a54edcb2a1cfc9bc5306c4e
-session_commit: a1da03b821aa7ff83f018fb25901a525cd3019c8
-witness       : f029f9eb214efee586eb1e8314c8d4e6cc76ac75f14cdd709ec275718c3a3c25
+report_sha256 : c93e73a30fd015cdb59247106f2b95ef43922cbee0ec22467bd613f49dccd657
+session_commit: 71d607bea6608180b8c41980dc5386526d3f1f16
+witness       : c5ff3001d239fb69e7434f4467b8de26b65fae78fcfb0f7283c5b1c0707799b7
 ```
 
 Computed over this file's canonical bytes (everything above this heading,
@@ -470,5 +565,5 @@ committed into the PR at
 artifact instead. Self-verify the committed copy once landed:
 
 ```bash
-node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-05-compiler-parity-report.md --commit a1da03b821aa7ff83f018fb25901a525cd3019c8
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-05-compiler-parity-report.md --commit 71d607bea6608180b8c41980dc5386526d3f1f16
 ```
