@@ -742,6 +742,34 @@ describe('verify-entrypoints', () => {
     expect(r.code).toBe(1);
   });
 
+  it('does not claim "never a shell": a config value is a trusted command and may name a shell itself (issue #193)', async () => {
+    // Issue #193 / PR #194: execFile only guarantees the config *string* is not parsed by a
+    // shell. The command it names runs as-is, so `sh -c "a && b"` (or `node -e "..."`)
+    // really reaches a shell. That is by design — dream.config.json is trusted, PR-reviewed
+    // input — so the user-facing text must not promise otherwise.
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const io = mockIOWithExecFile(
+      async (file, args) => {
+        calls.push({ file, args });
+        return { code: 0, stdout: 'ok', stderr: '' };
+      },
+      {
+        'dream.config.json': JSON.stringify({
+          repo: 'x/y',
+          cron: '0 9 * * *',
+          slots: [{ deep: 'd', scan: ['a', 'b'] }],
+          evaluatorEntrypoints: { viaShell: 'sh -c "echo a && echo b"', chained: 'echo a && echo b' },
+        }),
+      },
+    );
+    const r = await run(['verify-entrypoints'], io);
+    expect(calls).toEqual([{ file: 'sh', args: ['-c', 'echo a && echo b'] }]);
+    expect(r.out).toContain('chained: blocked');
+    expect(r.out.toLowerCase()).not.toContain('never a shell');
+    const help = await run(['help'], mockIO());
+    expect(help.out.toLowerCase()).not.toContain('never a shell');
+  });
+
   it('reports a non-string or blank evaluatorEntrypoints value as blocked instead of silently skipping it', async () => {
     const io = mockIOWithExecFile(async (file) => ({ code: 0, stdout: `${file} ok`, stderr: '' }), {
       'dream.config.json': JSON.stringify({
