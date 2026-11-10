@@ -322,36 +322,123 @@ regardless of CI. Ledger row appended: `docs/dream-cycle/LEDGER.md`
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Consolidation refresh — 2026-11-10
+
+MODE=CONSOLIDATE (STEP 1.5), `DEEP=compiler-parity` slot tonight
+(`DAYINT 20261110 % 5 = 0`), but CONSOLIDATE overrides slot selection and
+skips STEPS 2–9/17–24: 18 open `dream/*` candidate PRs tonight (well over
+`implementationTrack.reviewBacklogLimit=6`). #204/#202/#199 are
+`routine-self-review` PRs, excluded by rule. Of the remaining 15 drafts,
+every PR body still asserts `ACCEPT` in its own Evaluation Receipt, and none
+carries a `dream-consolidate` marker for tonight's exact default-branch SHA
+(`71d607bea6608180b8c41980dc5386526d3f1f16` — `main` has moved 10 commits
+past the SHA (`3fc3222`) this PR's own prior consolidate marker names, so
+that marker does not cover tonight). This PR (#161) is the oldest by
+`created_at` among the eligible set, so it is tonight's consolidation
+target.
+
+**Action.** Merged `main` (`71d607bea6608180b8c41980dc5386526d3f1f16`) into
+this branch with an ordinary merge commit (never rebase, never force-push).
+One textual conflict, again in `docs/dream-cycle/LEDGER.md` (both sides had
+appended rows since the last 2026-10-30 consolidation merge) — resolved by
+chronological concatenation by date, de-duplicating the 3 rows (#165/#167/#177)
+both sides already shared from the common ancestor; no row lost or
+duplicated either side. `packages/cli/src/index.ts`/`index.test.ts` (this
+candidate's own files) auto-merged clean against `main`'s intervening
+history.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): vitest
+886→901 (2026-10-30 round) →**923** tonight (main's own 10 intervening
+commits added tests; this candidate's own +15 are still present and
+unchanged), 2 pre-existing skips, 0 regressions. Governance
+(`node --test scripts/*.test.mjs`): 195→197→**197**, unchanged. `npm run
+typecheck`/`npm run lint`/`npm run build` (8 packages) clean, no wasm/NAPI
+degradation.
+
+**Fresh critic + reward-hack pass (this round)**, performed directly against
+the live rebuilt CLI on the new merge head (not a reread of either prior
+verdict): **NOT CLEAR, unchanged**. The 10 call sites this PR's own diff
+converts are re-confirmed correct and non-regressive — all 4 previously-cited
+live repros (`ledger append --date`, `tui --path`, `init --repo`, `freshness
+stamp --id`, each invoked bare) still produce the clear `--X requires a
+value` usage error at exit 1, zero state written. But the larger gap the
+2026-10-30 critic found is **still open, byte-for-byte**: `grep -n "as string
+| undefined"` against the merged head's `packages/cli/src/index.ts` still
+lists the same ~12 unconverted sibling call sites (`schedule --env` ×2,
+`ledger-signals --pending`, `witness verify --commit`,
+`verify-entrypoint --cmd`, `freshness stamp --path`/`--base`/`--paths`,
+`freshness verify --policy`/`--head`, `ledger backlog --repo`). Live
+re-confirmed on tonight's exact merged head:
+`node packages/cli/dist/bin.js schedule dream.config.json --env --out
+/tmp/schedule-repro-1110.json` still exits 0 and bakes
+`"environment_id": true`; `node packages/cli/dist/bin.js verify-entrypoint
+redblue --cmd` still prints the misleading `blocked (exit 1) — exited 1 with
+no stderr` instead of a usage error (the `if (!label || !cmd)` truthiness
+check at `packages/cli/src/index.ts:529` does not catch `cmd === true`,
+since `!true` is `false`). Neither has been touched by any of the 10
+intervening `main` commits. This gap is the same one the PR's own disclosed
+follow-up names for `verify-entrypoint --cmd` specifically (issue underlying
+open draft PR #182, itself still unreviewed) — tonight's finding is that the
+*generic* bug class behind this PR's own title remains open across a wider
+surface than either this PR or PR #182 covers alone.
+
+**Darwin.** `DARWIN=not-applicable` — CONSOLIDATE re-evaluates an existing
+candidate (STEPS 5–9 skipped); no new diff for Darwin to operate on, same
+judgment as every prior round on this PR.
+
+**Decision.** The original-scope `ACCEPT` is reconfirmed a second time — the
+10 call sites this PR actually converts remain correctly, non-regressively
+fixed on tonight's exact head. The fresh critic is **not clear** again, for
+the identical reason as 2026-10-30 (now re-verified unchanged rather than
+re-discovered), so per STEP 1.5 this PR **stays draft**. Ledger row appended:
+`docs/dream-cycle/LEDGER.md` (2026-11-10).
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
-Refreshed 2026-10-30 (CONSOLIDATE); supersedes the original round's triple,
-which was bound to commit 23a5770 and is preserved below for history only
-(not machine-parsed).
+Refreshed 2026-11-10 (CONSOLIDATE, second round); supersedes the 2026-10-30
+triple, which was bound to commit 3fc3222 and is preserved below for history
+only (not machine-parsed).
 
 ```
-report_sha256 : 8d92a26a9aee8e440416c9c32725b9cacfce788659ccd51286420c7add27568b
-session_commit: 3fc3222d2e5566a203331d3686c4d2eaf06713a8
-witness       : bf9d98621d80165be922da0dc7fde0c8a75d2fc10ac98a33d34ff70e78c8df62
+report_sha256 : 7ae1b2222de77b46fd1ab9d09dedc531652211f8631738bb010802c6d1cbea5d
+session_commit: 71d607bea6608180b8c41980dc5386526d3f1f16
+witness       : ea9993951786ae8e2d8917709788540af1d99708192b1902664ccd2cee2c4722
 ```
 
-Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-09-developer-experience-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8`
+Reproduce: `node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-09-developer-experience-report.md --commit 71d607bea6608180b8c41980dc5386526d3f1f16`
 
-Original round's triple (2026-10-09, bound to commit 23a5770), for history:
-hash ef457ff9...7973e0, witness c76e4b12...98c877a.
+Prior rounds' triples, for history:
+- 2026-10-09 (bound to commit 23a5770): hash ef457ff9...7973e0, witness c76e4b12...98c877a.
+- 2026-10-30 (bound to commit 3fc3222): hash 8d92a26a...7add27568b, witness bf9d9862...78df62.
 
 `GIST=LOCAL` — no `gh` CLI (`GH_TOKEN` invalid this session) and no
-gist-creation MCP tool available. Per the best-effort gist-publication
-precedent (2026-08-13 onward), this report is committed into the PR at
+gist-creation MCP tool available. GitHub MCP access itself works fine
+(`get_me`, issue/PR tools all succeeded this session) — `FALLBACK=false`.
+Per the best-effort gist-publication precedent (2026-08-13 onward), this
+report stays committed into the PR at
 `docs/dream-cycle/2026-10-09-developer-experience-report.md` as the durable
-artifact instead.
+artifact.
 
 ## Recommendation
 
-Human review of the draft PR. `EVALUATED=yes`, `VERDICT=ACCEPT` — three real,
-live-reproduced, exit-0 silent state-corruption bugs (ledger write
-corruption, ledger/tui false all-clear, config corruption) in this repo's
-own CLI, fixed with a small, mechanical, precedent-matching helper; 769+150
-→ 784+150 tests (+15), 0 regressions, lint/typecheck clean; independent
-critic caught and this session fixed one real scope miss (`--id`) before
-shipping, and disclosed (not silently dropped) one pre-existing adjacent gap
-(`verify-entrypoint --cmd`) and one cosmetic gap (`tui --repo`) as follow-ups.
+Human review of the draft PR. `EVALUATED=yes`, `VERDICT=ACCEPT` for this
+PR's own stated scope — three real, live-reproduced, exit-0 silent
+state-corruption bugs (ledger write corruption, ledger/tui false all-clear,
+config corruption) in this repo's own CLI, fixed with a small, mechanical,
+precedent-matching helper; 923 vitest + 197 governance tonight, 0
+regressions, lint/typecheck clean across two independent consolidation
+rounds now. The PR stays **draft**, not ready-for-review, because two
+consecutive independent critic passes (2026-10-30 and tonight) both found
+the same bug class the PR's own title names is not fully closed at a
+materially larger set of sibling call sites. Recommend either: (a) a human
+reviewer accepts the narrower, already-correct scope and merges as-is,
+noting the wider gap as an explicit follow-up issue, or (b) a future
+`IMPLEMENT`-mode night takes that wider gap as its backlog finding (it is
+effectively the same unimplemented finding disclosed since 2026-10-30, not
+yet in `ledger backlog` as its own row because it was surfaced only inside
+this PR's own comments/report, not a standalone issue — recommend filing one
+on a future RESEARCH-ONLY or IMPLEMENT night so it enters the backlog
+queue properly).
