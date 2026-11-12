@@ -102,7 +102,7 @@ RESEARCH-ONLY night commits it on a \`${branchPrefix}<DATE>-ledger\` branch and
 reports the branch name.`;
 }
 
-export function v2SelfReview(sr: SelfReview, ledgerPath: string): string {
+export function v2SelfReview(sr: SelfReview, ledgerPath: string, branchPrefix: string): string {
   const constitution = ROUTINE_CONSTITUTION.map((c) => `- ${c}`).join('\n');
   const external = sr.configSource
     ? `\n\nThis routine's config lives outside this checkout, at \`${sr.configSource}\`.
@@ -121,10 +121,22 @@ is at or above its limit, at most once per ${sr.everyDays} days. The candidate i
 a change to this routine (its \`dream.config\` or the compile template), not to
 product code.
 
-1. **Score the last forecast first.** Find the previous \`${SELF_REVIEW_SURFACE}\`
-   row in \`${ledgerPath}\`; its Effect column holds a frozen forecast. Measure
-   it now and record HIT or MISS with the numbers. A missed forecast is evidence
-   against that change, and a candidate to revert.
+1. **Score the last forecast first.** A \`${SELF_REVIEW_SURFACE}\` row reaches
+   \`${ledgerPath}\` only if its own PR merges, and a self-review PR stays
+   human-review-only by design, so it can sit unreviewed far longer than the
+   candidates it is meant to unblock — do not conclude "no prior forecast" from
+   a miss on \`${ledgerPath}\` alone. Branch names are deterministic (STEP 20:
+   \`${branchPrefix}<DATE>-<surface>\`), so also check for an unmerged one:
+   \`\`\`bash
+   gh pr list --search 'head:${branchPrefix}' --state all --json number,headRefName,createdAt \\
+     --jq '[.[] | select(.headRefName | endswith("-${SELF_REVIEW_SURFACE}"))] | sort_by(.createdAt) | last'
+   \`\`\`
+   and read \`${ledgerPath}\` at that PR's head if found. Score whichever row —
+   on \`${ledgerPath}\` or on an unmerged self-review branch — is newest by
+   Date; record HIT, MISS, or \`none\` if truly neither exists. A missed
+   forecast is evidence against that change, and a candidate to revert. An
+   unmerged-but-HIT forecast is still evidence the mechanism works; it is not
+   evidence the repository has it, so say which is true in the FINAL REPORT.
 2. **Measure.** \`ledger outcomes\` with live fates and \`--open-count\`; plus,
    for every REJECT, INCONCLUSIVE, closed-unmerged or stale (> 14 days) candidate
    since the last self-review, its stated cause from the issue, PR and critic.
