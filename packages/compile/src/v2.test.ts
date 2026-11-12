@@ -117,6 +117,16 @@ describe('v2 compile', () => {
     expect(p).toContain('Score the last forecast first');
   });
 
+  // Reviewer finding: a self-review row only reaches the ledger on main if its
+  // own PR merges, which self-review PRs by design (and so far, in practice)
+  // may never do; STEP 1.6.1 must not rely on the default-branch ledger alone.
+  it('scores the last forecast from an unmerged self-review branch too, not just the ledger on main', () => {
+    expect(p).toContain('only if its own PR merges');
+    expect(p).toContain("gh pr list --search 'head:dream/' --state all");
+    expect(p).toContain(`endswith("-${SELF_REVIEW_SURFACE}")`);
+    expect(p).toContain('record HIT, MISS, or `none`');
+  });
+
   it('marks ready only on ACCEPT and keeps self-review PRs draft', () => {
     expect(p).toContain('Only when VERDICT=ACCEPT');
     expect(p).toContain('gh pr ready');
