@@ -1,0 +1,8 @@
+{"ts":"2026-11-13T09:15:00Z","kind":"intent","action":"git-push","target":"origin/dream/2026-10-06-ledger-signals@53df147","inputs_sha256":"53df1478f0da92ae5a030494baef83fc46c4b579"}
+{"ts":"2026-11-13T09:15:05Z","kind":"result","action":"git-push","target":"origin/dream/2026-10-06-ledger-signals@53df147","outcome":"ok","ref":"53df1478f0da92ae5a030494baef83fc46c4b579"}
+{"ts":"2026-11-13T09:23:00Z","kind":"intent","action":"commit-ledger-report","target":"dream/2026-10-06-ledger-signals:docs/dream-cycle/2026-10-06-ledger-signals-report.md+LEDGER.md","inputs_sha256":"1b6d74c8cdbe1ff9bf8e6f6d1031525ef5c2a6c59029bbd1f2d48f7a245f2435"}
+{"ts":"2026-11-13T09:25:00Z","kind":"result","action":"commit-ledger-report","target":"dream/2026-10-06-ledger-signals@d518f60","outcome":"ok","ref":"d518f60"}
+{"ts":"2026-11-13T09:25:10Z","kind":"intent","action":"pr-comment","target":"ruvnet/dream-machine#154","inputs_sha256":"marker-71d607bea6608180b8c41980dc5386526d3f1f16"}
+{"ts":"2026-11-13T09:25:30Z","kind":"result","action":"pr-comment","target":"ruvnet/dream-machine#154","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/pull/154#issuecomment-6849155364"}
+{"ts":"2026-11-13T09:25:40Z","kind":"intent","action":"pr-ready-for-review","target":"ruvnet/dream-machine#154","inputs_sha256":"draft-false"}
+{"ts":"2026-11-13T09:26:20Z","kind":"result","action":"pr-ready-for-review","target":"ruvnet/dream-machine#154","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/pull/154"}
