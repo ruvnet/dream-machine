@@ -259,6 +259,80 @@ the new session commit.
 
 No merge, no close, no force-push, no self-promotion.
 
+## Consolidation refresh — 2026-11-13
+
+MODE=CONSOLIDATE (STEP 1.5): 13 open `dream/*` candidate PRs plus 4
+`routine-self-review` PRs tonight, well over
+`implementationTrack.reviewBacklogLimit=6`. Of the 6 still-draft candidate
+PRs (#154, #161, #182, #184, #189, #192), this PR was the oldest carrying no
+`dream-consolidate` marker for today's exact default-branch SHA
+(`71d607bea6608180b8c41980dc5386526d3f1f16`) — its only prior marker
+(`3fc3222d2e5566a203331d3686c4d2eaf06713a8`, 2026-10-25) names an older SHA;
+`main` advanced 5 commits since then (`#209`, `#208`/`#193`, `#185`, `#187`,
+`#186` — eslint/typescript-eslint bump, a CLI doc-comment fix, and 3 Actions
+version bumps).
+
+**Action.** Fetched `origin/main` and `origin/dream/2026-10-06-ledger-signals`,
+checked out the PR branch locally, merged `main`
+(`71d607bea6608180b8c41980dc5386526d3f1f16`) in with an ordinary merge
+commit (`53df147`, never rebase, never force-push). One textual conflict in
+`docs/dream-cycle/LEDGER.md` (both sides had appended rows since the
+2026-10-25 base) — resolved by chronological concatenation, deduping the 3
+rows identical on both sides (2026-10-10 `#165`, 2026-10-11 `#167`,
+2026-10-12 `#177`), no row lost either side. Confirmed via
+`git diff 3fc3222..origin/main -- packages/ledger` (0 lines) that
+`packages/ledger/src/index.ts` was not touched by any intervening main
+commit — the candidate's diff is byte-identical to the 2026-10-25 round;
+only `.github/workflows/*`, `package-lock.json` and `LEDGER.md` moved.
+
+**Re-evaluation on the new head.** Rebuilt (`npm ci && npm run build`, all 8
+packages clean). Real evaluator (`npm test` = `vitest run && npm run
+test:governance`): vitest 911 passed / 2 skipped (0 regressions vs.
+`main`'s own 911/2), governance 197/197 unchanged. `npm run typecheck` /
+`npm run lint` clean. `node packages/cli/dist/bin.js ledger verify --path
+docs/dream-cycle/LEDGER.md --since-row 38`: OK, 60 rows. Live repro re-run
+against the rebuilt `packages/ledger/dist/index.js` on the new head:
+minority tail (3/14) → `false`; genuine majority (8/14) → `true`;
+all-blocked (14/14) → `true`; exact 50/50 (7/14) → `false` — all unchanged.
+
+**Fresh critic + reward-hack pass (this round).** Run by a genuinely
+independent subagent this time (separate context, own commands, own build).
+Read the full current `packages/ledger/src/index.ts`/`index.test.ts` plus
+the exported diff; ran 11 of its own adversarial probes against the rebuilt
+dist (empty/`n=1`/`n=2` windows, `n=3`/`n=4` minimum sizes, an exact 3/6 tie,
+custom `window=5/6/2/∞/100` options, scattered-vs-contiguous majority
+patterns) — all matched the intended "strict majority blocked AND last-3-
+consecutive-blocked" semantics, no counter-example. Confirmed no gold data,
+threshold or test weakened; confirmed the only consumers
+(`packages/cli/src/index.ts`'s `ledger signals` command and the
+`tui.ts:206` warning line) are unaffected beyond the intended behavior
+change. Disclosed non-blocking gaps (no explicit non-default-`window` test,
+no `n=3/4` boundary test, no scattered-majority test, no `evaluated:'no'`
+test) — same class already named in this PR's own 2026-10-06 report,
+left for a future night, not a defect. **Verdict: CLEAR.**
+
+**CI on the pushed head (`53df147`).** `dependency-audit` — previously the
+lone red check, blocking ready-for-review on both the original round and
+the 2026-10-25 refresh — is now green: `main`'s intervening `#205` bumped
+`vite` to 8.3.6, clearing the `vite`/`launch-editor` advisory tracked as
+issue `#197`. All 9 required checks (`guard`, `CodeQL`/`analyze`, `test`
+(both Node versions), `no-optional-deps`, `software-evidence`,
+`dependency-security`, `dependency-audit`) green on `53df147`.
+
+**Decision.** ACCEPT still holds, the fresh critic is clear, and every
+required check on the new head is green — per STEP 1.5/STEP 20-25, this PR
+is marked **ready for review** (`gh pr ready` equivalent via the GitHub MCP
+tool). Ready for review is not approval: the session never merges.
+`dream.config.json`'s `autoMerge: false`; no `automerge-safe` label applied.
+Bounded Darwin re-ran (`npx -y @metaharness/darwin@0.12.0 evolve . --sandbox
+mock`, ≤3 generations × ≤4 candidates, 1 promoted lineage `g2_v5`) — a
+generic mock-sandbox control-plane check, not candidate-specific, same
+judgment as prior nights on this surface. Ledger row appended:
+`docs/dream-cycle/LEDGER.md` (2026-11-13). Witness below refreshed against
+tonight's session commit.
+
+No merge, no close, no force-push, no self-promotion.
+
 ## Gist
 `GIST=LOCAL` — no `gh` CLI (`GH_TOKEN` invalid: `gh auth status` fails) and
 no gist-creation MCP tool available this session (GitHub MCP access itself
@@ -271,8 +345,17 @@ specifically a gist-API gap). Full report committed at
 
 ## Witness
 
-Refreshed 2026-10-25 (consolidation round; supersedes the original-round
-triple below, same report file, now bound to tonight's session commit):
+Refreshed 2026-11-13 (consolidation round; supersedes the 2026-10-25 and
+original-round triples below, same report file, now bound to tonight's
+session commit):
+
+```
+report_sha256 : 084ce70104ad86bc3e853fde4b3d4a6883fcdead0905731c2bdaa5ee359b0827
+session_commit: 71d607bea6608180b8c41980dc5386526d3f1f16
+witness       : cc51e88b03c6b1ce27998b48d8418bb9400df717836b6a365f11b00d01b1a8dc
+```
+
+2026-10-25 round, for the record:
 
 ```
 report_sha256 : 426ff8a119c4df2fefd96e11333e4042818ecb177d5064d7b7336ba370d9b2cf
@@ -294,5 +377,5 @@ committed file with no unavailable intermediate bytes. Verify the current
 round:
 
 ```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-06-ledger-signals-report.md --commit 3fc3222d2e5566a203331d3686c4d2eaf06713a8
+dream-machine witness verify-report docs/dream-cycle/2026-10-06-ledger-signals-report.md --commit 71d607bea6608180b8c41980dc5386526d3f1f16
 ```
