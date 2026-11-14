@@ -56,8 +56,10 @@ export interface IO {
   exec?(cmd: string): Promise<ExecResult>;
   /**
    * Run a file with argv, no shell involved. Optional: not every IO needs it.
-   * Used by `verify-entrypoints` so a config-sourced command string never
-   * reaches a shell — see `tokenizeCommand` in entrypoint.ts.
+   * Used by `verify-entrypoints` so a config-sourced command string is never
+   * itself parsed by a shell — see `tokenizeCommand` in entrypoint.ts. The
+   * program it names still runs with the caller's privileges and may be anything,
+   * including a shell (`sh -c "..."`) or an interpreter (`node -e "..."`).
    */
   execFile?(file: string, args: string[]): Promise<ExecResult>;
 }
@@ -175,7 +177,7 @@ Commands:
                                                          its own embedded "## Witness" section
   verify-entrypoint <label> --cmd "<command>"           Classify an evaluator entrypoint's liveness
   verify-entrypoints [config]                           Classify every evaluatorEntrypoints entry
-                                                         (execFile, never a shell — no manual retyping)
+                                                         (argv via execFile, string not shell-parsed; runs trusted config commands)
   tui             [--path LEDGER.md] [--no-color] [--merged "7,12"] [--open-count N]  Render the dashboard
   audit-gate      --path <npm-audit.json>               Gate on high/critical findings in an audit report
   ruos verify <observation-or-pair.json> <policy.json>  Verify a governed ruOS receipt
@@ -541,10 +543,12 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
         // Trust boundary (unlike audit-gate's policy file below, deliberately not
         // hardened against a hostile config): dream.config.json is repo-committed,
         // PR-reviewed config, never runtime-attacker-controlled — same boundary PR
-        // #17/#40 already established for this exact entrypoint automation. execFile
-        // (never a shell) still applies regardless, so a config value containing shell
-        // metacharacters can't act as a shell operator even if that boundary were ever
-        // wrong. Not proven shell-safe on Windows: `execFile('npm'|'npx', …)` resolves
+        // #17/#40 already established for this exact entrypoint automation. That
+        // boundary is the ONLY security control here: execFile only guarantees the
+        // config string itself is not parsed by a shell. Each value is a command and is
+        // run as one, so a config author can always invoke a shell or interpreter
+        // explicitly (`sh -c "a && b"`, `node -e "..."`) — verified live in issue #193.
+        // Do not treat this command as safe for untrusted config. Not proven shell-safe on Windows: `execFile('npm'|'npx', …)` resolves
         // through the platform's `.cmd`/`.bat` shim, which Node internally re-spawns via
         // `cmd.exe` (see nodejs/node CVE-2024-27980) — this repo's nightly runner is
         // Linux-only, so out of scope tonight, flagged for anyone porting this command.
@@ -591,7 +595,7 @@ export async function run(argv: string[], io: IO): Promise<RunResult> {
             sink.log(
               `${label}: blocked (exit 1) — compound command (contains a shell control operator: ` +
                 `${argv.filter((t) => t === '&&' || t === '||' || t === ';' || t === '|' || t === '&').join(', ')}); ` +
-                'verify-entrypoints runs one command per entry, never a shell — split this entry into a single ' +
+                'verify-entrypoints runs one command per entry and does not parse it with a shell — split this entry into a single ' +
                 'command, or verify its pieces individually via verify-entrypoint',
             );
             worst = Math.max(worst, 1);
