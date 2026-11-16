@@ -160,27 +160,140 @@ reaches `main` only if this PR merges.
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Consolidation refresh — 2026-11-16
+
+MODE=CONSOLIDATE (STEP 1.5): 19 open `dream/*` candidate PRs tonight (23 open
+PRs total including 3 non-dream-cycle feature branches — #163, #168, #190 —
+and 1 dependabot PR, #212), well over `implementationTrack.reviewBacklogLimit=6`.
+`routine-self-review` PRs #199/#202/#204/#211 are excluded by rule. #98/#101 are
+multi-repo portfolio branches, not single-surface candidates (established
+exclusion, 2026-10-30/2026-11-01 rounds). #163 is blocked on an external
+cross-repo dependency (`ruvnet/ruvnet#3`), not independently testable, and
+carries no Evaluation Receipt — not an eligible CONSOLIDATE target. #168 is a
+multi-section experimental proposal with mixed internal verdicts
+(ACCEPT/REJECT/NO_GAIN across sub-findings), not a single candidate with one
+ACCEPT verdict in its own Evaluation Receipt — same reason, excluded. #190 is
+likewise a multi-part experimental PR without a single Evaluation-Receipt
+verdict. Of the remaining eligible-shaped drafts (#145, #148, #150, #152,
+#154, #156 is already out of draft, #158, #161, #180, #182, #184, #189,
+#192 — each carrying `ACCEPT` in its own Evaluation Receipt), #161 already
+carries a `dream-consolidate` marker for tonight's exact default-branch SHA
+(`71d607bea6608180b8c41980dc5386526d3f1f16`, posted 2026-11-10). This PR
+(#182) was the oldest eligible draft with no marker for tonight's SHA at all
+(last marker: `3fc3222…`, 2026-11-01) — selected per STEP 1.5's "oldest
+eligible" rule.
+
+**Action.** `main`'s tip is `71d607bea6608180b8c41980dc5386526d3f1f16` — the
+*same* commit this branch's own prior merge commit (`1d563fae`, 2026-11-01)
+already merged in. `main` has not moved since that round (`git merge-base
+dream/2026-10-14-developer-experience main` == `main`'s tip, confirmed via
+`git log --oneline -1 main`). There is nothing new to merge: **no merge
+commit was created tonight** — merging an already-ancestor commit is a no-op,
+and creating an empty merge commit would misrepresent the history as if
+something changed. The branch head remains `62382cb8ef1957da224316ff1469adf716351151`
+until this refresh's own commit (below) is added on top of it.
+
+**Re-evaluation on the unchanged head.** Real evaluator (`npm test`):
+`npx vitest run` → 910 passed + 2 skipped (912), `node --test scripts/*.test.mjs`
+→ 197/197 governance, **0 regressions** against bare `main@71d607b` (908+2
+skipped vitest / 197 governance — the +2 delta is this candidate's own two
+tests, unchanged from every prior round). `npm run typecheck` / `npm run lint`
+/ `npm run build` (8 packages, no wasm/NAPI degradation) all clean. Live
+repro re-run against the rebuilt `packages/cli/dist/bin.js` on this exact
+head: bare `--cmd`, `--cmd` immediately followed by another flag, `--cmd=`,
+and `--cmd ""` all still produce the clean `usage:` error at exit 1 with
+`exec()` never reached; `verify-entrypoint bench --cmd "npm test"` still
+reports `live`, unchanged.
+
+**Dependency audit — status changed since the last round.** Dev-inclusive
+`npm audit --audit-level=high` now reports **0** failing findings at or above
+`high` (9 pre-existing *moderate*-severity findings remain, all in
+`eslint`/`@typescript-eslint/*`/`minimatch`, none at `high`/`critical`) —
+confirmed identical on bare `main@71d607b` and on this PR's head
+(`git diff main -- package.json package-lock.json` from this branch is empty,
+byte-identical lockfile). The `vite`/`launch-editor`/`typescript-eslint`
+high-severity family tracked at issue #197 was resolved by an intervening
+`main` commit (`#209`, "bump eslint to 10.14.0 and typescript-eslint to
+8.72.1", 2026-11-06) — this is the first consolidation round where the
+previously-red `dependency-audit` gate is expected to pass. Production-scoped
+`npm audit --omit=dev --audit-level=high`: 0 vulnerabilities (unchanged, as
+every prior round).
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the diff and
+the live repository (not a reread of any prior verdict): **CLEAR**. It
+independently re-read the hand-rolled `parseArgs` and the `verify-entrypoint`
+case, confirmed the mechanism (`flags.cmd === true` on a bare/trailing flag)
+is real by reading the parser directly, verified the two new tests are
+non-tautological by temporarily reverting the production guard and observing
+both tests fail (then restoring the fix, confirming a clean `git status`),
+searched for bypasses (`--cmd=`, `--cmd ""`, double `--cmd`, numeric-looking
+values, the sibling `verify-entrypoints` config-driven path, and all ~24
+other `flags.x as string` call sites in the file) and found none, confirmed
+no benchmark/threshold/gold/evaluator file was touched, and independently
+ran `npx vitest run packages/cli/src/index.test.ts` (108/108 passed). It also
+noted the plural `verify-entrypoints` path already uses a proper
+`typeof !== 'string' || .trim() === ''` check and never shares this bug.
+
+**Disclosed, not fixed tonight — narrower than previously reported.**
+Re-probing the three sibling sites this report's "Consolidation refresh —
+2026-11-01" section disclosed: `freshness verify --policy` (bare) and
+`freshness stamp --base` (bare) now both print a clean `usage:` message at
+exit 1 — fixed by an intervening, unrelated `main` PR since 2026-11-01, not
+by this PR. `audit-gate --path` (bare) remains unfixed: it still prints a
+raw parse-error message (`could not read/parse true: The "path" argument
+must be of type string...`) and still **exits 0**, not 1 — arguably worse
+than the original `verify-entrypoint --cmd` bug, since a value-less
+`--path` is misreported as a *passing* gate rather than merely a misleading
+`blocked` one. This is the same disclosed bug class (PR #161's 2026-10-30/
+2026-11-10 rounds, this report's own original "3 concrete next steps" §1),
+narrowed to one remaining confirmed site rather than three. CONSOLIDATE mode
+re-evaluates the existing candidate; it does not widen one (STEPS 5–9
+skipped), so `audit-gate --path` is not fixed here.
+
+**Darwin.** `DARWIN=blocked` — this session's own sandbox permission
+classifier denies `npx -y @metaharness/darwin@0.12.0 evolve . --sandbox mock`
+outright as external code, before any invocation runs, same precedent as
+every prior CONSOLIDATE round on this repo. Not required for this verdict.
+
+**Decision.** `ACCEPT` still holds (unchanged candidate, re-confirmed), the
+fresh critic is clear, and — for the first time across this PR's four
+consolidation rounds — the previously-red `dependency-audit` gate is now
+expected green on the pushed head, with every other required check
+(`guard`, `test` ×2 Node versions, `dependency-security`, `no-optional-deps`,
+`software-evidence`, CodeQL) reproduced-equivalent green above. Per STEP 1.5,
+this PR is marked **ready for review** once the pushed head's CI confirms
+all required checks green. The session never merges — ready-for-review only
+moves it into the human review queue.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
 ```
-report_sha256 : 0c8d18a28574c328ca4d597d151843ebfb7187db4572ddebf7cab3a34c5d1bde
-session_commit: 1d563fae7975abb8c32f72455404ca47999fba2d
-witness       : 9b7af31531aa9ed52dcaed41a90c481d5c6b6174a192f3ba7925dc1a012faf9f
+report_sha256 : adec94a074c90c103b1e74bfdbe16b5db900006c804fc2d61b37706adf7e2d2e
+session_commit: 71d607bea6608180b8c41980dc5386526d3f1f16
+witness       : 4a29440abe8b80897bc1d0f55cb7aefb638d250a8789d6680182b60b9cc872d9
 ```
 
-Refreshed 2026-11-01 (consolidation round): now bound to the merge commit
-(`1d563fae7975abb8c32f72455404ca47999fba2d`, `main`@`3fc3222` merged into this
-branch) rather than the original `b2abcc1` baseline, since the Consolidation
-refresh section above is itself part of this file's canonical bytes.
-Superseded values from the original round are preserved in PR history, not
-repeated here as current. Computed over this file's canonical bytes
-(everything above the `## Witness` heading, trailing whitespace collapsed to
-one newline) — reproducible from the committed file with no unavailable
-intermediate bytes. Verify:
+Refreshed 2026-11-16 (consolidation round): bound to `main`'s own tip
+(`71d607bea6608180b8c41980dc5386526d3f1f16`) rather than a new merge commit,
+since tonight's round found nothing new on `main` to merge (see
+"Consolidation refresh — 2026-11-16" above) — this is the same commit STEP 0
+computed as `SESSION_COMMIT` at the start of this session. Computed over this
+file's canonical bytes (everything above this `## Witness` heading, trailing
+whitespace collapsed to one newline) — reproducible from the committed file
+with no unavailable intermediate bytes. Verify:
 
 ```bash
-dream-machine witness verify-report docs/dream-cycle/2026-10-14-developer-experience-report.md --commit 1d563fae7975abb8c32f72455404ca47999fba2d
+dream-machine witness verify-report docs/dream-cycle/2026-10-14-developer-experience-report.md --commit 71d607bea6608180b8c41980dc5386526d3f1f16
 ```
+
+Prior rounds' values (2026-10-14 original: session_commit `b2abcc1`, witness
+`4c8277be…`; 2026-11-01 consolidation: session_commit `1d563fae`, witness
+`9b7af315…`) are superseded by this refresh and preserved only in this PR's
+commit history, not repeated here as current.
 
 Independent reproduction of the underlying fix: `git checkout b2abcc1 -- packages/cli/src/index.ts`
 restores the pre-fix behavior, where `node packages/cli/dist/bin.js verify-entrypoint redblue --cmd`
