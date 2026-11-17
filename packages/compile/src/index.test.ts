@@ -374,6 +374,17 @@ describe('validateConfig', () => {
   it.each(['ledgerPath', 'branchPrefix'] as const)('accepts a well-formed %s', (field) => {
     expect(validateConfig({ ...metaharness, [field]: 'docs/custom-path' }).ok).toBe(true);
   });
+  it.each(['no', 'false', 0, 1, 'true'])('rejects a non-boolean autoMerge = %j', (v) => {
+    const r = validateConfig({ ...metaharness, autoMerge: v as unknown as boolean });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join()).toMatch(/autoMerge must be a boolean/);
+  });
+  it.each([true, false])('accepts a boolean autoMerge = %j', (v) => {
+    expect(validateConfig({ ...metaharness, autoMerge: v }).ok).toBe(true);
+  });
+  it('leaves autoMerge optional', () => {
+    expect(validateConfig({ ...metaharness, autoMerge: undefined }).ok).toBe(true);
+  });
 });
 
 describe('compile', () => {
@@ -409,6 +420,26 @@ describe('compile', () => {
     expect(() =>
       compile({ ...metaharness, buildStep: { cmd: 'npm ci', degradeOnWasmFailure: 'no' as unknown as boolean } }),
     ).toThrow(/buildStep\.degradeOnWasmFailure must be a boolean/);
+  });
+
+  it('throws instead of silently flipping the compiled merge policy from a truthy non-boolean autoMerge', () => {
+    // Pre-fix, the string "no" is JS-truthy, so this compiled "guarded
+    // auto-merge ENABLED" into the authoritative nightly prompt -- the
+    // opposite of what a config author writing "no" would expect.
+    expect(() => compile({ ...metaharness, autoMerge: 'no' as unknown as boolean })).toThrow(
+      /autoMerge must be a boolean/,
+    );
+  });
+
+  it('renders the human-review-only merge policy by default (autoMerge omitted)', () => {
+    expect(prompt).toContain('Merge policy.** Human review required.');
+    expect(prompt).not.toContain('guarded auto-merge ENABLED');
+  });
+
+  it('renders the guarded-auto-merge policy when autoMerge: true', () => {
+    expect(compile({ ...metaharness, autoMerge: true })).toContain(
+      'Merge policy (guarded auto-merge ENABLED for this target)',
+    );
   });
 
   it('throws instead of silently compiling a broken ledger reference from an empty ledgerPath', () => {
