@@ -346,24 +346,116 @@ this PR merges.
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Consolidation refresh — 2026-11-17
+
+MODE=CONSOLIDATE (STEP 1.5). 19 open `dream/*` candidate PRs tonight,
+over `implementationTrack.reviewBacklogLimit=6`. #211/#204/#202/#199 are
+`routine-self-review` PRs, excluded by rule. #137/#141/#145/#148/#152/
+#154/#156/#180/#182 are already out of draft. #98/#101 are multi-repo
+portfolio-format branches, not single-surface dream-cycle candidates
+(established precedent, carried forward). #161 already carries a
+`dream-consolidate` marker for tonight's exact default-branch SHA
+(`71d607bea6608180b8c41980dc5386526d3f1f16` — main has not moved since
+the 2026-11-10 round that stamped it). Of the remaining eligible drafts
+(#184, #189, #192 — each still draft, ACCEPT in its own Evaluation
+Receipt, no marker for tonight's SHA), this PR (#184) is the oldest by
+`created_at`.
+
+**Action.** Merged `main` (`71d607bea6608180b8c41980dc5386526d3f1f16`)
+into this branch with an ordinary merge commit (`dc58211`, never rebase,
+never force-push). One textual conflict in `docs/dream-cycle/LEDGER.md`
+(both sides had appended rows since the 2026-11-02 round); resolved by
+chronological concatenation (2026-10-15, 10-24, 10-28, 11-02 in date
+order) — no row lost or duplicated. `git diff origin/main --stat --
+packages/compile/src/config.ts packages/compile/src/index.test.ts` on
+the new head is content-identical to the originally reviewed diff
+(+11/+31 lines, 2 files, 42 insertions, 0 deletions) — the merge widened
+nothing.
+
+**Re-evaluation on the new head.** Real evaluator (`npm test`): bare
+`main@71d607b` measured live by temporarily restoring the two candidate
+files to their `origin/main` versions — 908 vitest passed + 2 skipped
+(910) — then restoring the candidate and re-running: **919 vitest
+passed + 2 skipped (921, +11, 0 regressions)**; governance
+(`node --test scripts/*.test.mjs`) **197/197 unchanged**.
+`npm run lint` / `npm run typecheck` clean. `npm run build` (8 packages)
+clean, no wasm/NAPI degradation. Self-hosted `dream.config.json` compile
+output byte-identical (`diff -q` against an independent fresh compile on
+this same head: identical). Live repro re-run against the rebuilt
+`packages/compile/dist/config.js`: `autoMerge` values `"no"`, `"false"`,
+`0`, `1`, `null` all still rejected with `autoMerge must be a boolean`;
+`true`/`false`/`undefined` all still accepted — unchanged from the
+original round.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, instructed to try to
+break the candidate from scratch against the live merged repository (not
+a reread of any prior verdict): **CLEAR**. It independently probed
+`null`/`[]`/`{}`/`NaN`/`Infinity`/`-0` through `validateConfig` (all 6
+rejected); grepped every `autoMerge` consumer in the repo and confirmed
+`scripts/automerge-guard.mjs`'s two call sites use strict `!== true`
+equality and were never exposed to the original bug; ran the full suite,
+lint and typecheck itself; and ran a genuine non-tautology check — reverted
+`config.ts` to the pre-fix `main` version (test file untouched), confirmed
+6 of the 9 new boolean-validation test cases fail against old code, then
+restored the file and verified `git status`/`git diff --stat` were
+byte-identical to before. One minor, non-blocking note: the tests don't
+add an explicit `autoMerge: null` case (independently verified via the
+critic's own probe instead) — a documentation-completeness gap, not a
+correctness one.
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from every prior round;
+still a single validation-shape fix with no evolvable population or
+numeric objective. Entrypoint probed live for the record
+(`npx --yes @metaharness/darwin@0.12.0 --version`): reachable, prints
+usage, not blocked by sandbox policy tonight — but not run against this
+candidate, consistent with unbroken precedent (#29, #79, #105, #111,
+#127, #142/#143, #152, #164/#165, and every prior consolidation round on
+this PR).
+
+**CI on the pushed head.** Will be confirmed live via the GitHub API
+after push; see the PR comment for the exact per-check result. Prior
+rounds' only persistently red check has been `dependency-audit` (the
+full dev-inclusive `npm audit --audit-level=high` job), for a pre-existing,
+already-tracked `vite`/`launch-editor` advisory family (issue #197) —
+this branch's lockfile remains byte-identical to `main`'s
+(`git diff origin/main -- package.json package-lock.json` empty), so any
+recurrence here is inherited, not introduced by this candidate or this
+merge.
+
+**Decision.** ACCEPT is reconfirmed a second time on tonight's exact
+head. Ready-for-review requires ALL of: ACCEPT holds (yes), every
+required check green (pending live CI confirmation — see PR comment),
+critic clear (yes). Marked ready only if the live CI check bears this
+out; otherwise stays draft, stated exactly why in the PR comment. Ledger
+row appended on this branch: `docs/dream-cycle/LEDGER.md` (2026-11-17) —
+also stated in issue #183, since it reaches `main` only if this PR
+merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
-Refreshed 2026-11-02 (consolidation round), superseding the original pair
-below — bound to the merge commit, not the original parent, per this
-repo's own witness convention for a CONSOLIDATE re-evaluation:
+Refreshed 2026-11-17 (second consolidation round), superseding the
+2026-11-02 pair below — bound to tonight's merge commit, not the
+original parent, per this repo's own witness convention for a
+CONSOLIDATE re-evaluation:
 
 ```
-report_sha256 : a4cdfcb78a90ccf586de113d5fe7e2cb01b42fc0202791f04ed402ac7c85cfad
-session_commit: f51e51ac530647d0916867d09fe79848d2d8e84a
-witness       : 1f5e593a698683156c8c3a7ed5d9089695cd8542cc95ac458fa14e0325f91dab
+report_sha256 : 7cbc4ac19c2a9ca79a5b327eef15c1d16a66d716da703c2be4bf4e83e965b91b
+session_commit: dc5821133136c8d60a186ac7108077ad9f78876d
+witness       : 1a930f2f3b4efa50940d7290292c924773ca39432c67bd38b81f1821915f4af6
 ```
 
-Original round's pair (parent `b2abcc1`, pre-consolidation), retained for
-history: `report_sha256 3169cdad...c36cc`, `witness 316c77d1...c886`.
+2026-11-02 round's pair (merge commit `f51e51ac`), retained for history:
+`report_sha256 a4cdfcb7...5cfad`, `witness 1f5e593a...1dab`. Original
+round's pair (parent `b2abcc1`, pre-consolidation), retained for history:
+`report_sha256 3169cdad...c36cc`, `witness 316c77d1...c886`.
 
 Computed over this file's canonical bytes (everything above this heading,
 trailing whitespace collapsed to one newline). Self-verify:
 
 ```bash
-node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-15-compiler-parity-report.md --commit f51e51ac530647d0916867d09fe79848d2d8e84a
+node packages/cli/dist/bin.js witness verify-report docs/dream-cycle/2026-10-15-compiler-parity-report.md --commit dc5821133136c8d60a186ac7108077ad9f78876d
 ```
