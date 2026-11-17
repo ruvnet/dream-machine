@@ -1,1 +1,2 @@
 {"ts":"2026-11-17T09:21:59Z","kind":"intent","action":"push","target":"origin/dream/2026-10-15-compiler-parity","inputs_sha256":"ae70af2ffdadd2659fc250d114303ea41725f91d1b628364c0403e57a6a180a4"}
+{"ts":"2026-11-17T09:23:18Z","kind":"result","action":"push","target":"origin/dream/2026-10-15-compiler-parity","outcome":"ok","ref":"b5c6743"}
