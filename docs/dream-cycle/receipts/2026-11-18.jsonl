@@ -1,0 +1,3 @@
+{"ts":"2026-11-18T09:11:33Z","kind":"intent","action":"mode_selection","target":"dream-machine#189","inputs_sha256":"n/a"}
+{"ts":"2026-11-18T09:11:33Z","kind":"result","action":"mode_selection","target":"dream-machine#189","outcome":"ok","ref":"CONSOLIDATE: 18 open dream/* PRs, #189 oldest eligible, stale marker 3fc3222 vs current 71d607b"}
+{"ts":"2026-11-18T09:21:21Z","kind":"intent","action":"push","target":"origin/dream/2026-10-16-ledger-signals","inputs_sha256":"aecc58de4e9caf60a70fa8ef6171af032a6777fe"}

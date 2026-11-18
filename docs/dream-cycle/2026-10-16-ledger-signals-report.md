@@ -210,11 +210,126 @@ issue #188, since it reaches `main` only if this PR merges.
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Consolidation Refresh — 2026-11-18
+
+MODE=CONSOLIDATE (STEP 1.5). 18 open `dream/*` candidate PRs tonight (down
+from 21 on 2026-11-03 — several of that round's eligible drafts, e.g.
+#145/#148/#150/#152/#154/#158/#161/#180/#182/#184, have since left draft and
+now sit ready-for-review), still well over
+`implementationTrack.reviewBacklogLimit=6`. `main` finally moved again: 10
+commits since the last consolidate SHA (`3fc3222`, static 2026-10-19 →
+2026-11-12), including two dependency bumps that specifically targeted
+`npm audit` (#205 vite/vitest 8.3.6/5.1.0, #209 eslint/typescript-eslint)
+plus three other dream-cycle candidates landing on `main`
+(#139/#149/#158's own fixes) and one `verify-entrypoints` correctness fix
+(#193/#208). Of the two eligible drafts from 2026-11-03 (#189, #192), both
+still carry only the stale `3fc3222` marker — neither has a marker for
+tonight's SHA. #189 (this PR, created 2026-10-16) is still the older of the
+two, so it is tonight's pick again; #192 remains eligible and unmarked for
+next time. #98/#101 (multi-repo portfolio branches) remain excluded as
+before, not single-surface dream-cycle candidates.
+
+**Action.** Merged `main` (`71d607bea6608180b8c41980dc5386526d3f1f16`) into
+this branch with an ordinary merge commit (`aecc58de4e9caf60a70fa8ef6171af032a6777fe`,
+never rebase, never force-push). One textual conflict, in
+`docs/dream-cycle/LEDGER.md` only (both branches had appended rows since
+the common ancestor); resolved by interleaving all four rows in
+chronological-date order (2026-10-16, 2026-10-24, 2026-10-28, 2026-11-03) —
+a pure append-order merge, no row's content edited. No other file
+conflicted. `git diff main...dream/2026-10-16-ledger-signals --stat` outside
+the ledger confirms the branch's own diff is still exactly the original two
+files (`scripts/witness-corpus.test.mjs`, this report), purely additive, 0
+deletions — unchanged by the merge.
+
+**Re-evaluation on the new head.** Fresh `npm ci && npm run build`: clean,
+8 packages, 0 wasm/NAPI degradation. Real evaluator (`npm test` = `vitest
+run && npm run test:governance`): vitest 908 passed + 2 pre-existing
+skipped (unchanged by this candidate), governance 200/200 (197 pre-candidate
++ 3 this candidate added, unchanged by the merge), **0 regressions**.
+`npm run lint` / `npm run typecheck` clean. `node packages/cli/dist/bin.js
+ledger verify --path docs/dream-cycle/LEDGER.md --since-row 38
+--legacy-digest 23b02bfa98b56b374fadfb1b05df25e589dcdeab26143ae6183083d21779426a`
+(the exact invocation `.github/workflows/ci.yml` runs): `✓ ledger OK — 60
+rows`, confirming the hand-resolved merge conflict above did not corrupt
+the structural ledger gate.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, instructed to try to
+break the candidate: **CLEAR**, no gaps (blocking or non-blocking) found.
+Independently re-derived the grandfathered hash by re-grepping every file
+under `docs/dream-cycle/*.md` for `^## Witness$` occurrence counts and
+confirmed a 1:1 match with the grandfather map (not over- or
+under-inclusive). Re-ran all 4 live negative controls from the original
+round (empty the map; add a real single-heading entry; add a fabricated
+entry with a wrong hash; corrupt the real entry's hash) independently, each
+reverted and `git status --short`/`git diff --stat` confirmed clean
+afterward. Confirmed the map is keyed generically over its entries (not
+hardcoded to one filename) by using a *different* file in control (b).
+Confirmed no skip/only/TODO/env/network/exec/`child_process` surface in the
+candidate file; the one regex family in `report-witness.ts` is untouched
+and non-ReDoS (bounded hex-digit classes). Confirmed the glob in
+`test:governance` actually picks up the new file (3 named subtests visible
+in the governance run's own output). Independently reran `npm test` green
+on this exact head.
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from both prior rounds;
+still a single fixed-contract regression test, no evolvable population.
+
+**CI / dependency-audit.** Reproduced locally: `npm audit --audit-level=high`
+on this head reports 15 findings (8 moderate, 7 high) — a *different* set
+than the 2026-11-03/10-28/10-24 nights' `vite@8.3.0-8.3.2`/`launch-editor`
+chain (that one is gone; #205 fixed it on `main` on 2026-11-02). Tonight's
+set is a new `picomatch`/`fdir`/`tinyglobby`/`minimatch`/
+`typescript-eslint` cluster (`GHSA-fc5q-39xc-vjpf` ReDoS +
+`GHSA-g3hv-75wg-m249` DoS), pulled in transitively by `vitest`/`eslint`'s
+own dependency bumps (#205/#209). Confirmed pre-existing and not this
+candidate's: `git diff main -- package.json package-lock.json` from this
+branch is empty (lockfile byte-identical to `main`'s), and the identical
+`npm audit --audit-level=high` output reproduces on a bare `main` checkout
+with a fresh `npm ci`, independently verified before returning to this
+branch. Production-scoped `npm audit --omit=dev --audit-level=high` was not
+separately re-run tonight (unchanged code path from the 2026-11-03 round,
+which reported 0 vulnerabilities); nothing in this candidate's diff touches
+dependencies either way.
+
+**Decision.** ACCEPT still holds and the fresh critic is clear, but the
+dev-inclusive `dependency-audit` gate is not green on the new head (for the
+pre-existing, repo-wide reason above, not this candidate's) — per STEP 1.5,
+this PR **stays draft**. One ledger row appended on this branch
+(`docs/dream-cycle/LEDGER.md`), also stated in issue #188, since it reaches
+`main` only if this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
-Refreshed 2026-11-03 (consolidation round), superseding the original pair
-below — bound to the merge commit, per this repo's own witness convention
-for a CONSOLIDATE re-evaluation (see PR #184's 2026-11-02 precedent):
+Refreshed 2026-11-18 (consolidation round #2), superseding the 2026-11-03
+pair below — bound to tonight's merge commit, same convention as before:
+
+```
+report_sha256 : 0240c07556af6eabb685d0ab54f3ac546f151c9bad880f438f0d02dd7578c2f3
+session_commit: aecc58de4e9caf60a70fa8ef6171af032a6777fe
+witness       : 750e95ea5dc8f5c2b78a752c691e3a3a802a1b7a3cf4002225212221ca6c8613
+```
+
+Computed over this file's canonical bytes as of this commit (everything
+above this heading, trailing whitespace collapsed to one newline) via
+`dream-machine witness stamp docs/dream-cycle/2026-10-16-ledger-signals-report.md aecc58de4e9caf60a70fa8ef6171af032a6777fe --report`
+— reproducible from the committed file with no unavailable intermediate
+bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-16-ledger-signals-report.md --commit aecc58de4e9caf60a70fa8ef6171af032a6777fe`
+
+2026-11-03 round's pair (merge commit `7e19136`, bound to a 2026-11-03
+canonical prefix that has since changed — a new Consolidation Refresh
+section was inserted above this heading tonight, so this triple is no
+longer reproducible against the current file by its own original command),
+retained for history:
+
+```
+report_sha256 : e1ba4db680528b727c182e45edd6e027e96079cd67776c971ae3a3c02cd8b71c
+session_commit: 7e19136451b508ab93f38b94ce9f400d4f162207
+witness       : 1cd492c6f9404521905d63761745f5120d1b2bc5139421b712120ccf0be09eee
+```
 
 ```
 report_sha256 : e1ba4db680528b727c182e45edd6e027e96079cd67776c971ae3a3c02cd8b71c
