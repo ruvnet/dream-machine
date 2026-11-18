@@ -1,0 +1,6 @@
+{"ts":"2026-11-18T09:11:33Z","kind":"intent","action":"mode_selection","target":"dream-machine#189","inputs_sha256":"n/a"}
+{"ts":"2026-11-18T09:11:33Z","kind":"result","action":"mode_selection","target":"dream-machine#189","outcome":"ok","ref":"CONSOLIDATE: 18 open dream/* PRs, #189 oldest eligible, stale marker 3fc3222 vs current 71d607b"}
+{"ts":"2026-11-18T09:21:21Z","kind":"intent","action":"push","target":"origin/dream/2026-10-16-ledger-signals","inputs_sha256":"aecc58de4e9caf60a70fa8ef6171af032a6777fe"}
+{"ts":"2026-11-18T09:21:52Z","kind":"result","action":"push","target":"origin/dream/2026-10-16-ledger-signals","outcome":"ok","ref":"abdbd1c (752e0de..abdbd1c)"}
+{"ts":"2026-11-18T09:21:52Z","kind":"intent","action":"pr_comment","target":"dream-machine#189","inputs_sha256":"71d607bea6608180b8c41980dc5386526d3f1f16"}
+{"ts":"2026-11-18T09:22:17Z","kind":"result","action":"pr_comment","target":"dream-machine#189","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/pull/189#issuecomment-6974337243"}
