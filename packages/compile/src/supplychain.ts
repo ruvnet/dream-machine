@@ -119,9 +119,42 @@ function extractPackageSpecs(tokens: string[], start: number): string[] {
 }
 
 /**
+ * Index of the first package-spec token for an ad-hoc-execution trigger
+ * starting at `tokens[i]`, or undefined if this isn't one. Recognized
+ * triggers: `npx`, `bunx` (one token) and `npm exec`, `pnpm dlx`,
+ * `yarn dlx` (two tokens). `pnpm dlx`/`yarn dlx` resolve an unpinned
+ * package from the registry at invocation time exactly like `npx` does, and
+ * `bunx` is documented by Bun itself as "equivalent to `npx`"; none is
+ * governed by this repo's lockfile, so they carry the identical risk.
+ * Yarn's repeated `-p`/`--package` multi-package form is handled by the
+ * shared `extractPackageSpecs`, same as for `npx`.
+ *
+ * For the two-token forms a global flag (`--loglevel=silent`, `-s`,
+ * `--yes`, `--silent`) may appear between the tool and its subcommand;
+ * those are skipped. Only flag tokens with their value folded into the same
+ * token (`--flag=value`) or no value at all are tolerated — a flag whose
+ * value is a separate following token (e.g. `--prefix /tmp`, `--cwd .`) is
+ * a disclosed, unfixed gap (see supplychain.test.ts), never treated as a
+ * hidden subcommand, so it can only cause a missed detection, never a false
+ * one. The converse, a separate-token flag value that is itself the literal
+ * subcommand string (e.g. `--registry exec`), can misread that value as the
+ * subcommand — a disclosed, non-blocking mislabeling risk (spurious finding,
+ * never a missed one), also covered in supplychain.test.ts.
+ */
+function matchTrigger(tokens: string[], i: number): number | undefined {
+  if (tokens[i] === 'npx' || tokens[i] === 'bunx') return i + 1;
+  const subcommand = tokens[i] === 'npm' ? 'exec' : tokens[i] === 'pnpm' || tokens[i] === 'yarn' ? 'dlx' : undefined;
+  if (subcommand === undefined) return undefined;
+  let j = i + 1;
+  while (j < tokens.length && tokens[j].startsWith('-')) j++;
+  return tokens[j] === subcommand ? j + 1 : undefined;
+}
+
+/**
  * Scan `controlPlaneProbes` and `evaluatorEntrypoints` command strings for
- * `npx <pkg>` / `npm exec <pkg>` invocations lacking an exact `major.minor.patch`
- * version pin (see `isUnpinned` for what counts as exact).
+ * `npx`/`npm exec`/`pnpm dlx`/`yarn dlx`/`bunx` invocations lacking an exact
+ * `major.minor.patch` version pin (see `isUnpinned` for what counts as exact;
+ * see `matchTrigger` for the full trigger set and its scope).
  * Pure — no I/O, no network. Local paths (`npx ./script.js`) and direct
  * git/URL specs are never flagged — they don't resolve against the registry's
  * floating `latest`, so the risk this function detects doesn't apply to them.
@@ -141,10 +174,9 @@ export function findUnpinnedNpxInvocations(
   for (const [source, command] of sources) {
     const tokens = command.split(/\s+/).filter(Boolean);
     for (let i = 0; i < tokens.length; i++) {
-      const isNpx = tokens[i] === 'npx';
-      const isNpmExec = tokens[i] === 'npm' && tokens[i + 1] === 'exec';
-      if (!isNpx && !isNpmExec) continue;
-      for (const packageSpec of extractPackageSpecs(tokens, i + (isNpmExec ? 2 : 1))) {
+      const start = matchTrigger(tokens, i);
+      if (start === undefined) continue;
+      for (const packageSpec of extractPackageSpecs(tokens, start)) {
         if (!isLocalOrRemoteSpec(packageSpec) && isUnpinned(packageSpec)) {
           findings.push({ source, command, packageSpec });
         }

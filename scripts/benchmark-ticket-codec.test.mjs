@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { withReference, fixtures, differential, timings, BASELINE_COMMIT } from './benchmark-ticket-codec.mjs';
+import { withReference, fixtures, differential, timings, hasCommit, BASELINE_COMMIT } from './benchmark-ticket-codec.mjs';
+
+test('BASELINE_COMMIT resolves in this checkout (self-heals a shallow clone if needed)', async () => {
+  // withReference() already ran (or will run) its own self-heal; this just
+  // pins the invariant that the pinned reviewed commit stays resolvable.
+  await withReference(async () => {});
+  assert.equal(hasCommit(BASELINE_COMMIT), true);
+});
+
+test('a commit that can never resolve is detected as missing, not silently accepted', () => {
+  // All-zero is a syntactically valid but never-existing git object id —
+  // this exercises the same cat-file check withReference() guards on,
+  // without depending on real network failure to prove the negative case.
+  assert.equal(hasCommit('0'.repeat(40)), false);
+});
 
 test('pinned reviewed reference matches golden, integer widths and seeded mutations', async () => {
   await withReference(async (reference, provenance, candidate) => {
