@@ -47,7 +47,8 @@ const io: IO = {
   execFile: async (file, args) => {
     try {
       // Deliberately no `shell: true` — argv reaches the child process as-is,
-      // never interpreted by a shell. See entrypoint.ts's tokenizeCommand.
+      // never interpreted by a shell here. The named program can still be a shell
+      // or interpreter; config is trusted input. See entrypoint.ts's tokenizeCommand.
       const { stdout, stderr } = await execFile(file, args, { maxBuffer: 10 * 1024 * 1024 });
       return { code: 0, stdout, stderr };
     } catch (e) {

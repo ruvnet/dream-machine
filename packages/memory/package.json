@@ -1,6 +1,6 @@
 {
   "name": "@dream-machine/memory",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bounded deterministic keyword memory with atomic flat-file persistence. Optional RuVector module probe; the RVF adapter is not implemented.",
   "type": "module",
   "license": "MIT",
@@ -29,14 +29,10 @@
     "build": "tsc -p tsconfig.json"
   },
   "peerDependencies": {
-    "@ruvector/wasm": "*",
-    "@ruvector/rvf-wasm": "*"
+    "@ruvector/wasm": "^0.2.1"
   },
   "peerDependenciesMeta": {
     "@ruvector/wasm": {
-      "optional": true
-    },
-    "@ruvector/rvf-wasm": {
       "optional": true
     }
   },
