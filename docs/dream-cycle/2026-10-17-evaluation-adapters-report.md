@@ -442,35 +442,152 @@ stated in issue #191, since it reaches `main` only if this PR merges.
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Consolidation Refresh — 2026-11-23
+
+MODE=CONSOLIDATE (STEP 1.5): 19 open `dream/*`-prefixed candidate PRs
+tonight, well over `implementationTrack.reviewBacklogLimit=6`. `main` has
+not moved since `71d607bea6608180b8c41980dc5386526d3f1f16` (2026-11-10,
+`#209`). Checked the three eligible drafts in `created_at` order: #161
+(oldest) and #189 already carry a `dream-consolidate` marker for tonight's
+exact SHA (`71d607b…`, from 2026-11-10 and 2026-11-18 respectively — both
+still correctly `NOT CLEAR`/stay-draft from those nights, re-confirmed not
+re-litigated here). This PR (#192) was the oldest **still-eligible**
+draft — still draft, ACCEPT in its own Evaluation Receipt, not a
+`routine-self-review` PR, carrying only a stale `3fc3222` marker from
+2026-11-04. #139 is REJECT and excluded; #98/#101 remain excluded as
+multi-repo portfolio branches, not single-surface candidates in the sense
+this mode means (unbroken precedent, 2026-10-30/11-04); #137/#141/#156 are
+already out of draft (unmerged review backlog, tracked by the
+`routine-self-review` lineage, not re-addressed tonight).
+
+**Action.** Merged `main` (`71d607bea6608180b8c41980dc5386526d3f1f16`) into
+this branch with an ordinary merge commit (`e26350d`, `987d65b..e26350d`
+via `71d607b`), never rebase, never force-push. One textual conflict, in
+`docs/dream-cycle/LEDGER.md` only — both sides had appended rows since the
+2026-11-04 common ancestor (this branch's own 2026-11-04 consolidate row;
+`main`'s 2026-10-24 and 2026-10-28 rows from other PRs' consolidate
+nights) — resolved by chronological date interleaving, no row's content
+edited, none lost or duplicated. `git diff origin/main -- package.json
+package-lock.json` from this branch is empty: the lockfile is
+byte-identical to `main`'s, confirming the merge brought in no dependency
+change of this candidate's own.
+
+**Re-evaluation on the new head.** `npm ci && npm run build`: clean, 8
+packages, 0 wasm/NAPI degradation. Real evaluator (`npm test` = `vitest
+run && npm run test:governance`) against a from-scratch bare-`main`
+baseline built in a separate worktree for an exact A/B: baseline
+908 passed + 2 skipped (vitest) / 197 (governance) = 1107; candidate (this
+merged head) 910 passed + 2 skipped (vitest) / 197 (governance) = 1109 —
+**+2, exactly this candidate's own two tests, 0 regressions**. `npm run
+lint` / `npm run typecheck` clean. Live repro re-run against the rebuilt
+`packages/compile/dist/harness-optimizer.js` on tonight's exact head:
+byte-identical to every prior round —
+`{"verdict":"REJECT","reasons":["no holdout evidence","slice regression
+0.1000 exceeds 0.0200","weighted validation improvement is not positive
+enough"],...}`.
+
+**CI / dependency-audit — first green round.** `npm audit
+--audit-level=high` now reports **0 findings** (`exit 0`) on this exact
+head — confirmed identical (byte-for-byte log diff) against a parallel
+`npm audit --audit-level=high` run on a bare, freshly-`npm ci`'d `main`
+worktree, so this is `main`'s own state, not something this merge changed.
+The high-severity `vite`/`launch-editor` cluster (issue #197) and the
+dev-toolchain advisories tracked by issue #37 have evidently been cleared
+by intervening `main` work since the 2026-11-04 round (`npm audit`
+reduced to 9 *moderate*-only `minimatch`/`@typescript-eslint`/`eslint`
+findings — below the `--audit-level=high` gate, consistent with `main`'s
+own recent `#205`/`#209` dependency bumps). `npm audit --omit=dev`
+(production-reachable scope): 0 vulnerabilities, unchanged.
+
+**Fresh critic + reward-hack pass (this round)**, dispatched as a
+separate-context subagent with no authorship stake, given only the two
+touched files and instructed to try to break the candidate: **NOT
+CLEAR** — one concrete, reproducible issue, independent of every prior
+round's dependency-audit finding. The critic confirmed the production fix
+itself is correct and non-widening (enumerated all 11 `reasons.push(...)`
+call sites in `harness-optimizer.ts:132-169`; only the intended
+`slice regression …` message at line 166 contains the new keyword's
+substring, so `hardReject` is not accidentally broadened for any other
+reason) — but found that **neither of the two tests this PR adds can
+actually fail if the new `|| reason.includes('slice regression')`
+disjunct is reverted**, given today's fixed message wording:
+`harness-optimizer.ts:166`'s message unconditionally contains both
+`'slice regression'` and `'exceeds'`, and the pre-existing `'exceeds'`
+keyword already forced `REJECT` before this candidate's change — so the
+first new test's `verdict === 'REJECT'` / `reasons` assertions pass
+identically pre- and post-fix. The second new test (oversized-patch
+isolation) never produces a slice-regression message at all, so it also
+can't distinguish the two. Net: the tests pin today's *output*, which is
+genuinely unchanged (consistent with the PR's own "0 observable behavior
+change today" framing) — but they do not pin the *mechanism* the PR's
+title and hypothesis claim to hardened ("hardReject coverage... closing
+out PR #177's disclosed audit next-step"), and CI would not catch a
+regression of the new keyword itself. This is a real, previously-missed
+gap in this candidate's own Reward-Hack Check (which asserted "the two
+new tests are not tautological" without demonstrating it against a
+reverted disjunct) — not a defect in the production code, and not
+something the 2026-10-17 or 2026-11-04 rounds' critics were asked to
+check the same way.
+
+**Darwin.** `DARWIN=not-applicable` — unchanged from every prior round;
+one-line keyword-hardening fix, no evolvable population.
+
+**Decision.** The production fix's correctness and zero-blast-radius
+claims are reconfirmed (`evaluateHarnessCandidate`/`selectHarnessUpdate`
+still have zero call sites anywhere in `packages/cli` or the compiled
+nightly prompt, grep-confirmed tonight). `dependency-audit` is green for
+the first time in this PR's consolidation history. But this round's fresh
+critic is **not clear** — a genuine, disclosed test-tautology gap, not a
+re-confirmation of an already-known issue — so per STEP 1.5 this PR
+**stays draft**, the first time this specific disciplne (test
+mechanism-pinning, not just output-pinning) has gated it rather than the
+dependency-audit backlog. Recommended next step if this PR is picked up
+for implementation again: replace or augment the two tests so at least one
+exercises a case where `'slice regression'` fires *without* `'exceeds'`
+also being present in the same reasons array (not reachable through the
+current `evaluateHarnessCandidate` code path without also changing the
+line 166 message template, or testing `hardReject`'s logic directly via a
+new exported seam) — out of scope for a CONSOLIDATE night, which opens no
+new candidate.
+
+Ledger row appended on this branch (`docs/dream-cycle/LEDGER.md`), also
+stated in issue #191, since it reaches `main` only if this PR merges.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change.
+
 ## Witness
 
-Refreshed 2026-11-04 (consolidation round), superseding the original pair
-below — bound to the merge commit, per this repo's own witness convention
-for a CONSOLIDATE re-evaluation (PR #184 2026-11-02 / PR #189 2026-11-03
-precedent):
+Refreshed 2026-11-23 (consolidation round), superseding the 2026-11-04
+pair below — bound to tonight's merge commit, per this repo's own witness
+convention for a CONSOLIDATE re-evaluation:
 
 ```
-report_sha256 : 4f5ab847c832613f6b569114fa264857eafff32e9e56843c3f07ff62073fd685
-session_commit: 71041793f50c1c92c77b648cbf9079a9da43dcba
-witness       : 584436f9dbf02dda7e5d6b9fdcbb554202325e2dd73acec57de4c110da420455
+report_sha256 : 45c29ac9524c26d579ab0b89093747c77aa79f40d7673e0bb0d21da3a141c22d
+session_commit: e26350d4c03f828b1b7cd0e7aed34e341b7e2f80
+witness       : 0a67ddbb8a918c436b0381998025f078d92eedb4b09cdfe9e00f3b498f87ce88
 ```
 
 Computed over this file's canonical bytes as of this commit (everything
 above this heading, trailing whitespace collapsed to one newline) via
-`dream-machine witness stamp docs/dream-cycle/2026-10-17-evaluation-adapters-report.md 71041793f50c1c92c77b648cbf9079a9da43dcba --report`
+`dream-machine witness stamp docs/dream-cycle/2026-10-17-evaluation-adapters-report.md e26350d4c03f828b1b7cd0e7aed34e341b7e2f80 --report`
 — reproducible from the committed file with no unavailable intermediate
-bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit 71041793f50c1c92c77b648cbf9079a9da43dcba`
+bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit e26350d4c03f828b1b7cd0e7aed34e341b7e2f80`
 
-Original round's pair (parent `b2abcc1`, pre-consolidation, computed as of
-commit `ceac5c1`), retained for history, deliberately not fenced as a
-`report_sha256 :`/`session_commit:`/`witness :` block above so it cannot be
-mistaken by tooling for the published triple: report hash
+2026-11-04 round's pair (bound to merge commit `71041793`), retained for
+history, deliberately not fenced as a `report_sha256 :`/`session_commit:`/
+`witness :` block above so it cannot be mistaken by tooling for the
+published triple: report hash
+`4f5ab847c832613f6b569114fa264857eafff32e9e56843c3f07ff62073fd685`, session
+commit `71041793f50c1c92c77b648cbf9079a9da43dcba`, witness
+`584436f9dbf02dda7e5d6b9fdcbb554202325e2dd73acec57de4c110da420455` — no
+longer reproducible via its original command against the current file,
+since the 2026-11-23 Consolidation Refresh section above was inserted
+before this heading. Original round's pair (parent `b2abcc1`): report hash
 `3cfa03a2af0b2ea74fb2155232f12f658332860a9cfda28dca94ba3652eac42e`, session
 commit `b2abcc14a632d7e0948962065a7c6c8920cf306c`, witness
-`bec36db70ec71023a349c098ce16fce745023a075a9d781e2f4399c4365bd1bd` — no
-longer reproducible via its original command against the current file,
-since the Consolidation Refresh section above was inserted before this
-heading.
+`bec36db70ec71023a349c098ce16fce745023a075a9d781e2f4399c4365bd1bd`, same
+non-reproducibility note.
 
 ## Recommendation
 
