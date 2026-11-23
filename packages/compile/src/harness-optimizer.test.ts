@@ -114,6 +114,34 @@ describe('evaluateHarnessCandidate', () => {
     expect(decision.verdict).toBe('INCONCLUSIVE');
     expect(decision.reasons).not.toContain('patch has no declared harness surface');
   });
+
+  it('rejects a slice regression beyond the threshold even when holdout evidence is also missing (issue: hardReject coverage must not depend on an accidental substring collision with the unrelated changed-lines message)', () => {
+    const decision = evaluateHarnessCandidate(candidate({
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.60, candidate: 0.50, sampleSize: 100 }],
+    }));
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons).toContain('no holdout evidence');
+    expect(decision.reasons.some((reason) => reason.includes('slice regression'))).toBe(true);
+    // Genuinely load-bearing, not just output-pinning (2026-11-23 critic
+    // finding): the slice-regression message no longer contains 'exceeds'
+    // (reworded the same night), so nothing else in `reasons` can satisfy
+    // hardReject here except the dedicated 'slice regression' keyword itself.
+    // Revert that one disjunct and this assertion — and the verdict above —
+    // actually fail, which was not true of this test's previous wording.
+    expect(decision.reasons.some((reason) => reason.includes('exceeds'))).toBe(false);
+    expect(decision.reasons.join(' ')).not.toMatch(/\bchanged lines\b|\btouches more than\b|\bduplicate\b/);
+  });
+
+  it('still rejects an oversized patch via the unrelated changed-lines keyword, unaffected by the new slice-regression keyword', () => {
+    const base = candidate();
+    const decision = evaluateHarnessCandidate(candidate({
+      patch: { ...base.patch, changedLines: 350 },
+      slices: [{ name: 'validation', split: 'validation', baseline: 0.60, candidate: 0.70, sampleSize: 100 }],
+    }));
+    expect(decision.verdict).toBe('REJECT');
+    expect(decision.reasons.join(' ')).toMatch(/changed lines/);
+    expect(decision.reasons.some((reason) => reason.includes('slice regression'))).toBe(false);
+  });
 });
 
 describe('selectHarnessUpdate', () => {
