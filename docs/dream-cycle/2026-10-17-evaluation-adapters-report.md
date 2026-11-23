@@ -621,21 +621,31 @@ change beyond the 2-file gap-closure diff described above.
 
 ## Witness
 
-Refreshed 2026-11-23 (consolidation round), superseding the 2026-11-04
-pair below — bound to tonight's merge commit, per this repo's own witness
-convention for a CONSOLIDATE re-evaluation:
+Refreshed 2026-11-23 (gap-closure round, same night, resumed session),
+superseding the consolidation round's pair below — bound to the
+gap-closure commit:
 
 ```
-report_sha256 : 45c29ac9524c26d579ab0b89093747c77aa79f40d7673e0bb0d21da3a141c22d
-session_commit: e26350d4c03f828b1b7cd0e7aed34e341b7e2f80
-witness       : 0a67ddbb8a918c436b0381998025f078d92eedb4b09cdfe9e00f3b498f87ce88
+report_sha256 : 527fb8cf1c6d73e25841a41779ef1066abefb9234de6ed9b4c4012c8521ef898
+session_commit: b156e7d12871ca0cdf5abb371e9181fc11565829
+witness       : 4a58858546c18c760efa6dc25b4e0504f9ef9c6fc237e9b8a4f785fc2ed7b8cb
 ```
 
 Computed over this file's canonical bytes as of this commit (everything
 above this heading, trailing whitespace collapsed to one newline) via
-`dream-machine witness stamp docs/dream-cycle/2026-10-17-evaluation-adapters-report.md e26350d4c03f828b1b7cd0e7aed34e341b7e2f80 --report`
+`dream-machine witness stamp docs/dream-cycle/2026-10-17-evaluation-adapters-report.md b156e7d12871ca0cdf5abb371e9181fc11565829 --report`
 — reproducible from the committed file with no unavailable intermediate
-bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit e26350d4c03f828b1b7cd0e7aed34e341b7e2f80`
+bytes. Verify: `dream-machine witness verify-report docs/dream-cycle/2026-10-17-evaluation-adapters-report.md --commit b156e7d12871ca0cdf5abb371e9181fc11565829`
+
+2026-11-23 consolidation round's pair (bound to merge commit `e26350d`),
+retained for history, deliberately not fenced as a `report_sha256 :`/
+`session_commit:`/`witness :` block above so it cannot be mistaken by
+tooling for the published triple: report hash
+`45c29ac9524c26d579ab0b89093747c77aa79f40d7673e0bb0d21da3a141c22d`, session
+commit `e26350d4c03f828b1b7cd0e7aed34e341b7e2f80`, witness
+`0a67ddbb8a918c436b0381998025f078d92eedb4b09cdfe9e00f3b498f87ce88` — no
+longer reproducible via its original command against the current file,
+since this Gap Closure section was inserted before this heading.
 
 2026-11-04 round's pair (bound to merge commit `71041793`), retained for
 history, deliberately not fenced as a `report_sha256 :`/`session_commit:`/
