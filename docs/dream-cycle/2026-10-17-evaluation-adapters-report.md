@@ -556,6 +556,69 @@ stated in issue #191, since it reaches `main` only if this PR merges.
 No merge, no close, no force-push, no self-promotion, no candidate scope
 change.
 
+## Gap Closure — 2026-11-23 (same night, resumed session)
+
+The 2026-11-23 consolidation round above found a genuine, concrete gap and
+correctly blocked ACCEPT: this PR's 2 regression tests could not fail even
+if the `|| reason.includes('slice regression')` disjunct were reverted,
+because the slice-regression message's wording (`` `slice regression ${x}
+exceeds ${y}` ``) always also contained the pre-existing `'exceeds'`
+keyword, which alone was sufficient to force the same `REJECT`. The tests
+pinned output, not mechanism.
+
+**Fix** (implements the consolidation round's own recommended next step,
+option 1: reword the message rather than add a new exported seam).
+`packages/compile/src/harness-optimizer.ts`: reworded the slice-regression
+message to `` `slice regression ${x} is beyond the ${y} limit` `` — it no
+longer contains "exceeds" anywhere, so `'slice regression'` is now the
+*only* `hardReject` keyword this specific reason string can ever match.
+`packages/compile/src/harness-optimizer.test.ts`: strengthened the existing
+test (no new test added — same 2-test footprint as every prior round) with
+two additional assertions: `reasons.some(r => r.includes('exceeds'))` is
+`false`, and no other hardReject-triggering substring (`changed lines`,
+`touches more than`, `duplicate`) appears in the reasons for this scenario
+— ruling out every other possible accidental cause of `REJECT` besides the
+dedicated keyword.
+
+**Proof the gap is actually closed** (not just asserted): temporarily
+removed `|| reason.includes('slice regression')` from `hardReject`,
+rebuilt, reran the test file — the test now genuinely **fails**
+(`decision.verdict` comes back `INCONCLUSIVE`, not `REJECT`), the exact
+opposite of the consolidation round's finding. Restored the keyword,
+rebuilt, reconfirmed 12/12 passing.
+
+**Evaluation Receipt.** Real evaluator (`npm test` = `vitest run && npm run
+test:governance`) on this exact head: 910 vitest passed + 2 skipped + 197
+governance = 1109, **0 regressions** — identical total to the
+pre-gap-closure consolidation round, since this change only strengthens an
+existing test's assertions and rewords a user-facing string; no test was
+added or removed. `npm run lint` / `npm run typecheck` / `npm run build`
+clean (8 packages, 0 wasm/NAPI degradation).
+
+**Fresh independent critic** (separate context, no authorship stake,
+instructed to try to break this fix specifically): **CLEAR**. Independently
+reproduced the decisive ablation (keyword removed → test fails;
+keyword restored → 12/12 pass) as the key evidence. Confirmed the new
+message wording introduces no accidental collision with any of the other 8
+`hardReject` keywords (enumerated all 9 `reasons.push(...)` sites).
+Confirmed no other place in the repo (code, not historical report prose)
+depends on the old "exceeds" wording. Confirmed scope: only the two
+original files touched, no gold data, no new dependency, no unrelated
+threshold changed.
+
+**Security/Darwin.** Unchanged from every prior round: pure function, zero
+call sites outside this file, `DARWIN=not-applicable`.
+
+**Decision.** The consolidation round's blocking finding is resolved at its
+root (the message no longer contains the colliding substring, rather than
+adding a second coincidentally-redundant keyword) and independently
+re-verified. `dependency-audit` remains green (confirmed unchanged from the
+consolidation round, same `main` state). Verdict reverts to **ACCEPT**.
+Still a **draft** PR — human review required, no `automerge-safe` label.
+
+No merge, no close, no force-push, no self-promotion, no candidate scope
+change beyond the 2-file gap-closure diff described above.
+
 ## Witness
 
 Refreshed 2026-11-23 (consolidation round), superseding the 2026-11-04

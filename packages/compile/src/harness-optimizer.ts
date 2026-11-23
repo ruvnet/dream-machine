@@ -163,7 +163,14 @@ export function evaluateHarnessCandidate(
   }
   const weightedImprovement = totalWeight ? weighted / totalWeight : 0;
   if (maxRegression < -policy.maxSliceRegression) {
-    reasons.push(`slice regression ${Math.abs(maxRegression).toFixed(4)} exceeds ${policy.maxSliceRegression.toFixed(4)}`);
+    // Deliberately does not contain the word "exceeds" — see the comment on
+    // `hardReject` below. Reworded 2026-11-23 after a consolidation-round
+    // critic found this message's old wording ("... exceeds ...") made the
+    // 'slice regression' hardReject keyword untestable in isolation: it
+    // always co-occurred with the pre-existing 'exceeds' keyword, so no
+    // black-box test could prove the new keyword (vs. the old coincidence)
+    // was the thing actually causing REJECT.
+    reasons.push(`slice regression ${Math.abs(maxRegression).toFixed(4)} is beyond the ${policy.maxSliceRegression.toFixed(4)} limit`);
   }
   if (weightedImprovement <= policy.minWeightedImprovement) {
     reasons.push('weighted validation improvement is not positive enough');
@@ -187,14 +194,22 @@ export function evaluateHarnessCandidate(
   // Audited 2026-10-17 (next-night follow-up to the fix above): every other
   // `reasons.push(...)` site in this function was already correctly classified,
   // except the slice-regression-beyond-threshold reason below, which only
-  // hard-rejected by accident — its interpolated message happens to contain the
+  // hard-rejected by accident — its interpolated message used to contain the
   // substring `'exceeds'`, which this list already matches for the unrelated
   // changed-lines-threshold reason. That coupling was never declared anywhere;
   // a future wording change to either message could silently reopen the same
   // masking defect fixed above. `'slice regression'` is now its own explicit,
-  // independent keyword — today's observable behavior is unchanged (`'exceeds'`
-  // already covered this case), but the protection no longer rides on a
-  // coincidence.
+  // independent keyword.
+  //
+  // Corrected 2026-11-23 (consolidation-round critic finding): the message
+  // above originally still said "... exceeds ...", so even with the new
+  // keyword added, 'exceeds' and 'slice regression' always co-occurred in the
+  // same reasons array — no test could prove *which* keyword was load-bearing,
+  // because reverting the new one left 'exceeds' to mask the gap exactly the
+  // way it always had. The message was reworded (now "... is beyond the ...
+  // limit", no "exceeds" substring) so 'slice regression' is the *only*
+  // hardReject keyword this reason can ever match — making the fix's
+  // correctness provable by an ordinary test, not just by manual ablation.
   const hardReject = reasons.some((reason) =>
     reason.includes('modifies evaluator') ||
     reason.includes('expands runtime authority') ||
