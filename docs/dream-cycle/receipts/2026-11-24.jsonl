@@ -1,0 +1,3 @@
+{"ts":"2026-11-24T10:19:36Z","kind":"intent","action":"create_issue","target":"ruvnet/dream-machine#new","inputs_sha256":"f35c559b199c452e27b4c97c6c4c7a1a7624f7b3d24bec8af6e311a9ed04d250"}
+{"ts":"2026-11-24T10:20:27Z","kind":"result","action":"create_issue","target":"ruvnet/dream-machine#214","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/issues/214"}
+{"ts":"2026-11-24T10:20:51Z","kind":"intent","action":"push","target":"ruvnet/dream-machine:dream/2026-11-24-ledger","inputs_sha256":"b48f5312b8cbe6a444ccc9f29a10a7fe7adbf33c1844eebccde71a1552c23d72"}
