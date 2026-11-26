@@ -42,7 +42,7 @@ export function compile(config: DreamConfig): string {
   sections.push(step1Ledger(c.ledgerPath));
   sections.push(step11Signals());
   if (c.implementationTrack) sections.push(v2ModeSelection(c.implementationTrack, c.branchPrefix));
-  if (c.selfReview) sections.push(v2SelfReview(c.selfReview, c.ledgerPath));
+  if (c.selfReview) sections.push(v2SelfReview(c.selfReview, c.ledgerPath, c.branchPrefix));
   sections.push(step2Evidence(adrDir(c.adrConvention)));
   sections.push(c.researchDepth ? v2Research(c.researchDepth, c.competitors) : step3Research(c.competitors));
   sections.push(step45Hypothesis());

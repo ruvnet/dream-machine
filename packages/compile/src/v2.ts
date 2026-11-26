@@ -102,7 +102,7 @@ RESEARCH-ONLY night commits it on a \`${branchPrefix}<DATE>-ledger\` branch and
 reports the branch name.`;
 }
 
-export function v2SelfReview(sr: SelfReview, ledgerPath: string): string {
+export function v2SelfReview(sr: SelfReview, ledgerPath: string, branchPrefix: string): string {
   const constitution = ROUTINE_CONSTITUTION.map((c) => `- ${c}`).join('\n');
   const external = sr.configSource
     ? `\n\nThis routine's config lives outside this checkout, at \`${sr.configSource}\`.
@@ -121,25 +121,40 @@ is at or above its limit, at most once per ${sr.everyDays} days. The candidate i
 a change to this routine (its \`dream.config\` or the compile template), not to
 product code.
 
-1. **Score the last forecast first.** Find the previous \`${SELF_REVIEW_SURFACE}\`
+1. **Confirm last cycle's cadence held.** This step's own trigger
+   (\`EPOCHDAY % ${sr.everyDays} == 0\`) only fires the night the cycle runs; it
+   proves nothing about whether the cycle ran \`${sr.everyDays}\` days ago. Compute
+   that expected date (today minus \`${sr.everyDays}\` days) and search \`gh\` for
+   any trace of it: a branch \`${branchPrefix}<that-date>-*\`, a PR with that head
+   (\`gh pr list --state all --search 'head:${branchPrefix}<that-date>-'\` — never
+   just \`--state open\`, since a merged or closed PR from that night still proves
+   it ran), or an issue whose title starts \`[Dream Cycle <that-date>]\` (STEP
+   17-18's exact format; the rest of the title varies). If all three come back empty,
+   the scheduler, not the pipeline, silently skipped a night; record
+   \`MISSED_NIGHT=<that-date>\` in tonight's Finding and ledger Effect column
+   instead of treating tonight as an unbroken continuation.
+2. **Score the last forecast first.** Find the previous \`${SELF_REVIEW_SURFACE}\`
    row in \`${ledgerPath}\`; its Effect column holds a frozen forecast. Measure
-   it now and record HIT or MISS with the numbers. A missed forecast is evidence
-   against that change, and a candidate to revert.
-2. **Measure.** \`ledger outcomes\` with live fates and \`--open-count\`; plus,
+   it now and record HIT or MISS with the numbers. If step 1 found a
+   \`MISSED_NIGHT\` that was itself a \`${SELF_REVIEW_SURFACE}\` night, record the
+   forecast as UNSCORABLE (missed night), not HIT, MISS, or none — a night that
+   never ran cannot have tested anything. A missed forecast is evidence against
+   that change, and a candidate to revert.
+3. **Measure.** \`ledger outcomes\` with live fates and \`--open-count\`; plus,
    for every REJECT, INCONCLUSIVE, closed-unmerged or stale (> 14 days) candidate
    since the last self-review, its stated cause from the issue, PR and critic.
-3. **Cluster.** Classify each cause as planning | tool | memory | verification |
+4. **Cluster.** Classify each cause as planning | tool | memory | verification |
    recovery | resource | security | unknown (the taxonomy of
    \`clusterFailureTraces\`). Rank clusters by count.
-4. **Candidate.** Exactly one change aimed at the largest cluster, with a
+5. **Candidate.** Exactly one change aimed at the largest cluster, with a
    mechanism you can state in one sentence. Prefer changing a number, a mode
    threshold or a research floor over adding prose.
-5. **Forecast.** Freeze before committing: one metric (\`pipelineMergeRate\`,
+6. **Forecast.** Freeze before committing: one metric (\`pipelineMergeRate\`,
    review backlog size, research-only nights, REJECT share, or the target
    cluster's count), its current value, the predicted value, and the horizon in
    nights. Write it in the ledger Effect column so the next self-review can
    score it.
-6. **Evaluate.** Recompile; update only the self-hosted golden snapshot,
+7. **Evaluate.** Recompile; update only the self-hosted golden snapshot,
    deliberately, explaining each diff hunk; all tests green.
 
 The routine constitution cannot be changed by a self-review night. A candidate

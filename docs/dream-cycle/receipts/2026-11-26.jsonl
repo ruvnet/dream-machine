@@ -1,0 +1,6 @@
+{"ts":"2026-11-26T10:28:40Z","kind":"intent","action":"commit+push","target":"dream/2026-11-26-routine-self-review","inputs_sha256":"a648790eae4e57b83c8a8d87afd0a95ec1c6e71906d5ecfce734b8388847e13a"}
+{"ts":"2026-11-26T10:29:33Z","kind":"result","action":"commit+push","target":"dream/2026-11-26-routine-self-review","outcome":"ok","ref":"b8103b6f4151c011845f1cd4ac7ac69047c6dfe0"}
+{"ts":"2026-11-26T10:29:38Z","kind":"intent","action":"create-issue","target":"ruvnet/dream-machine","inputs_sha256":"50e9d7bb7cd68352caebb60a902a76818b8bb1941e84f6ecb5d6ca9239c4b799"}
+{"ts":"2026-11-26T10:30:28Z","kind":"result","action":"create-issue","target":"ruvnet/dream-machine","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/issues/216"}
+{"ts":"2026-11-26T10:30:28Z","kind":"intent","action":"create-pr","target":"ruvnet/dream-machine:dream/2026-11-26-routine-self-review","inputs_sha256":"edf4314656b6bd0ab97db89b160e1df6ff96e0afa296f6e36cfc4efaa0c606a2"}
+{"ts":"2026-11-26T10:31:09Z","kind":"result","action":"create-pr","target":"ruvnet/dream-machine:dream/2026-11-26-routine-self-review","outcome":"ok","ref":"https://github.com/ruvnet/dream-machine/pull/217"}
